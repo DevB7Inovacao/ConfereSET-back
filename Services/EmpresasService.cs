@@ -76,30 +76,36 @@ namespace Services
             return cnpj.EndsWith(digito);
         }
 
-
         public async Task<bool> UpdateEmpresa(EmpresasDTO empresasParam, int idEmpresa)
         {
-            if (empresasParam != null)
+            if (empresasParam == null) return false;
+
+            var empresa = await _unitOfWork.Empresas.GetEmpresaById(idEmpresa);
+            if (empresa == null) return false;
+
+            empresa.Name = empresasParam.Name ?? empresa.Name;
+            empresa.Status = empresasParam.Status ?? empresa.Status;
+
+            if (!string.IsNullOrWhiteSpace(empresasParam.CNPJ) && empresasParam.CNPJ != empresa.CNPJ)
             {
-                var empresa = await _unitOfWork.Empresas.GetEmpresaById(idEmpresa);
-
-                if (empresa != null)
-                {
-                    empresa.Name = empresasParam.Name ?? empresa.Name;
-                    empresa.Status = empresasParam.Status ?? empresa.Status;
-                    empresa.CNPJ = empresasParam.CNPJ ?? empresa.CNPJ;
-
-                    _unitOfWork.Empresas.Update(empresa);
-
-                    var result = _unitOfWork.Save();
-
-                    if (result > 0)
-                        return true;
-                    else
-                        return false;
-                }
+                if (!ValidarCNPJ(empresasParam.CNPJ)) throw new Exception("CNPJ inválido.");
+                empresa.CNPJ = empresasParam.CNPJ;
             }
-            return false;
+
+            empresa.TradeName = empresasParam.TradeName ?? empresa.TradeName;
+            empresa.AppName = empresasParam.AppName ?? empresa.AppName;
+            empresa.PrimaryColor = empresasParam.PrimaryColor ?? empresa.PrimaryColor;
+
+            empresa.LogoBase64 = empresasParam.LogoBase64 ?? empresa.LogoBase64;
+            empresa.LogoContentType = empresasParam.LogoContentType ?? empresa.LogoContentType;
+
+            empresa.ContactEmail = empresasParam.ContactEmail ?? empresa.ContactEmail;
+            empresa.Phone = empresasParam.Phone ?? empresa.Phone;
+            empresa.Address = empresasParam.Address ?? empresa.Address;
+
+            _unitOfWork.Empresas.Update(empresa);
+            var result = _unitOfWork.Save();
+            return result > 0;
         }
 
         public async Task<bool> DeleteEmpresa(int empresaId)
@@ -196,6 +202,11 @@ namespace Services
                 throw new Exception(ex.Message);
             }
         }
+
+        public async Task<UserSafeDTO?> GetUserById(int userId)
+        {
+            return await _userService.GetUserById(userId);
+        }
     }
 
     public interface IEmpresasService
@@ -207,5 +218,6 @@ namespace Services
         public Task<bool> ToggleEmpresaStatus(int empresaId);
         public Task<Empresas> GetEmpresaById(int id);
         public Task<EmpresasPagedDTO?> GetEmpresasPaged(FiltersDTO filtersDTO);
+        public Task<UserSafeDTO?> GetUserById(int userId);
     }
 }

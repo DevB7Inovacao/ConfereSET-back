@@ -8,8 +8,16 @@ namespace Core.Models
 {
     public class Empresas : BaseModel
     {
-        public string Name { get; set; }
-        public bool Status { get; set; } //False = inative, True = ative
+        public string Name { get; set; } = "";
+        public bool Status { get; set; } = true;
         public string? CNPJ { get; set; }
+        public string? TradeName { get; set; }
+        public string? AppName { get; set; }
+        public string? PrimaryColor { get; set; }
+        public string? LogoBase64 { get; set; }
+        public string? LogoContentType { get; set; }
+        public string? ContactEmail { get; set; }
+        public string? Phone { get; set; }
+        public string? Address { get; set; }
     }
 }

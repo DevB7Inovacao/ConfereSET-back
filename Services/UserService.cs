@@ -89,16 +89,12 @@ namespace Services
 			return userDetailList;
 		}
 
-		public async Task<User?> GetUserById(int userId)
+		public async Task<UserSafeDTO?> GetUserById(int userId)
 		{
 			if (userId > 0)
 			{
-				var userDetail = await _unitOfWork.Users.GetUserById(userId);
-				if (userDetail != null)
-				{
-					userDetail.Password = string.Empty;
-					return userDetail;
-				}
+				var userDetail = await _unitOfWork.Users.GetUserSafeById(userId);
+				return userDetail;
 			}
 			return null;
 		}
@@ -123,8 +119,9 @@ namespace Services
 				var user = await _unitOfWork.Users.GetById(userId);
 				if (user != null)
 				{
-					user.Password = Encrypt.EncryptPassword(userParam.Password);
-					user.Email = userParam.Email;
+                    if (!string.IsNullOrWhiteSpace(userParam.Password))
+                        user.Password = Encrypt.EncryptPassword(userParam.Password);
+                    user.Email = userParam.Email;
 					user.Name = userParam.Name;
 					user.Status = userParam.Status;
 					user.Type = userParam.Type;
@@ -141,16 +138,23 @@ namespace Services
 			}
 			return false;
 		}
-	}
 
-	public interface IUserService
+        public async Task<int> CountUsersByEmpresaId(int empresaId)
+        {
+            if (empresaId <= 0) return 0;
+            return await _unitOfWork.Users.CountUsersByEmpresaId(empresaId);
+        }
+    }
+
+    public interface IUserService
 	{
 		Task<bool> CreateUser(User user);
 		Task<UsersPagedDTO> GetUsersPaged(FiltersDTO filtersDTO);
         Task<IEnumerable<User>> GetAllUsers();
-		Task<User?> GetUserById(int userId);
+		Task<UserSafeDTO?> GetUserById(int userId);
 		Task<User?> GetUserByEmail(string email);
 		Task<bool> UpdateUser(CreateUserRequest userParam, int userId);
 		Task<bool> DeleteUser(int userId);
-	}
+        Task<int> CountUsersByEmpresaId(int empresaId);
+    }
 }

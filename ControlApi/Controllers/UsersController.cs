@@ -28,25 +28,36 @@ namespace API.Controllers
 			this._empresaService = empresaService;
 		}
 
-		[AllowAnonymous]
-		[HttpPost]
-		[Route("authenticate")]
-		public async Task<IActionResult> Authenticate(UserAuthenticateRequest userDTO)
-		{
-			TokenJWT? token = null;
-			var user = await userService.GetUserByEmail(userDTO.Email);
-			if (user != null && Encrypt.EncryptPassword(userDTO.Password) == user.Password)
-			{
-				token = await _jWTManager.Authenticate(user);
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("authenticate")]
+        public async Task<IActionResult> Authenticate(UserAuthenticateRequest userDTO)
+        {
+            TokenJWT? token = null;
+            var user = await userService.GetUserByEmail(userDTO.Email);
 
+            if (user != null && Encrypt.EncryptPassword(userDTO.Password) == user.Password)
+            {
+                token = await _jWTManager.Authenticate(user);
             }
-			if (token == null)
-				return Unauthorized();
 
-			return Ok(token);
-		}
+            if (token == null || user == null)
+                return Unauthorized();
 
-		[AllowAnonymous]
+            var empresaId = user.Empresa?.Id ?? 0;
+
+            return Ok(new
+            {
+                token = token.Token,
+                userId = user.Id,
+                empresaId = empresaId,
+                type = user.Type,
+                email = user.Email,
+                name = user.Name
+            });
+        }
+
+        [AllowAnonymous]
 		[HttpPost]
 		[Route("create")]
 		public async Task<IActionResult> Create(CreateUserRequest userdata)
@@ -149,6 +160,17 @@ namespace API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("count")]
+        public async Task<IActionResult> Count([FromQuery] int empresaId)
+        {
+            if (empresaId <= 0) return BadRequest("empresaId inválido.");
+
+            var total = await userService.CountUsersByEmpresaId(empresaId);
+
+            return Ok(new { total });
         }
 
         [AllowAnonymous]

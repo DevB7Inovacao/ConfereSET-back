@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services;
 using SharpCompress;
+using System.Security.Claims;
 
 namespace ControlApi.Controllers
 {
@@ -50,22 +51,24 @@ namespace ControlApi.Controllers
         }
 
         [AllowAnonymous]
-        [HttpPut]
-        [Route("update")]
-        public async Task<IActionResult> UpdateEmpresa(EmpresasDTO empresas, int idEmpresa)
+        [HttpPut("{empresaId}")]
+        public async Task<IActionResult> UpdateById(int empresaId, [FromBody] UpdateEmpresaByIdRequest req)
         {
-            if (empresas != null)
-            {
-                var result = await _empresasService.UpdateEmpresa(empresas, idEmpresa);
-                if (result)
-                    return Ok(result);
-                else
-                    return BadRequest();
-            }
-            else
-            {
-                return BadRequest();
-            }
+            if (empresaId <= 0) return BadRequest("empresaId inválido.");
+            if (req == null) return BadRequest("Payload inválido.");
+            if (req.UserId <= 0) return BadRequest("userId inválido.");
+
+            if (req.UserType != 1) return Forbid("Apenas admin pode alterar dados da empresa.");
+
+            var user = await _empresasService.GetUserById(req.UserId);
+            if (user == null) return Unauthorized("Usuário não encontrado.");
+
+            if (user.Type != req.UserType) return Forbid("Tipo de usuário inconsistente.");
+
+            var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
+            if (result) return Ok(true);
+
+            return BadRequest("Falha ao atualizar empresa.");
         }
 
         [AllowAnonymous]
@@ -116,6 +119,50 @@ namespace ControlApi.Controllers
                 return Ok(result);
             else
                 return BadRequest();
+        }
+
+        [AllowAnonymous]
+        [HttpGet("getById/{empresaId}")]
+        public async Task<IActionResult> GetById(int empresaId)
+        {
+            if (empresaId <= 0) return BadRequest("empresaId inválido.");
+
+            var empresa = await _empresasService.GetEmpresaById(empresaId);
+            if (empresa == null) return NotFound("Empresa não encontrada.");
+
+            var dto = new EmpresasDTO
+            {
+                Id = empresa.Id,
+                Name = empresa.Name,
+                Status = empresa.Status,
+                CNPJ = empresa.CNPJ,
+
+                TradeName = empresa.TradeName,
+                AppName = empresa.AppName,
+                PrimaryColor = empresa.PrimaryColor,
+                LogoBase64 = empresa.LogoBase64,
+                LogoContentType = empresa.LogoContentType,
+
+                ContactEmail = empresa.ContactEmail,
+                Phone = empresa.Phone,
+                Address = empresa.Address
+            };
+
+            return Ok(dto);
+        }
+
+        [HttpGet("{empresaId}/theme")]
+        public async Task<IActionResult> GetTheme(int empresaId)
+        {
+            if (empresaId <= 0) return BadRequest("empresaId inválido.");
+
+            var empresa = await _empresasService.GetEmpresaById(empresaId);
+            if (empresa == null) return NotFound("Empresa não encontrada.");
+
+            return Ok(new EmpresaThemeDTO
+            {
+                PrimaryColor = string.IsNullOrWhiteSpace(empresa.PrimaryColor) ? "#0d9668" : empresa.PrimaryColor
+            });
         }
     }
 }

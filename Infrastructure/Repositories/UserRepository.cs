@@ -25,6 +25,25 @@ namespace Infrastructure.Repositories
                 .Include(x => x.Empresa)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
+
+        public async Task<UserSafeDTO?> GetUserSafeById(int userId)
+        {
+            return await _dbContext.Set<User>()
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => new UserSafeDTO
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email,
+                    Type = u.Type,
+                    Status = u.Status,
+                    EmpresaId = u.Empresa.Id
+                    
+                })
+                .FirstOrDefaultAsync();
+        }
+
         public async Task<PagedResult<User>> GetAllUsersPaged(FiltersDTO filtersDTO)
         {
             return await _dbContext.Set<User>()
@@ -33,13 +52,20 @@ namespace Infrastructure.Repositories
 				.GetPagedAsync<User>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
+        public async Task<int> CountUsersByEmpresaId(int empresaId)
+        {
+            return await _dbContext.Set<User>()
+                .AsNoTracking()
+                .Where(u => u.Empresa != null && u.Empresa.Id == empresaId)
+                .CountAsync();
+        }
     }
-	public interface IUserRepository : IGenericRepository<User>
+    public interface IUserRepository : IGenericRepository<User>
 	{
 		public Task<User?> GetUserByEmail(string email);
 		public Task<User?> GetUserById(int id);
-
+        public Task<UserSafeDTO?> GetUserSafeById(int userId);
         public Task<PagedResult<User>> GetAllUsersPaged(FiltersDTO filtersDTO);
-
+        public Task<int> CountUsersByEmpresaId(int empresaId);
     }
 }
