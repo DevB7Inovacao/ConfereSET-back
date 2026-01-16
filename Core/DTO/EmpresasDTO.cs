@@ -15,7 +15,6 @@ namespace Core.DTO
         public string? CNPJ { get; set; }
         public string? TradeName { get; set; }
         public string? AppName { get; set; }
-        public string? PrimaryColor { get; set; }
         public string? LogoBase64 { get; set; }
         public string? LogoContentType { get; set; }
         public string? ContactEmail { get; set; }

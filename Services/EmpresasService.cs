@@ -94,7 +94,6 @@ namespace Services
 
             empresa.TradeName = empresasParam.TradeName ?? empresa.TradeName;
             empresa.AppName = empresasParam.AppName ?? empresa.AppName;
-            empresa.PrimaryColor = empresasParam.PrimaryColor ?? empresa.PrimaryColor;
 
             empresa.LogoBase64 = empresasParam.LogoBase64 ?? empresa.LogoBase64;
             empresa.LogoContentType = empresasParam.LogoContentType ?? empresa.LogoContentType;

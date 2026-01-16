@@ -139,7 +139,6 @@ namespace ControlApi.Controllers
 
                 TradeName = empresa.TradeName,
                 AppName = empresa.AppName,
-                PrimaryColor = empresa.PrimaryColor,
                 LogoBase64 = empresa.LogoBase64,
                 LogoContentType = empresa.LogoContentType,
 
@@ -149,20 +148,6 @@ namespace ControlApi.Controllers
             };
 
             return Ok(dto);
-        }
-
-        [HttpGet("{empresaId}/theme")]
-        public async Task<IActionResult> GetTheme(int empresaId)
-        {
-            if (empresaId <= 0) return BadRequest("empresaId inválido.");
-
-            var empresa = await _empresasService.GetEmpresaById(empresaId);
-            if (empresa == null) return NotFound("Empresa não encontrada.");
-
-            return Ok(new EmpresaThemeDTO
-            {
-                PrimaryColor = string.IsNullOrWhiteSpace(empresa.PrimaryColor) ? "#0d9668" : empresa.PrimaryColor
-            });
         }
     }
 }
