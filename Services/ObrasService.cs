@@ -117,6 +117,12 @@ namespace Services
                 throw new Exception(ex.Message);
             }
         }
+
+        public async Task<List<ObraSimpleDTO>> GetObrasSimple()
+        {
+            var list = await _unitOfWork.Obras.GetObrasSimple();
+            return list;
+        }
     }
 
     public interface IObrasService
@@ -127,5 +133,6 @@ namespace Services
         public Task<bool> ToggleObraStatus(int obraId);
         public Task<Obras> GetObraById(int id);
         public Task<ObrasPagedDTO?> GetObrasPaged(FiltersObrasDTO filtersDTO);
+        public Task<List<ObraSimpleDTO>> GetObrasSimple();
     }
 }

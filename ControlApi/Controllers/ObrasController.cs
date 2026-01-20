@@ -164,5 +164,21 @@ namespace ControlApi.Controllers
 
             return Ok(dto);
         }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("simple")]
+        public async Task<IActionResult> GetSimple()
+        {
+            try
+            {
+                var result = await _obrasService.GetObrasSimple();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

@@ -20,6 +20,7 @@ namespace Infrastructure.ServiceExtension
 			services.AddScoped<IEmpresasRepository, EmpresasRepository>();
 			services.AddScoped<IUnitOfWork, UnitOfWork>();
 			services.AddScoped<IObrasRepository, ObrasRepository>();
+			services.AddScoped<IGrupoDeObrasRepository, GrupoDeObrasRepository>();
 
             return services;
 		}

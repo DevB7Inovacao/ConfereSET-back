@@ -12,6 +12,8 @@ namespace Infrastructure
 		public DbSet<User> User { get; set; }
 		public DbSet<Empresas> Empresas { get; set; }
 		public DbSet<Obras> Obras { get; set; }
+        public DbSet<GrupoDeObras> GrupoDeObras { get; set; }
+        public DbSet<RelacaoGrupoObras> RelacaoGrupoObras { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -29,6 +31,30 @@ namespace Infrastructure
 			{
 				entity.HasKey(k => k.Id);
 			});
+
+            modelBuilder.Entity<GrupoDeObras>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.Property(x => x.Name).IsRequired();
+                entity.Property(x => x.Status).IsRequired();
+            });
+
+            modelBuilder.Entity<RelacaoGrupoObras>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+
+                entity.HasIndex(x => new { x.GroupId, x.ObraId }).IsUnique();
+
+                entity.HasOne(x => x.Group)
+                    .WithMany(g => g.Obras)
+                    .HasForeignKey(x => x.GroupId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Obra)
+                    .WithMany()
+                    .HasForeignKey(x => x.ObraId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             base.OnModelCreating(modelBuilder);
 		}
