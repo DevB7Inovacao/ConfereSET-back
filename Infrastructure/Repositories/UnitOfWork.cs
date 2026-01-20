@@ -12,16 +12,19 @@ namespace Infrastructure.Repositories
 
         public IUserRepository Users { get; }
         public IEmpresasRepository Empresas { get; }
+        public IObrasRepository Obras { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
-                    IEmpresasRepository empresasRepository
+                    IEmpresasRepository empresasRepository,
+                    IObrasRepository obrasRepository
         )
         {
             _dbContext = dbContext;
 
             this.Users = userRepository;
             this.Empresas = empresasRepository;
+            this.Obras = obrasRepository;
         }
 
         public int Save()
@@ -48,6 +51,7 @@ namespace Infrastructure.Repositories
     {
         IUserRepository Users { get; }
         IEmpresasRepository Empresas { get; }
+        IObrasRepository Obras { get; }
         int Save();
     }
 }

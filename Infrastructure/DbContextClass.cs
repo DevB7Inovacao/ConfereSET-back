@@ -11,6 +11,7 @@ namespace Infrastructure
 
 		public DbSet<User> User { get; set; }
 		public DbSet<Empresas> Empresas { get; set; }
+		public DbSet<Obras> Obras { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -24,7 +25,12 @@ namespace Infrastructure
                 entity.HasKey(k => k.Id);
             });
 
-			base.OnModelCreating(modelBuilder);
+			modelBuilder.Entity<Obras>(entity =>
+			{
+				entity.HasKey(k => k.Id);
+			});
+
+            base.OnModelCreating(modelBuilder);
 		}
 
 		public override int SaveChanges()

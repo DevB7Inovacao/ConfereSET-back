@@ -41,6 +41,7 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEmpresasService, EmpresasService>();
+builder.Services.AddScoped<IObrasService, ObrasService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		.AddJwtBearer(options =>
