@@ -107,5 +107,50 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [AllowAnonymous]
+        [HttpPost("sync")]
+        public async Task<IActionResult> Sync([FromBody] SyncModeloTextoVariavelRequest req)
+        {
+            try
+            {
+                var result = await _service.Sync(req);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("getByModelo")]
+        public async Task<IActionResult> GetByModelo([FromQuery] int empresaId, [FromQuery] int modeloTextoId, [FromQuery] bool onlyActiveLinks = true)
+        {
+            try
+            {
+                var result = await _service.GetByModelo(empresaId, modeloTextoId, onlyActiveLinks);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("render/{modeloTextoId}")]
+        public async Task<IActionResult> Render([FromRoute] int modeloTextoId, [FromQuery] int empresaId, [FromBody] RenderModeloTextoRequest req)
+        {
+            try
+            {
+                var result = await _service.Render(empresaId, modeloTextoId, req);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

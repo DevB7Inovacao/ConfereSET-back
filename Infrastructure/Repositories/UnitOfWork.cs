@@ -16,6 +16,7 @@ namespace Infrastructure.Repositories
         public IGrupoDeObrasRepository GrupoDeObras { get; }
         public IModeloTextoRepository ModeloTextos { get; }
         public IModeloTextoVariavelRepository ModeloTextoVariaveis { get; }
+        public IModeloTextoVariavelVinculoRepository ModeloTextoVariavelVinculos { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -23,7 +24,8 @@ namespace Infrastructure.Repositories
                     IObrasRepository obrasRepository,
                     IGrupoDeObrasRepository grupoDeObrasRepository,
                     IModeloTextoRepository modeloTextoRepository,
-                    IModeloTextoVariavelRepository modeloTextoVariavelRepository
+                    IModeloTextoVariavelRepository modeloTextoVariavelRepository,
+                    IModeloTextoVariavelVinculoRepository modeloTextoVariavelVinculoRepository
         )
         {
             _dbContext = dbContext;
@@ -34,6 +36,7 @@ namespace Infrastructure.Repositories
             this.GrupoDeObras = grupoDeObrasRepository;
             this.ModeloTextos = modeloTextoRepository;
             this.ModeloTextoVariaveis = modeloTextoVariavelRepository;
+            this.ModeloTextoVariavelVinculos = modeloTextoVariavelVinculoRepository;
         }
 
         public int Save()
@@ -64,6 +67,7 @@ namespace Infrastructure.Repositories
         IGrupoDeObrasRepository GrupoDeObras { get; }
         IModeloTextoRepository ModeloTextos { get; }
         IModeloTextoVariavelRepository ModeloTextoVariaveis { get; }
+        IModeloTextoVariavelVinculoRepository ModeloTextoVariavelVinculos { get; }
         int Save();
     }
 }

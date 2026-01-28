@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(DbContextClass))]
-    partial class DbContextClassModelSnapshot : ModelSnapshot
+    [Migration("20260128192116_Componentes de texto")]
+    partial class Componentesdetexto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -177,41 +180,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("ModeloTextoVariaveis");
                 });
 
-            modelBuilder.Entity("Core.Models.ModeloTextoVariavelVinculo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ModeloTextoId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ModeloTextoVariavelId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ModeloTextoId");
-
-                    b.HasIndex("ModeloTextoVariavelId");
-
-                    b.ToTable("ModeloTextoVariavelVinculos");
-                });
-
             modelBuilder.Entity("Core.Models.Obras", b =>
                 {
                     b.Property<int>("Id")
@@ -332,25 +300,6 @@ namespace Infrastructure.Migrations
                     b.HasIndex("EmpresaId");
 
                     b.ToTable("User");
-                });
-
-            modelBuilder.Entity("Core.Models.ModeloTextoVariavelVinculo", b =>
-                {
-                    b.HasOne("Core.Models.ModeloTexto", "ModeloTexto")
-                        .WithMany()
-                        .HasForeignKey("ModeloTextoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Core.Models.ModeloTextoVariavel", "ModeloTextoVariavel")
-                        .WithMany()
-                        .HasForeignKey("ModeloTextoVariavelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ModeloTexto");
-
-                    b.Navigation("ModeloTextoVariavel");
                 });
 
             modelBuilder.Entity("Core.Models.RelacaoGrupoObras", b =>

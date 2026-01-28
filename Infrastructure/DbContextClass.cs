@@ -16,6 +16,7 @@ namespace Infrastructure
         public DbSet<RelacaoGrupoObras> RelacaoGrupoObras { get; set; }
         public DbSet<ModeloTexto> ModeloTextos { get; set; }
         public DbSet<ModeloTextoVariavel> ModeloTextoVariaveis { get; set; }
+        public DbSet<Core.Models.ModeloTextoVariavelVinculo> ModeloTextoVariavelVinculos { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -65,6 +66,11 @@ namespace Infrastructure
 			});
 
 			modelBuilder.Entity<ModeloTextoVariavel>(entity =>
+            {
+				entity.HasKey(k => k.Id);
+			});
+
+			modelBuilder.Entity<Core.Models.ModeloTextoVariavelVinculo>(entity =>
             {
 				entity.HasKey(k => k.Id);
 			});

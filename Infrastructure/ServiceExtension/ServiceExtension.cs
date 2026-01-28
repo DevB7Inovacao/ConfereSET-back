@@ -23,6 +23,7 @@ namespace Infrastructure.ServiceExtension
 			services.AddScoped<IGrupoDeObrasRepository, GrupoDeObrasRepository>();
 			services.AddScoped<IModeloTextoRepository, ModeloTextoRepository>();
 			services.AddScoped<IModeloTextoVariavelRepository, ModeloTextoVariavelRepository>();
+			services.AddScoped<IModeloTextoVariavelVinculoRepository, ModeloTextoVariavelVinculoRepository>();
 
             return services;
 		}
