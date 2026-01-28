@@ -14,6 +14,9 @@ namespace Infrastructure
 		public DbSet<Obras> Obras { get; set; }
         public DbSet<GrupoDeObras> GrupoDeObras { get; set; }
         public DbSet<RelacaoGrupoObras> RelacaoGrupoObras { get; set; }
+        public DbSet<ModeloTexto> ModeloTextos { get; set; }
+        public DbSet<ModeloTextoVariavel> ModeloTextoVariaveis { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -55,6 +58,16 @@ namespace Infrastructure
                     .HasForeignKey(x => x.ObraId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+			modelBuilder.Entity<ModeloTexto>(entity =>
+            {
+				entity.HasKey(k => k.Id);
+			});
+
+			modelBuilder.Entity<ModeloTextoVariavel>(entity =>
+            {
+				entity.HasKey(k => k.Id);
+			});
 
             base.OnModelCreating(modelBuilder);
 		}

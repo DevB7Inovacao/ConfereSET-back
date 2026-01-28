@@ -43,6 +43,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEmpresasService, EmpresasService>();
 builder.Services.AddScoped<IObrasService, ObrasService>();
 builder.Services.AddScoped<IGrupoDeObrasService, GrupoDeObrasService>();
+builder.Services.AddScoped<IModeloTextoService, ModeloTextoService>();
+builder.Services.AddScoped<IModeloTextoVariavelService, ModeloTextoVariavelService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		.AddJwtBearer(options =>

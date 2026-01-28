@@ -14,12 +14,16 @@ namespace Infrastructure.Repositories
         public IEmpresasRepository Empresas { get; }
         public IObrasRepository Obras { get; }
         public IGrupoDeObrasRepository GrupoDeObras { get; }
+        public IModeloTextoRepository ModeloTextos { get; }
+        public IModeloTextoVariavelRepository ModeloTextoVariaveis { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
                     IEmpresasRepository empresasRepository,
                     IObrasRepository obrasRepository,
-                    IGrupoDeObrasRepository grupoDeObrasRepository
+                    IGrupoDeObrasRepository grupoDeObrasRepository,
+                    IModeloTextoRepository modeloTextoRepository,
+                    IModeloTextoVariavelRepository modeloTextoVariavelRepository
         )
         {
             _dbContext = dbContext;
@@ -28,6 +32,8 @@ namespace Infrastructure.Repositories
             this.Empresas = empresasRepository;
             this.Obras = obrasRepository;
             this.GrupoDeObras = grupoDeObrasRepository;
+            this.ModeloTextos = modeloTextoRepository;
+            this.ModeloTextoVariaveis = modeloTextoVariavelRepository;
         }
 
         public int Save()
@@ -56,6 +62,8 @@ namespace Infrastructure.Repositories
         IEmpresasRepository Empresas { get; }
         IObrasRepository Obras { get; }
         IGrupoDeObrasRepository GrupoDeObras { get; }
+        IModeloTextoRepository ModeloTextos { get; }
+        IModeloTextoVariavelRepository ModeloTextoVariaveis { get; }
         int Save();
     }
 }
