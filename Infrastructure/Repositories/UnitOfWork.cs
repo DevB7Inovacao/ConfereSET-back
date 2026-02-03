@@ -17,6 +17,9 @@ namespace Infrastructure.Repositories
         public IModeloTextoRepository ModeloTextos { get; }
         public IModeloTextoVariavelRepository ModeloTextoVariaveis { get; }
         public IModeloTextoVariavelVinculoRepository ModeloTextoVariavelVinculos { get; }
+        public IMaoDeObraRepository MaoDeObra { get; }
+        public IEquipamentosRepository Equipamentos { get; }
+        public ITiposOcorrenciaRepository TiposOcorrencia { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -25,7 +28,10 @@ namespace Infrastructure.Repositories
                     IGrupoDeObrasRepository grupoDeObrasRepository,
                     IModeloTextoRepository modeloTextoRepository,
                     IModeloTextoVariavelRepository modeloTextoVariavelRepository,
-                    IModeloTextoVariavelVinculoRepository modeloTextoVariavelVinculoRepository
+                    IModeloTextoVariavelVinculoRepository modeloTextoVariavelVinculoRepository,
+                    IMaoDeObraRepository maoDeObraRepository,
+                    IEquipamentosRepository equipamentosRepository,
+                    ITiposOcorrenciaRepository tiposOcorrenciaRepository
         )
         {
             _dbContext = dbContext;
@@ -37,6 +43,9 @@ namespace Infrastructure.Repositories
             this.ModeloTextos = modeloTextoRepository;
             this.ModeloTextoVariaveis = modeloTextoVariavelRepository;
             this.ModeloTextoVariavelVinculos = modeloTextoVariavelVinculoRepository;
+            this.MaoDeObra = maoDeObraRepository;
+            this.Equipamentos = equipamentosRepository;
+            this.TiposOcorrencia = tiposOcorrenciaRepository;
         }
 
         public int Save()
@@ -68,6 +77,9 @@ namespace Infrastructure.Repositories
         IModeloTextoRepository ModeloTextos { get; }
         IModeloTextoVariavelRepository ModeloTextoVariaveis { get; }
         IModeloTextoVariavelVinculoRepository ModeloTextoVariavelVinculos { get; }
+        IMaoDeObraRepository MaoDeObra { get; }
+        IEquipamentosRepository Equipamentos { get; }
+        ITiposOcorrenciaRepository TiposOcorrencia { get; }
         int Save();
     }
 }

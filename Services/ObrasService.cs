@@ -31,7 +31,6 @@ namespace Services
 
         public async Task<bool> UpdateObra(Obras obra, int idObra)
         {
-            _unitOfWork.Obras.Update(obra);
             var result = _unitOfWork.Save();
             return result > 0;
         }
@@ -107,7 +106,11 @@ namespace Services
                     City = obra.City,
                     State = obra.State,
                     PostalCode = obra.PostalCode,
-                    Country = obra.Country
+                    Country = obra.Country,
+                    ClientName = obra.ClientName,
+                    ClientEmail = obra.ClientEmail,
+                    ClientPhone = obra.ClientPhone,
+                    ClientDocument = obra.ClientDocument
                 }).ToList();
 
                 return new ObrasPagedDTO() { Result = obraDTO, PageCount = obras.PageCount };

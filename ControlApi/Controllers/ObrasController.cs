@@ -41,7 +41,11 @@ namespace ControlApi.Controllers
                     City = obras.City,
                     State = obras.State,
                     PostalCode = obras.PostalCode,
-                    Country = obras.Country
+                    Country = obras.Country,
+                    ClientName = obras.ClientName,
+                    ClientEmail = obras.ClientEmail,
+                    ClientPhone = obras.ClientPhone,
+                    ClientDocument = obras.ClientDocument
                 };
 
                 var result = await _obrasService.CreateObra(obra);
@@ -79,22 +83,23 @@ namespace ControlApi.Controllers
             var existing = await _obrasService.GetObraById(obraId);
             if (existing == null) return NotFound("Obra não encontrada.");
 
-            var merged = new Obras
-            {
-                Id = obraId,
-                Name = string.IsNullOrWhiteSpace(req.Name) ? existing.Name : req.Name,
-                Status = existing.Status,
-                StreetAddress = string.IsNullOrWhiteSpace(req.StreetAddress) ? existing.StreetAddress : req.StreetAddress,
-                Number = string.IsNullOrWhiteSpace(req.Number) ? existing.Number : req.Number,
-                AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? existing.AddressLine2 : req.AddressLine2,
-                Neighborhood = string.IsNullOrWhiteSpace(req.Neighborhood) ? existing.Neighborhood : req.Neighborhood,
-                City = string.IsNullOrWhiteSpace(req.City) ? existing.City : req.City,
-                State = string.IsNullOrWhiteSpace(req.State) ? existing.State : req.State,
-                PostalCode = string.IsNullOrWhiteSpace(req.PostalCode) ? existing.PostalCode : req.PostalCode,
-                Country = string.IsNullOrWhiteSpace(req.Country) ? existing.Country : req.Country
-            };
+            if (!string.IsNullOrWhiteSpace(req.Name)) existing.Name = req.Name;
 
-            var result = await _obrasService.UpdateObra(merged, obraId);
+            if (req.StreetAddress != null) existing.StreetAddress = string.IsNullOrWhiteSpace(req.StreetAddress) ? null : req.StreetAddress;
+            if (req.Number != null) existing.Number = string.IsNullOrWhiteSpace(req.Number) ? null : req.Number;
+            if (req.AddressLine2 != null) existing.AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2;
+            if (req.Neighborhood != null) existing.Neighborhood = string.IsNullOrWhiteSpace(req.Neighborhood) ? null : req.Neighborhood;
+            if (req.City != null) existing.City = string.IsNullOrWhiteSpace(req.City) ? null : req.City;
+            if (req.State != null) existing.State = string.IsNullOrWhiteSpace(req.State) ? null : req.State;
+            if (req.PostalCode != null) existing.PostalCode = string.IsNullOrWhiteSpace(req.PostalCode) ? null : req.PostalCode;
+            if (req.Country != null) existing.Country = string.IsNullOrWhiteSpace(req.Country) ? null : req.Country;
+
+            if (req.ClientName != null) existing.ClientName = string.IsNullOrWhiteSpace(req.ClientName) ? null : req.ClientName;
+            if (req.ClientEmail != null) existing.ClientEmail = string.IsNullOrWhiteSpace(req.ClientEmail) ? null : req.ClientEmail;
+            if (req.ClientPhone != null) existing.ClientPhone = string.IsNullOrWhiteSpace(req.ClientPhone) ? null : req.ClientPhone;
+            if (req.ClientDocument != null) existing.ClientDocument = string.IsNullOrWhiteSpace(req.ClientDocument) ? null : req.ClientDocument;
+
+            var result = await _obrasService.UpdateObra(existing, obraId);
             if (result) return Ok(true);
 
             return BadRequest("Falha ao atualizar obra.");
@@ -159,7 +164,11 @@ namespace ControlApi.Controllers
                 City = obra.City,
                 State = obra.State,
                 PostalCode = obra.PostalCode,
-                Country = obra.Country
+                Country = obra.Country,
+                ClientName = obra.ClientName,
+                ClientEmail = obra.ClientEmail,
+                ClientPhone = obra.ClientPhone,
+                ClientDocument = obra.ClientDocument
             };
 
             return Ok(dto);

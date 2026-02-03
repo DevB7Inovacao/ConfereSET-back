@@ -11,7 +11,7 @@ namespace Core.Models
         public required string Name { get; set; }
         public required string Password { get; set; }
         public required string Email { get; set; }
-        public required int Type { get; set; } //Controle de acesso
+        public required int Type { get; set; }
         public required int Status { get; set; } //False = inative, True = ative
         public required Empresas Empresa { get; set; }
     }

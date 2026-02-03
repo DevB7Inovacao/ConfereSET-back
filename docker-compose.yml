@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16
+    container_name: confereset_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456789
+      POSTGRES_DB: ConfereSET
+    ports:
+      - "5432:5432"
+    volumes:
+      - confereset_pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: confereset_api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: host=db;user id=postgres;password=123456789;database=ConfereSET;Pooling=false;Timeout=300;CommandTimeout=300;
+      Jwt__Key: your_secret_key_here_your_secret_key_here
+      Jwt__Issuer: your_issuer
+      Jwt__Audience: your_issuer
+    ports:
+      - "8080:8080"
+
+volumes:
+  confereset_pgdata:

@@ -17,6 +17,10 @@ namespace Core.Models
         public string? State { get; set; }
         public string? PostalCode { get; set; }
         public string? Country { get; set; }
+        public string? ClientName { get; set; }
+        public string? ClientEmail { get; set; }
+        public string? ClientPhone { get; set; }
+        public string? ClientDocument { get; set; }
         public int Status { get; set; } = 0;
     }
 }

@@ -8,7 +8,7 @@ namespace Core.Models
 {
     public class ModeloTextoVariavelVinculo : BaseModel
     {
-        public int EmpresaId { get; set; }
+        public required int EmpresaId { get; set; }
 
         public int ModeloTextoId { get; set; }
         public ModeloTexto? ModeloTexto { get; set; }
