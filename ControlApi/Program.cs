@@ -35,6 +35,7 @@ builder.Services.AddScoped<IModeloTextoVariavelService, ModeloTextoVariavelServi
 builder.Services.AddScoped<IMaoDeObraService, MaoDeObraService>();
 builder.Services.AddScoped<IEquipamentosService, EquipamentosService>();
 builder.Services.AddScoped<ITiposOcorrenciaService, TiposOcorrenciaService>();
+builder.Services.AddScoped<IDespesasService, DespesasService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

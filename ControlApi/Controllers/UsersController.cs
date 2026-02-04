@@ -172,27 +172,5 @@ namespace API.Controllers
 
             return Ok(new { total });
         }
-
-        [AllowAnonymous]
-        [HttpGet]
-        [Route("teste")]
-        public IActionResult Teste()
-        {
-            var config = Configuration.Default.Clone();
-            config.Configure(new PdfConfigurationModule());
-
-
-            using var image = Image.Load("teste.pdf");
-
-            image.Mutate(x => x.Resize(image.Width / 2, image.Height / 2));
-
-            // Save image
-            //image.SaveAsPng("document.png");
-
-            if (image != null)
-                return Ok(image.ToBase64String(PngFormat.Instance));
-            else
-                return BadRequest();
-        }
     }
 }

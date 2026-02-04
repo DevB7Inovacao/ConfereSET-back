@@ -20,6 +20,7 @@ namespace Infrastructure.Repositories
         public IMaoDeObraRepository MaoDeObra { get; }
         public IEquipamentosRepository Equipamentos { get; }
         public ITiposOcorrenciaRepository TiposOcorrencia { get; }
+        public IDespesasRepository Despesas { get; set; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -31,7 +32,8 @@ namespace Infrastructure.Repositories
                     IModeloTextoVariavelVinculoRepository modeloTextoVariavelVinculoRepository,
                     IMaoDeObraRepository maoDeObraRepository,
                     IEquipamentosRepository equipamentosRepository,
-                    ITiposOcorrenciaRepository tiposOcorrenciaRepository
+                    ITiposOcorrenciaRepository tiposOcorrenciaRepository,
+                    IDespesasRepository despesasRepository
         )
         {
             _dbContext = dbContext;
@@ -46,6 +48,7 @@ namespace Infrastructure.Repositories
             this.MaoDeObra = maoDeObraRepository;
             this.Equipamentos = equipamentosRepository;
             this.TiposOcorrencia = tiposOcorrenciaRepository;
+            this.Despesas = despesasRepository;
         }
 
         public int Save()
@@ -80,6 +83,7 @@ namespace Infrastructure.Repositories
         IMaoDeObraRepository MaoDeObra { get; }
         IEquipamentosRepository Equipamentos { get; }
         ITiposOcorrenciaRepository TiposOcorrencia { get; }
+        IDespesasRepository Despesas { get; }
         int Save();
     }
 }
