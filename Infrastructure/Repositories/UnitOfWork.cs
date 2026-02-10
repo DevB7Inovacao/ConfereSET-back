@@ -21,6 +21,7 @@ namespace Infrastructure.Repositories
         public IEquipamentosRepository Equipamentos { get; }
         public ITiposOcorrenciaRepository TiposOcorrencia { get; }
         public IDespesasRepository Despesas { get; set; }
+        public ISupportTicketsRepository SupportTickets { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -33,7 +34,8 @@ namespace Infrastructure.Repositories
                     IMaoDeObraRepository maoDeObraRepository,
                     IEquipamentosRepository equipamentosRepository,
                     ITiposOcorrenciaRepository tiposOcorrenciaRepository,
-                    IDespesasRepository despesasRepository
+                    IDespesasRepository despesasRepository,
+                    ISupportTicketsRepository supportTicketsRepository
         )
         {
             _dbContext = dbContext;
@@ -49,6 +51,7 @@ namespace Infrastructure.Repositories
             this.Equipamentos = equipamentosRepository;
             this.TiposOcorrencia = tiposOcorrenciaRepository;
             this.Despesas = despesasRepository;
+            this.SupportTickets = supportTicketsRepository;
         }
 
         public int Save()
@@ -84,6 +87,7 @@ namespace Infrastructure.Repositories
         IEquipamentosRepository Equipamentos { get; }
         ITiposOcorrenciaRepository TiposOcorrencia { get; }
         IDespesasRepository Despesas { get; }
+        ISupportTicketsRepository SupportTickets { get; }
         int Save();
     }
 }

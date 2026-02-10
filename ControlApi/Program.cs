@@ -36,6 +36,7 @@ builder.Services.AddScoped<IMaoDeObraService, MaoDeObraService>();
 builder.Services.AddScoped<IEquipamentosService, EquipamentosService>();
 builder.Services.AddScoped<ITiposOcorrenciaService, TiposOcorrenciaService>();
 builder.Services.AddScoped<IDespesasService, DespesasService>();
+builder.Services.AddScoped<ISupportTicketsService, SupportTicketsService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -90,12 +91,30 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+const string CorsPolicyName = "Frontend";
+var allowedOrigins = new[]
+{
+    "https://confere-set-front.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+};
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin()
-         .AllowAnyMethod()
-         .AllowAnyHeader()
+    options.AddPolicy(CorsPolicyName, p =>
+        p.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+
+            if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                return true;
+
+            return origin.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase);
+        })
+        .AllowAnyMethod()
+        .AllowAnyHeader()
     );
 });
 
@@ -124,18 +143,10 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-else
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseCors();
+app.UseCors(CorsPolicyName);
 
 app.MigrateDatabase();
 

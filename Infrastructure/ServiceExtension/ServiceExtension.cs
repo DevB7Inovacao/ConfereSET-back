@@ -28,6 +28,7 @@ namespace Infrastructure.ServiceExtension
 			services.AddScoped<IEquipamentosRepository, EquipamentosRepository>();
 			services.AddScoped<ITiposOcorrenciaRepository, TiposOcorrenciaRepository>();
 			services.AddScoped<IDespesasRepository, DespesasRepository>();
+			services.AddScoped<ISupportTicketsRepository, SupportTicketsRepository>();
 
             return services;
 		}

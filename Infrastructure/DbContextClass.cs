@@ -21,6 +21,7 @@ namespace Infrastructure
 		public DbSet<Equipamentos> Equipamentos { get; set; }
 		public DbSet<TiposOcorrencia> TiposOcorrencia { get; set; }
 		public DbSet<Despesas> Despesas { get; set; }
+		public DbSet<SupportTicket> SupportTickets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -97,6 +98,11 @@ namespace Infrastructure
 			{
 				entity.HasKey(k => k.Id);
             });
+
+			modelBuilder.Entity<SupportTicket>(entity =>
+            {
+				entity.HasKey(k => k.Id);
+			});
 
             base.OnModelCreating(modelBuilder);
 		}
