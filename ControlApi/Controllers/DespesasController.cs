@@ -169,5 +169,37 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("relatorios/resumo")]
+        public async Task<IActionResult> GetRelatorioResumo([FromQuery] FiltrosRelatorioDTO filtros)
+        {
+            try
+            {
+                var relatorio = await _despesasService.GetRelatorioResumo(filtros);
+                return Ok(relatorio);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("relatorios/detalhado")]
+        public async Task<IActionResult> GetRelatorioDetalhado([FromQuery] FiltrosRelatorioDTO filtros)
+        {
+            try
+            {
+                var relatorio = await _despesasService.GetRelatorioDetalhado(filtros);
+                return Ok(relatorio);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

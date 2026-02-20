@@ -22,6 +22,8 @@ namespace Infrastructure
 		public DbSet<TiposOcorrencia> TiposOcorrencia { get; set; }
 		public DbSet<Despesas> Despesas { get; set; }
 		public DbSet<SupportTicket> SupportTickets { get; set; }
+		public DbSet<Checklist> Checklists { get; set; }
+		public DbSet<ChecklistVariavel> ChecklistVariaveis { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -100,6 +102,16 @@ namespace Infrastructure
             });
 
 			modelBuilder.Entity<SupportTicket>(entity =>
+            {
+				entity.HasKey(k => k.Id);
+			});
+
+			modelBuilder.Entity<Checklist>(entity =>
+            {
+				entity.HasKey(k => k.Id);
+			});
+
+			modelBuilder.Entity<ChecklistVariavel>(entity =>
             {
 				entity.HasKey(k => k.Id);
 			});

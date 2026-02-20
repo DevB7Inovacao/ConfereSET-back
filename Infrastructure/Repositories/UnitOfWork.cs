@@ -22,6 +22,8 @@ namespace Infrastructure.Repositories
         public ITiposOcorrenciaRepository TiposOcorrencia { get; }
         public IDespesasRepository Despesas { get; set; }
         public ISupportTicketsRepository SupportTickets { get; }
+        public IChecklistRepository Checklists { get; }
+        public IChecklistVariavelRepository ChecklistsVariavel { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -35,7 +37,9 @@ namespace Infrastructure.Repositories
                     IEquipamentosRepository equipamentosRepository,
                     ITiposOcorrenciaRepository tiposOcorrenciaRepository,
                     IDespesasRepository despesasRepository,
-                    ISupportTicketsRepository supportTicketsRepository
+                    ISupportTicketsRepository supportTicketsRepository,
+                    IChecklistRepository checklistRepository,
+                    IChecklistVariavelRepository checklistVariavelRepository
         )
         {
             _dbContext = dbContext;
@@ -52,6 +56,8 @@ namespace Infrastructure.Repositories
             this.TiposOcorrencia = tiposOcorrenciaRepository;
             this.Despesas = despesasRepository;
             this.SupportTickets = supportTicketsRepository;
+            this.Checklists = checklistRepository;
+            this.ChecklistsVariavel = checklistVariavelRepository;
         }
 
         public int Save()
@@ -88,6 +94,8 @@ namespace Infrastructure.Repositories
         ITiposOcorrenciaRepository TiposOcorrencia { get; }
         IDespesasRepository Despesas { get; }
         ISupportTicketsRepository SupportTickets { get; }
+        IChecklistRepository Checklists { get; }
+        IChecklistVariavelRepository ChecklistsVariavel { get; }
         int Save();
     }
 }

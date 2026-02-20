@@ -66,6 +66,31 @@ namespace Infrastructure.Repositories
                 })
                 .ToListAsync();
         }
+
+        public async Task<List<Despesas>> GetDespesasParaRelatorio(FiltrosRelatorioDTO filtros)
+        {
+            var query = _dbContext.Set<Despesas>().AsQueryable();
+
+            if (filtros.ObraId.HasValue && filtros.ObraId.Value > 0)
+                query = query.Where(x => x.ObraId == filtros.ObraId.Value);
+
+            if (filtros.Status.HasValue)
+                query = query.Where(x => x.Status == filtros.Status.Value);
+
+            if (!string.IsNullOrEmpty(filtros.Categoria))
+                query = query.Where(x => x.Category != null && EF.Functions.Like(x.Category.ToLower(), $"%{filtros.Categoria.ToLower()}%"));
+
+            if (filtros.DataInicio.HasValue)
+                query = query.Where(x => x.Date >= filtros.DataInicio.Value);
+
+            if (filtros.DataFim.HasValue)
+                query = query.Where(x => x.Date <= filtros.DataFim.Value);
+
+            return await query
+                .OrderByDescending(x => x.Date)
+                .ThenByDescending(x => x.Id)
+                .ToListAsync();
+        }
     }
 
     public interface IDespesasRepository : IGenericRepository<Despesas>
@@ -73,5 +98,6 @@ namespace Infrastructure.Repositories
         public Task<Despesas> GetDespesaById(int id);
         public Task<PagedResult<Despesas>> GetAllDespesasPaged(FiltersDespesasDTO filtersDTO);
         public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId);
+        public Task<List<Despesas>> GetDespesasParaRelatorio(FiltrosRelatorioDTO filtros);
     }
 }

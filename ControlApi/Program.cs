@@ -37,6 +37,7 @@ builder.Services.AddScoped<IEquipamentosService, EquipamentosService>();
 builder.Services.AddScoped<ITiposOcorrenciaService, TiposOcorrenciaService>();
 builder.Services.AddScoped<IDespesasService, DespesasService>();
 builder.Services.AddScoped<ISupportTicketsService, SupportTicketsService>();
+builder.Services.AddScoped<IChecklistService, ChecklistService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
