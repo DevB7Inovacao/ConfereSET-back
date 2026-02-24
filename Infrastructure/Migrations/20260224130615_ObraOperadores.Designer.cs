@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(DbContextClass))]
-    partial class DbContextClassModelSnapshot : ModelSnapshot
+    [Migration("20260224130615_ObraOperadores")]
+    partial class ObraOperadores
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -440,9 +443,6 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("EmpresaId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -455,12 +455,6 @@ namespace Infrastructure.Migrations
 
                     b.Property<string>("PostalCode")
                         .HasColumnType("text");
-
-                    b.Property<int>("ProgressPercentage")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("State")
                         .HasColumnType("text");
@@ -475,8 +469,6 @@ namespace Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId");
 
                     b.ToTable("Obras");
                 });
@@ -688,15 +680,6 @@ namespace Infrastructure.Migrations
                     b.Navigation("Obra");
 
                     b.Navigation("Operador");
-                });
-
-            modelBuilder.Entity("Core.Models.Obras", b =>
-                {
-                    b.HasOne("Core.Models.Empresas", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId");
-
-                    b.Navigation("Empresa");
                 });
 
             modelBuilder.Entity("Core.Models.RelacaoGrupoObras", b =>

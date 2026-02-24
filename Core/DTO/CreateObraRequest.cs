@@ -21,5 +21,7 @@ namespace Core.DTO
         public string? ClientEmail { get; set; }
         public string? ClientPhone { get; set; }
         public string? ClientDocument { get; set; }
+        public int? EmpresaId { get; set; }
+        public DateTime? StartDate { get; set; }
     }
 }

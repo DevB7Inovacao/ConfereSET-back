@@ -2,11 +2,6 @@
 using Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Saller.Infrastructure.ServiceExtension;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Infrastructure.Repositories
 {
@@ -16,22 +11,48 @@ namespace Infrastructure.Repositories
         {
         }
 
-        public async Task<Obras> GetObraById(int id)
+        public async Task<Obras?> GetObraById(int id)
         {
-            return await _dbContext.Set<Obras>().FirstOrDefaultAsync(x => x.Id == id);
+            return await _dbContext.Set<Obras>()
+                .Include(x => x.Empresa)
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<PagedResult<Obras>> GetAllObrasPaged(FiltersObrasDTO filtersDTO)
         {
-            return await _dbContext.Set<Obras>()
-           .Where(x => string.IsNullOrEmpty(filtersDTO.Name) || EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
-           .GetPagedAsync<Obras>(filtersDTO.pageNumber, filtersDTO.pageSize);
+            var query = _dbContext.Set<Obras>()
+                .Include(x => x.Empresa)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(filtersDTO.Name))
+            {
+                query = query.Where(x => EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"));
+            }
+
+            if (filtersDTO.Status.HasValue)
+            {
+                query = query.Where(x => x.Status == filtersDTO.Status.Value);
+            }
+
+            if (filtersDTO.EmpresaId.HasValue)
+            {
+                query = query.Where(x => x.EmpresaId == filtersDTO.EmpresaId.Value);
+            }
+
+            if (filtersDTO.OperadorId.HasValue)
+            {
+                query = query.Where(o => _dbContext.Set<ObraOperador>()
+                    .Any(oo => oo.ObraId == o.Id && oo.OperadorId == filtersDTO.OperadorId.Value));
+            }
+
+            return await query.GetPagedAsync<Obras>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
         public async Task<List<ObraSimpleDTO>> GetObrasSimple()
         {
             return await _dbContext.Set<Obras>()
-                .OrderBy(x => x.Name)
+                .AsNoTracking()
+                .Where(x => x.Status == 1)
                 .Select(x => new ObraSimpleDTO
                 {
                     Id = x.Id,
@@ -39,12 +60,116 @@ namespace Infrastructure.Repositories
                 })
                 .ToListAsync();
         }
+
+        public async Task<List<ObraCardDTO>> GetObrasCardsByEmpresaId(int empresaId)
+        {
+            var obras = await _dbContext.Set<Obras>()
+                .AsNoTracking()
+                .Where(x => x.EmpresaId == empresaId)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.City,
+                    x.State,
+                    x.Status,
+                    x.ProgressPercentage,
+                    x.StartDate
+                })
+                .ToListAsync();
+
+            var obraIds = obras.Select(x => x.Id).ToList();
+
+            var operadoresCounts = await _dbContext.Set<ObraOperador>()
+                .AsNoTracking()
+                .Where(oo => obraIds.Contains(oo.ObraId))
+                .GroupBy(oo => oo.ObraId)
+                .Select(g => new { ObraId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ObraId, x => x.Count);
+
+            return obras.Select(o => new ObraCardDTO
+            {
+                Id = o.Id,
+                Name = o.Name,
+                Location = FormatLocation(o.City, o.State),
+                Status = GetStatusText(o.Status),
+                ProgressPercentage = o.ProgressPercentage,
+                StartDate = o.StartDate,
+                OperadoresCount = operadoresCounts.ContainsKey(o.Id) ? operadoresCounts[o.Id] : 0
+            }).ToList();
+        }
+
+        public async Task<List<ObraCardDTO>> GetObrasCardsByOperadorId(int operadorId)
+        {
+            var obraIds = await _dbContext.Set<ObraOperador>()
+                .AsNoTracking()
+                .Where(oo => oo.OperadorId == operadorId)
+                .Select(oo => oo.ObraId)
+                .ToListAsync();
+
+            var obras = await _dbContext.Set<Obras>()
+                .AsNoTracking()
+                .Where(x => obraIds.Contains(x.Id))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.City,
+                    x.State,
+                    x.Status,
+                    x.ProgressPercentage,
+                    x.StartDate
+                })
+                .ToListAsync();
+
+            var operadoresCounts = await _dbContext.Set<ObraOperador>()
+                .AsNoTracking()
+                .Where(oo => obraIds.Contains(oo.ObraId))
+                .GroupBy(oo => oo.ObraId)
+                .Select(g => new { ObraId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ObraId, x => x.Count);
+
+            return obras.Select(o => new ObraCardDTO
+            {
+                Id = o.Id,
+                Name = o.Name,
+                Location = FormatLocation(o.City, o.State),
+                Status = GetStatusText(o.Status),
+                ProgressPercentage = o.ProgressPercentage,
+                StartDate = o.StartDate,
+                OperadoresCount = operadoresCounts.ContainsKey(o.Id) ? operadoresCounts[o.Id] : 0
+            }).ToList();
+        }
+
+        private string FormatLocation(string? city, string? state)
+        {
+            if (!string.IsNullOrEmpty(city) && !string.IsNullOrEmpty(state))
+                return $"{city}, {state}";
+            if (!string.IsNullOrEmpty(city))
+                return city;
+            if (!string.IsNullOrEmpty(state))
+                return state;
+            return string.Empty;
+        }
+
+        private string GetStatusText(int status)
+        {
+            return status switch
+            {
+                1 => "Em andamento",
+                2 => "Concluída",
+                3 => "Pausada",
+                _ => "Inativa"
+            };
+        }
     }
 
     public interface IObrasRepository : IGenericRepository<Obras>
     {
-        public Task<Obras> GetObraById(int id);
-        public Task<PagedResult<Obras>> GetAllObrasPaged(FiltersObrasDTO filtersDTO);
-        public Task<List<ObraSimpleDTO>> GetObrasSimple();
+        Task<Obras?> GetObraById(int id);
+        Task<PagedResult<Obras>> GetAllObrasPaged(FiltersObrasDTO filtersDTO);
+        Task<List<ObraSimpleDTO>> GetObrasSimple();
+        Task<List<ObraCardDTO>> GetObrasCardsByEmpresaId(int empresaId);
+        Task<List<ObraCardDTO>> GetObrasCardsByOperadorId(int operadorId);
     }
 }

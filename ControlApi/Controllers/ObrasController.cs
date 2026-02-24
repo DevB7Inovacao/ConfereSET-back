@@ -4,7 +4,6 @@ using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services;
-using SharpCompress;
 using System.Security.Claims;
 
 namespace ControlApi.Controllers
@@ -45,7 +44,10 @@ namespace ControlApi.Controllers
                     ClientName = obras.ClientName,
                     ClientEmail = obras.ClientEmail,
                     ClientPhone = obras.ClientPhone,
-                    ClientDocument = obras.ClientDocument
+                    ClientDocument = obras.ClientDocument,
+                    EmpresaId = obras.EmpresaId,
+                    StartDate = obras.StartDate,
+                    ProgressPercentage = 0
                 };
 
                 var result = await _obrasService.CreateObra(obra);
@@ -98,6 +100,8 @@ namespace ControlApi.Controllers
             if (req.ClientEmail != null) existing.ClientEmail = string.IsNullOrWhiteSpace(req.ClientEmail) ? null : req.ClientEmail;
             if (req.ClientPhone != null) existing.ClientPhone = string.IsNullOrWhiteSpace(req.ClientPhone) ? null : req.ClientPhone;
             if (req.ClientDocument != null) existing.ClientDocument = string.IsNullOrWhiteSpace(req.ClientDocument) ? null : req.ClientDocument;
+
+            if (req.StartDate.HasValue) existing.StartDate = req.StartDate;
 
             var result = await _obrasService.UpdateObra(existing, obraId);
             if (result) return Ok(true);
@@ -168,7 +172,10 @@ namespace ControlApi.Controllers
                 ClientName = obra.ClientName,
                 ClientEmail = obra.ClientEmail,
                 ClientPhone = obra.ClientPhone,
-                ClientDocument = obra.ClientDocument
+                ClientDocument = obra.ClientDocument,
+                EmpresaId = obra.EmpresaId,
+                StartDate = obra.StartDate,
+                ProgressPercentage = obra.ProgressPercentage
             };
 
             return Ok(dto);
@@ -182,6 +189,129 @@ namespace ControlApi.Controllers
             try
             {
                 var result = await _obrasService.GetObrasSimple();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/operadores/{operadorId}")]
+        public async Task<IActionResult> AddOperadorToObra(int obraId, int operadorId)
+        {
+            try
+            {
+                var result = await _obrasService.AddOperadorToObra(obraId, operadorId);
+                if (result)
+                    return Ok("Operador adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar operador à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/operadores/{operadorId}")]
+        public async Task<IActionResult> RemoveOperadorFromObra(int obraId, int operadorId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveOperadorFromObra(obraId, operadorId);
+                if (result)
+                    return Ok("Operador removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover operador da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/operadores")]
+        public async Task<IActionResult> GetOperadoresByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetOperadoresByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("operador/{operadorId}")]
+        public async Task<IActionResult> GetObrasByOperadorId(int operadorId)
+        {
+            try
+            {
+                if (operadorId <= 0) return BadRequest("operadorId inválido.");
+
+                var result = await _obrasService.GetObrasByOperadorId(operadorId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/with-operadores")]
+        public async Task<IActionResult> GetObraWithOperadores(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetObraWithOperadores(obraId);
+                if (result == null) return NotFound("Obra não encontrada.");
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("cards/empresa/{empresaId}")]
+        public async Task<IActionResult> GetObrasCardsByEmpresaId(int empresaId)
+        {
+            try
+            {
+                if (empresaId <= 0) return BadRequest("empresaId inválido.");
+
+                var result = await _obrasService.GetObrasCardsByEmpresaId(empresaId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("cards/operador/{operadorId}")]
+        public async Task<IActionResult> GetObrasCardsByOperadorId(int operadorId)
+        {
+            try
+            {
+                if (operadorId <= 0) return BadRequest("operadorId inválido.");
+
+                var result = await _obrasService.GetObrasCardsByOperadorId(operadorId);
                 return Ok(result);
             }
             catch (Exception ex)

@@ -31,6 +31,7 @@ namespace Infrastructure.ServiceExtension
 			services.AddScoped<ISupportTicketsRepository, SupportTicketsRepository>();
 			services.AddScoped<IChecklistRepository, ChecklistRepository>();
 			services.AddScoped<IChecklistVariavelRepository, ChecklistVariavelRepository>();
+			services.AddScoped<IObraOperadorRepository, ObraOperadorRepository>();
 
             return services;
 		}

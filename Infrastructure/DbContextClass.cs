@@ -24,6 +24,7 @@ namespace Infrastructure
 		public DbSet<SupportTicket> SupportTickets { get; set; }
 		public DbSet<Checklist> Checklists { get; set; }
 		public DbSet<ChecklistVariavel> ChecklistVariaveis { get; set; }
+		public DbSet<ObraOperador> ObraOperadores { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -113,6 +114,11 @@ namespace Infrastructure
 
 			modelBuilder.Entity<ChecklistVariavel>(entity =>
             {
+				entity.HasKey(k => k.Id);
+			});
+
+			modelBuilder.Entity<ObraOperador>(entity =>
+			{
 				entity.HasKey(k => k.Id);
 			});
 

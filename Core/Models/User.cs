@@ -12,7 +12,7 @@ namespace Core.Models
         public required string Password { get; set; }
         public required string Email { get; set; }
         public required int Type { get; set; }
-        public required int Status { get; set; } //False = inative, True = ative
+        public required int Status { get; set; }
         public required Empresas Empresa { get; set; }
     }
 }

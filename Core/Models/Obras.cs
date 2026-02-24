@@ -22,5 +22,9 @@ namespace Core.Models
         public string? ClientPhone { get; set; }
         public string? ClientDocument { get; set; }
         public int Status { get; set; } = 0;
+        public int? EmpresaId { get; set; }
+        public Empresas? Empresa { get; set; }
+        public DateTime? StartDate { get; set; }
+        public int ProgressPercentage { get; set; } = 0;
     }
 }

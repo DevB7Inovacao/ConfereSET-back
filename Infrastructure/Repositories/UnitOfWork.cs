@@ -24,6 +24,7 @@ namespace Infrastructure.Repositories
         public ISupportTicketsRepository SupportTickets { get; }
         public IChecklistRepository Checklists { get; }
         public IChecklistVariavelRepository ChecklistsVariavel { get; }
+        public IObraOperadorRepository ObraOperadores { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -39,7 +40,8 @@ namespace Infrastructure.Repositories
                     IDespesasRepository despesasRepository,
                     ISupportTicketsRepository supportTicketsRepository,
                     IChecklistRepository checklistRepository,
-                    IChecklistVariavelRepository checklistVariavelRepository
+                    IChecklistVariavelRepository checklistVariavelRepository,
+                    IObraOperadorRepository obraOperadorRepository
         )
         {
             _dbContext = dbContext;
@@ -58,6 +60,7 @@ namespace Infrastructure.Repositories
             this.SupportTickets = supportTicketsRepository;
             this.Checklists = checklistRepository;
             this.ChecklistsVariavel = checklistVariavelRepository;
+            this.ObraOperadores = obraOperadorRepository;
         }
 
         public int Save()
@@ -96,6 +99,7 @@ namespace Infrastructure.Repositories
         ISupportTicketsRepository SupportTickets { get; }
         IChecklistRepository Checklists { get; }
         IChecklistVariavelRepository ChecklistsVariavel { get; }
+        IObraOperadorRepository ObraOperadores { get; }
         int Save();
     }
 }
