@@ -25,6 +25,11 @@ namespace Infrastructure.Repositories
         public IChecklistRepository Checklists { get; }
         public IChecklistVariavelRepository ChecklistsVariavel { get; }
         public IObraOperadorRepository ObraOperadores { get; }
+        public IObraMaoDeObraRepository ObraMaoDeObra { get; }
+        public IObraEquipamentoRepository ObraEquipamentos { get; }
+        public IObraTipoOcorrenciaRepository ObraTiposOcorrencia { get; }
+        public IObraModeloTextoRepository ObraModelosTexto { get; }
+        public IObraDespesaRepository ObraDespesas { get; }
 
         public UnitOfWork(DbContextClass dbContext,
                     IUserRepository userRepository,
@@ -41,7 +46,12 @@ namespace Infrastructure.Repositories
                     ISupportTicketsRepository supportTicketsRepository,
                     IChecklistRepository checklistRepository,
                     IChecklistVariavelRepository checklistVariavelRepository,
-                    IObraOperadorRepository obraOperadorRepository
+                    IObraOperadorRepository obraOperadorRepository,
+                    IObraMaoDeObraRepository obraMaoDeObraRepository,
+                    IObraEquipamentoRepository obraEquipamentoRepository,
+                    IObraTipoOcorrenciaRepository obraTipoOcorrenciaRepository,
+                    IObraModeloTextoRepository obraModeloTextoRepository,
+                    IObraDespesaRepository obraDespesaRepository
         )
         {
             _dbContext = dbContext;
@@ -61,6 +71,11 @@ namespace Infrastructure.Repositories
             this.Checklists = checklistRepository;
             this.ChecklistsVariavel = checklistVariavelRepository;
             this.ObraOperadores = obraOperadorRepository;
+            this.ObraMaoDeObra = obraMaoDeObraRepository;
+            this.ObraEquipamentos = obraEquipamentoRepository;
+            this.ObraTiposOcorrencia = obraTipoOcorrenciaRepository;
+            this.ObraModelosTexto = obraModeloTextoRepository;
+            this.ObraDespesas = obraDespesaRepository;
         }
 
         public int Save()
@@ -100,6 +115,11 @@ namespace Infrastructure.Repositories
         IChecklistRepository Checklists { get; }
         IChecklistVariavelRepository ChecklistsVariavel { get; }
         IObraOperadorRepository ObraOperadores { get; }
+        IObraMaoDeObraRepository ObraMaoDeObra { get; }
+        IObraEquipamentoRepository ObraEquipamentos { get; }
+        IObraTipoOcorrenciaRepository ObraTiposOcorrencia { get; }
+        IObraModeloTextoRepository ObraModelosTexto { get; }
+        IObraDespesaRepository ObraDespesas { get; }
         int Save();
     }
 }

@@ -319,5 +319,270 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/mao-de-obra/{maoDeObraId}")]
+        public async Task<IActionResult> AddMaoDeObraToObra(int obraId, int maoDeObraId)
+        {
+            try
+            {
+                var result = await _obrasService.AddMaoDeObraToObra(obraId, maoDeObraId);
+                if (result)
+                    return Ok("Mão de obra adicionada à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar mão de obra à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/mao-de-obra/{maoDeObraId}")]
+        public async Task<IActionResult> RemoveMaoDeObraFromObra(int obraId, int maoDeObraId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveMaoDeObraFromObra(obraId, maoDeObraId);
+                if (result)
+                    return Ok("Mão de obra removida da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover mão de obra da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/mao-de-obra")]
+        public async Task<IActionResult> GetMaoDeObraByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetMaoDeObraByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/equipamentos/{equipamentoId}")]
+        public async Task<IActionResult> AddEquipamentoToObra(int obraId, int equipamentoId)
+        {
+            try
+            {
+                var result = await _obrasService.AddEquipamentoToObra(obraId, equipamentoId);
+                if (result)
+                    return Ok("Equipamento adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar equipamento à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/equipamentos/{equipamentoId}")]
+        public async Task<IActionResult> RemoveEquipamentoFromObra(int obraId, int equipamentoId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveEquipamentoFromObra(obraId, equipamentoId);
+                if (result)
+                    return Ok("Equipamento removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover equipamento da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/equipamentos")]
+        public async Task<IActionResult> GetEquipamentosByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetEquipamentosByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/tipos-ocorrencia/{tipoOcorrenciaId}")]
+        public async Task<IActionResult> AddTipoOcorrenciaToObra(int obraId, int tipoOcorrenciaId)
+        {
+            try
+            {
+                var result = await _obrasService.AddTipoOcorrenciaToObra(obraId, tipoOcorrenciaId);
+                if (result)
+                    return Ok("Tipo de ocorrência adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar tipo de ocorrência à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/tipos-ocorrencia/{tipoOcorrenciaId}")]
+        public async Task<IActionResult> RemoveTipoOcorrenciaFromObra(int obraId, int tipoOcorrenciaId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveTipoOcorrenciaFromObra(obraId, tipoOcorrenciaId);
+                if (result)
+                    return Ok("Tipo de ocorrência removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover tipo de ocorrência da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/tipos-ocorrencia")]
+        public async Task<IActionResult> GetTiposOcorrenciaByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetTiposOcorrenciaByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/modelos-texto/{modeloTextoId}")]
+        public async Task<IActionResult> AddModeloTextoToObra(int obraId, int modeloTextoId)
+        {
+            try
+            {
+                var result = await _obrasService.AddModeloTextoToObra(obraId, modeloTextoId);
+                if (result)
+                    return Ok("Modelo de texto adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar modelo de texto à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/modelos-texto/{modeloTextoId}")]
+        public async Task<IActionResult> RemoveModeloTextoFromObra(int obraId, int modeloTextoId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveModeloTextoFromObra(obraId, modeloTextoId);
+                if (result)
+                    return Ok("Modelo de texto removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover modelo de texto da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/modelos-texto")]
+        public async Task<IActionResult> GetModelosTextoByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetModelosTextoByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/despesas/{despesaId}")]
+        public async Task<IActionResult> AddDespesaToObra(int obraId, int despesaId)
+        {
+            try
+            {
+                var result = await _obrasService.AddDespesaToObra(obraId, despesaId);
+                if (result)
+                    return Ok("Despesa adicionada à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar despesa à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/despesas/{despesaId}")]
+        public async Task<IActionResult> RemoveDespesaFromObra(int obraId, int despesaId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveDespesaFromObra(obraId, despesaId);
+                if (result)
+                    return Ok("Despesa removida da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover despesa da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/despesas")]
+        public async Task<IActionResult> GetDespesasByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetDespesasByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

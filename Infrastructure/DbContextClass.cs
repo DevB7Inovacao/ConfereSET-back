@@ -25,6 +25,11 @@ namespace Infrastructure
 		public DbSet<Checklist> Checklists { get; set; }
 		public DbSet<ChecklistVariavel> ChecklistVariaveis { get; set; }
 		public DbSet<ObraOperador> ObraOperadores { get; set; }
+        public DbSet<ObraMaoDeObra> ObraMaoDeObra { get; set; }
+        public DbSet<ObraEquipamento> ObraEquipamentos { get; set; }
+        public DbSet<ObraTipoOcorrencia> ObraTiposOcorrencia { get; set; }
+        public DbSet<ObraModeloTexto> ObraModelosTexto { get; set; }
+        public DbSet<ObraDespesa> ObraDespesas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -121,6 +126,36 @@ namespace Infrastructure
 			{
 				entity.HasKey(k => k.Id);
 			});
+
+            modelBuilder.Entity<ObraMaoDeObra>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasIndex(x => new { x.ObraId, x.MaoDeObraId }).IsUnique();
+            });
+
+            modelBuilder.Entity<ObraEquipamento>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasIndex(x => new { x.ObraId, x.EquipamentoId }).IsUnique();
+            });
+
+			modelBuilder.Entity<ObraTipoOcorrencia>(entity =>
+			{
+				entity.HasKey(k => k.Id);
+				entity.HasIndex(x => new { x.ObraId, x.TipoOcorrenciaId }).IsUnique();
+			});
+
+            modelBuilder.Entity<ObraModeloTexto>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasIndex(x => new { x.ObraId, x.ModeloTextoId }).IsUnique();
+            });
+
+            modelBuilder.Entity<ObraDespesa>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasIndex(x => new { x.ObraId, x.DespesaId }).IsUnique();
+            });
 
             base.OnModelCreating(modelBuilder);
 		}

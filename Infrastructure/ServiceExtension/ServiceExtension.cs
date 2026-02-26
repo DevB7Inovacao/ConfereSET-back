@@ -32,6 +32,11 @@ namespace Infrastructure.ServiceExtension
 			services.AddScoped<IChecklistRepository, ChecklistRepository>();
 			services.AddScoped<IChecklistVariavelRepository, ChecklistVariavelRepository>();
 			services.AddScoped<IObraOperadorRepository, ObraOperadorRepository>();
+			services.AddScoped<IObraMaoDeObraRepository, ObraMaoDeObraRepository>();
+			services.AddScoped<IObraEquipamentoRepository, ObraEquipamentoRepository>();
+			services.AddScoped<IObraTipoOcorrenciaRepository, ObraTipoOcorrenciaRepository>();
+			services.AddScoped<IObraModeloTextoRepository, ObraModeloTextoRepository>();
+			services.AddScoped<IObraDespesaRepository, ObraDespesaRepository>();
 
             return services;
 		}

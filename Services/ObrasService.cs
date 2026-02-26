@@ -204,6 +204,241 @@ namespace Services
             return await _unitOfWork.Obras.GetObrasCardsByOperadorId(operadorId);
         }
 
+        public async Task<bool> AddMaoDeObraToObra(int obraId, int maoDeObraId)
+        {
+            try
+            {
+                var obra = await _unitOfWork.Obras.GetObraById(obraId);
+                if (obra == null)
+                    throw new Exception("Obra não encontrada.");
+
+                var maoDeObra = await _unitOfWork.MaoDeObra.GetById(maoDeObraId);
+                if (maoDeObra == null)
+                    throw new Exception("Mão de obra não encontrada.");
+
+                var added = await _unitOfWork.ObraMaoDeObra.AddMaoDeObraToObra(obraId, maoDeObraId);
+                if (!added)
+                    throw new Exception("Mão de obra já está vinculada a esta obra.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> RemoveMaoDeObraFromObra(int obraId, int maoDeObraId)
+        {
+            try
+            {
+                var removed = await _unitOfWork.ObraMaoDeObra.RemoveMaoDeObraFromObra(obraId, maoDeObraId);
+                if (!removed)
+                    throw new Exception("Relação não encontrada.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<ObraMaoDeObraDTO>> GetMaoDeObraByObraId(int obraId)
+        {
+            return await _unitOfWork.ObraMaoDeObra.GetMaoDeObraByObraId(obraId);
+        }
+
+        public async Task<bool> AddEquipamentoToObra(int obraId, int equipamentoId)
+        {
+            try
+            {
+                var obra = await _unitOfWork.Obras.GetObraById(obraId);
+                if (obra == null)
+                    throw new Exception("Obra não encontrada.");
+
+                var equipamento = await _unitOfWork.Equipamentos.GetById(equipamentoId);
+                if (equipamento == null)
+                    throw new Exception("Equipamento não encontrado.");
+
+                var added = await _unitOfWork.ObraEquipamentos.AddEquipamentoToObra(obraId, equipamentoId);
+                if (!added)
+                    throw new Exception("Equipamento já está vinculado a esta obra.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> RemoveEquipamentoFromObra(int obraId, int equipamentoId)
+        {
+            try
+            {
+                var removed = await _unitOfWork.ObraEquipamentos.RemoveEquipamentoFromObra(obraId, equipamentoId);
+                if (!removed)
+                    throw new Exception("Relação não encontrada.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<ObraEquipamentoDTO>> GetEquipamentosByObraId(int obraId)
+        {
+            return await _unitOfWork.ObraEquipamentos.GetEquipamentosByObraId(obraId);
+        }
+
+        public async Task<bool> AddTipoOcorrenciaToObra(int obraId, int tipoOcorrenciaId)
+        {
+            try
+            {
+                var obra = await _unitOfWork.Obras.GetObraById(obraId);
+                if (obra == null)
+                    throw new Exception("Obra não encontrada.");
+
+                var tipoOcorrencia = await _unitOfWork.TiposOcorrencia.GetById(tipoOcorrenciaId);
+                if (tipoOcorrencia == null)
+                    throw new Exception("Tipo de ocorrência não encontrado.");
+
+                var added = await _unitOfWork.ObraTiposOcorrencia.AddTipoOcorrenciaToObra(obraId, tipoOcorrenciaId);
+                if (!added)
+                    throw new Exception("Tipo de ocorrência já está vinculado a esta obra.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> RemoveTipoOcorrenciaFromObra(int obraId, int tipoOcorrenciaId)
+        {
+            try
+            {
+                var removed = await _unitOfWork.ObraTiposOcorrencia.RemoveTipoOcorrenciaFromObra(obraId, tipoOcorrenciaId);
+                if (!removed)
+                    throw new Exception("Relação não encontrada.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<ObraTipoOcorrenciaDTO>> GetTiposOcorrenciaByObraId(int obraId)
+        {
+            return await _unitOfWork.ObraTiposOcorrencia.GetTiposOcorrenciaByObraId(obraId);
+        }
+
+        public async Task<bool> AddModeloTextoToObra(int obraId, int modeloTextoId)
+        {
+            try
+            {
+                var obra = await _unitOfWork.Obras.GetObraById(obraId);
+                if (obra == null)
+                    throw new Exception("Obra não encontrada.");
+
+                var modeloTexto = await _unitOfWork.ModeloTextos.GetById(modeloTextoId);
+                if (modeloTexto == null)
+                    throw new Exception("Modelo de texto não encontrado.");
+
+                var added = await _unitOfWork.ObraModelosTexto.AddModeloTextoToObra(obraId, modeloTextoId);
+                if (!added)
+                    throw new Exception("Modelo de texto já está vinculado a esta obra.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> RemoveModeloTextoFromObra(int obraId, int modeloTextoId)
+        {
+            try
+            {
+                var removed = await _unitOfWork.ObraModelosTexto.RemoveModeloTextoFromObra(obraId, modeloTextoId);
+                if (!removed)
+                    throw new Exception("Relação não encontrada.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<ObraModeloTextoDTO>> GetModelosTextoByObraId(int obraId)
+        {
+            return await _unitOfWork.ObraModelosTexto.GetModelosTextoByObraId(obraId);
+        }
+
+        public async Task<bool> AddDespesaToObra(int obraId, int despesaId)
+        {
+            try
+            {
+                var obra = await _unitOfWork.Obras.GetObraById(obraId);
+                if (obra == null)
+                    throw new Exception("Obra não encontrada.");
+
+                var despesa = await _unitOfWork.Despesas.GetById(despesaId);
+                if (despesa == null)
+                    throw new Exception("Despesa não encontrada.");
+
+                var added = await _unitOfWork.ObraDespesas.AddDespesaToObra(obraId, despesaId);
+                if (!added)
+                    throw new Exception("Despesa já está vinculada a esta obra.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<bool> RemoveDespesaFromObra(int obraId, int despesaId)
+        {
+            try
+            {
+                var removed = await _unitOfWork.ObraDespesas.RemoveDespesaFromObra(obraId, despesaId);
+                if (!removed)
+                    throw new Exception("Relação não encontrada.");
+
+                var result = _unitOfWork.Save();
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
+        public async Task<List<ObraDespesaDTO>> GetDespesasByObraId(int obraId)
+        {
+            return await _unitOfWork.ObraDespesas.GetDespesasByObraId(obraId);
+        }
+
         private async Task<Dictionary<int, int>> GetOperadoresCountsByObraIds(List<int> obraIds)
         {
             var counts = new Dictionary<int, int>();
@@ -232,5 +467,20 @@ namespace Services
         Task<ObraWithOperadoresDTO?> GetObraWithOperadores(int obraId);
         Task<List<ObraCardDTO>> GetObrasCardsByEmpresaId(int empresaId);
         Task<List<ObraCardDTO>> GetObrasCardsByOperadorId(int operadorId);
+        Task<bool> AddMaoDeObraToObra(int obraId, int maoDeObraId);
+        Task<bool> RemoveMaoDeObraFromObra(int obraId, int maoDeObraId);
+        Task<List<ObraMaoDeObraDTO>> GetMaoDeObraByObraId(int obraId);
+        Task<bool> AddEquipamentoToObra(int obraId, int equipamentoId);
+        Task<bool> RemoveEquipamentoFromObra(int obraId, int equipamentoId);
+        Task<List<ObraEquipamentoDTO>> GetEquipamentosByObraId(int obraId);
+        Task<bool> AddTipoOcorrenciaToObra(int obraId, int tipoOcorrenciaId);
+        Task<bool> RemoveTipoOcorrenciaFromObra(int obraId, int tipoOcorrenciaId);
+        Task<List<ObraTipoOcorrenciaDTO>> GetTiposOcorrenciaByObraId(int obraId);
+        Task<bool> AddModeloTextoToObra(int obraId, int modeloTextoId);
+        Task<bool> RemoveModeloTextoFromObra(int obraId, int modeloTextoId);
+        Task<List<ObraModeloTextoDTO>> GetModelosTextoByObraId(int obraId);
+        Task<bool> AddDespesaToObra(int obraId, int despesaId);
+        Task<bool> RemoveDespesaFromObra(int obraId, int despesaId);
+        Task<List<ObraDespesaDTO>> GetDespesasByObraId(int obraId);
     }
 }
