@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Infrastructure.Repositories
+﻿namespace Infrastructure.Repositories
 {
     public class UnitOfWork : IUnitOfWork
     {
@@ -30,58 +24,57 @@ namespace Infrastructure.Repositories
         public IObraTipoOcorrenciaRepository ObraTiposOcorrencia { get; }
         public IObraModeloTextoRepository ObraModelosTexto { get; }
         public IObraDespesaRepository ObraDespesas { get; }
+        public IRelatorioRepository Relatorios { get; }
 
         public UnitOfWork(DbContextClass dbContext,
-                    IUserRepository userRepository,
-                    IEmpresasRepository empresasRepository,
-                    IObrasRepository obrasRepository,
-                    IGrupoDeObrasRepository grupoDeObrasRepository,
-                    IModeloTextoRepository modeloTextoRepository,
-                    IModeloTextoVariavelRepository modeloTextoVariavelRepository,
-                    IModeloTextoVariavelVinculoRepository modeloTextoVariavelVinculoRepository,
-                    IMaoDeObraRepository maoDeObraRepository,
-                    IEquipamentosRepository equipamentosRepository,
-                    ITiposOcorrenciaRepository tiposOcorrenciaRepository,
-                    IDespesasRepository despesasRepository,
-                    ISupportTicketsRepository supportTicketsRepository,
-                    IChecklistRepository checklistRepository,
-                    IChecklistVariavelRepository checklistVariavelRepository,
-                    IObraOperadorRepository obraOperadorRepository,
-                    IObraMaoDeObraRepository obraMaoDeObraRepository,
-                    IObraEquipamentoRepository obraEquipamentoRepository,
-                    IObraTipoOcorrenciaRepository obraTipoOcorrenciaRepository,
-                    IObraModeloTextoRepository obraModeloTextoRepository,
-                    IObraDespesaRepository obraDespesaRepository
+            IUserRepository userRepository,
+            IEmpresasRepository empresasRepository,
+            IObrasRepository obrasRepository,
+            IGrupoDeObrasRepository grupoDeObrasRepository,
+            IModeloTextoRepository modeloTextoRepository,
+            IModeloTextoVariavelRepository modeloTextoVariavelRepository,
+            IModeloTextoVariavelVinculoRepository modeloTextoVariavelVinculoRepository,
+            IMaoDeObraRepository maoDeObraRepository,
+            IEquipamentosRepository equipamentosRepository,
+            ITiposOcorrenciaRepository tiposOcorrenciaRepository,
+            IDespesasRepository despesasRepository,
+            ISupportTicketsRepository supportTicketsRepository,
+            IChecklistRepository checklistRepository,
+            IChecklistVariavelRepository checklistVariavelRepository,
+            IObraOperadorRepository obraOperadorRepository,
+            IObraMaoDeObraRepository obraMaoDeObraRepository,
+            IObraEquipamentoRepository obraEquipamentoRepository,
+            IObraTipoOcorrenciaRepository obraTipoOcorrenciaRepository,
+            IObraModeloTextoRepository obraModeloTextoRepository,
+            IObraDespesaRepository obraDespesaRepository,
+            IRelatorioRepository relatorioRepository
         )
         {
             _dbContext = dbContext;
-
-            this.Users = userRepository;
-            this.Empresas = empresasRepository;
-            this.Obras = obrasRepository;
-            this.GrupoDeObras = grupoDeObrasRepository;
-            this.ModeloTextos = modeloTextoRepository;
-            this.ModeloTextoVariaveis = modeloTextoVariavelRepository;
-            this.ModeloTextoVariavelVinculos = modeloTextoVariavelVinculoRepository;
-            this.MaoDeObra = maoDeObraRepository;
-            this.Equipamentos = equipamentosRepository;
-            this.TiposOcorrencia = tiposOcorrenciaRepository;
-            this.Despesas = despesasRepository;
-            this.SupportTickets = supportTicketsRepository;
-            this.Checklists = checklistRepository;
-            this.ChecklistsVariavel = checklistVariavelRepository;
-            this.ObraOperadores = obraOperadorRepository;
-            this.ObraMaoDeObra = obraMaoDeObraRepository;
-            this.ObraEquipamentos = obraEquipamentoRepository;
-            this.ObraTiposOcorrencia = obraTipoOcorrenciaRepository;
-            this.ObraModelosTexto = obraModeloTextoRepository;
-            this.ObraDespesas = obraDespesaRepository;
+            Users = userRepository;
+            Empresas = empresasRepository;
+            Obras = obrasRepository;
+            GrupoDeObras = grupoDeObrasRepository;
+            ModeloTextos = modeloTextoRepository;
+            ModeloTextoVariaveis = modeloTextoVariavelRepository;
+            ModeloTextoVariavelVinculos = modeloTextoVariavelVinculoRepository;
+            MaoDeObra = maoDeObraRepository;
+            Equipamentos = equipamentosRepository;
+            TiposOcorrencia = tiposOcorrenciaRepository;
+            Despesas = despesasRepository;
+            SupportTickets = supportTicketsRepository;
+            Checklists = checklistRepository;
+            ChecklistsVariavel = checklistVariavelRepository;
+            ObraOperadores = obraOperadorRepository;
+            ObraMaoDeObra = obraMaoDeObraRepository;
+            ObraEquipamentos = obraEquipamentoRepository;
+            ObraTiposOcorrencia = obraTipoOcorrenciaRepository;
+            ObraModelosTexto = obraModeloTextoRepository;
+            ObraDespesas = obraDespesaRepository;
+            Relatorios = relatorioRepository;
         }
 
-        public int Save()
-        {
-            return _dbContext.SaveChanges();
-        }
+        public int Save() => _dbContext.SaveChanges();
 
         public void Dispose()
         {
@@ -91,10 +84,7 @@ namespace Infrastructure.Repositories
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                _dbContext.Dispose();
-            }
+            if (disposing) _dbContext.Dispose();
         }
     }
 
@@ -120,6 +110,7 @@ namespace Infrastructure.Repositories
         IObraTipoOcorrenciaRepository ObraTiposOcorrencia { get; }
         IObraModeloTextoRepository ObraModelosTexto { get; }
         IObraDespesaRepository ObraDespesas { get; }
+        IRelatorioRepository Relatorios { get; }
         int Save();
     }
 }

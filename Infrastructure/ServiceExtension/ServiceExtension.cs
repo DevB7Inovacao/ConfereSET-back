@@ -37,6 +37,7 @@ namespace Infrastructure.ServiceExtension
 			services.AddScoped<IObraTipoOcorrenciaRepository, ObraTipoOcorrenciaRepository>();
 			services.AddScoped<IObraModeloTextoRepository, ObraModeloTextoRepository>();
 			services.AddScoped<IObraDespesaRepository, ObraDespesaRepository>();
+            services.AddScoped<IRelatorioRepository, RelatorioRepository>();
 
             return services;
 		}

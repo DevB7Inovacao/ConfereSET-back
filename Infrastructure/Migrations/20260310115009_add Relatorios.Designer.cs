@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(DbContextClass))]
-    partial class DbContextClassModelSnapshot : ModelSnapshot
+    [Migration("20260310115009_add Relatorios")]
+    partial class addRelatorios
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -263,6 +266,69 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("MaoDeObra");
+                });
+
+            modelBuilder.Entity("Core.Models.ModeloRelatorio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ModeloRelatorios");
+                });
+
+            modelBuilder.Entity("Core.Models.ModeloRelatorioSecao", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ModeloRelatorioId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TipoSecao")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModeloRelatorioId");
+
+                    b.ToTable("ModeloRelatorioSecoes");
                 });
 
             modelBuilder.Entity("Core.Models.ModeloTexto", b =>
@@ -678,10 +744,7 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("DataRelatorio")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("HtmlSnapshot")
-                        .HasColumnType("text");
-
-                    b.Property<int>("ModeloTextoId")
+                    b.Property<int>("ModeloRelatorioId")
                         .HasColumnType("integer");
 
                     b.Property<int>("ObraId")
@@ -701,7 +764,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("CriadoPorUserId");
 
-                    b.HasIndex("ModeloTextoId");
+                    b.HasIndex("ModeloRelatorioId");
 
                     b.HasIndex("ObraId");
 
@@ -757,10 +820,6 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DataSecao")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<int>("Ordem")
                         .HasColumnType("integer");
 
@@ -769,6 +828,10 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("TipoSecao")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
@@ -792,9 +855,6 @@ namespace Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Descricao")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Nome")
                         .HasColumnType("text");
 
                     b.Property<int?>("ReferenciaId")
@@ -952,6 +1012,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Checklist");
 
                     b.Navigation("ModeloTextoVariavel");
+                });
+
+            modelBuilder.Entity("Core.Models.ModeloRelatorioSecao", b =>
+                {
+                    b.HasOne("Core.Models.ModeloRelatorio", "ModeloRelatorio")
+                        .WithMany("Secoes")
+                        .HasForeignKey("ModeloRelatorioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ModeloRelatorio");
                 });
 
             modelBuilder.Entity("Core.Models.ModeloTextoVariavelVinculo", b =>
@@ -1123,9 +1194,9 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Core.Models.ModeloTexto", "ModeloTexto")
+                    b.HasOne("Core.Models.ModeloRelatorio", "ModeloRelatorio")
                         .WithMany()
-                        .HasForeignKey("ModeloTextoId")
+                        .HasForeignKey("ModeloRelatorioId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1137,7 +1208,7 @@ namespace Infrastructure.Migrations
 
                     b.Navigation("CriadoPor");
 
-                    b.Navigation("ModeloTexto");
+                    b.Navigation("ModeloRelatorio");
 
                     b.Navigation("Obra");
                 });
@@ -1189,6 +1260,11 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Core.Models.GrupoDeObras", b =>
                 {
                     b.Navigation("Obras");
+                });
+
+            modelBuilder.Entity("Core.Models.ModeloRelatorio", b =>
+                {
+                    b.Navigation("Secoes");
                 });
 
             modelBuilder.Entity("Core.Models.Relatorio", b =>
