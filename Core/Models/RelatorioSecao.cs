@@ -9,7 +9,9 @@ namespace Core.Models
         public TipoSecao TipoSecao { get; set; }
         public int Ordem { get; set; } = 0;
         public string? ConteudoJson { get; set; }
+        public int? TipoOcorrenciaId { get; set; }
         public Relatorio? Relatorio { get; set; }
+        public TiposOcorrencia? TipoOcorrencia { get; set; }
         public List<RelatorioSecaoItem> Itens { get; set; } = new();
     }
 }

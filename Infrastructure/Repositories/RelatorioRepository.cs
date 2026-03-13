@@ -37,6 +37,8 @@ namespace Infrastructure.Repositories
                 .Include(x => x.Obra)
                 .Include(x => x.CriadoPor)
                 .Include(x => x.Secoes.OrderBy(s => s.Ordem))
+                    .ThenInclude(s => s.TipoOcorrencia)
+                .Include(x => x.Secoes.OrderBy(s => s.Ordem))
                     .ThenInclude(s => s.Itens)
                         .ThenInclude(i => i.Fotos)
                 .FirstOrDefaultAsync(x => x.Id == id);

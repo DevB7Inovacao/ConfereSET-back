@@ -25,6 +25,7 @@
         public IObraModeloTextoRepository ObraModelosTexto { get; }
         public IObraDespesaRepository ObraDespesas { get; }
         public IRelatorioRepository Relatorios { get; }
+        public IOcorrenciaRepository Ocorrencias { get; }
 
         public UnitOfWork(DbContextClass dbContext,
             IUserRepository userRepository,
@@ -47,7 +48,8 @@
             IObraTipoOcorrenciaRepository obraTipoOcorrenciaRepository,
             IObraModeloTextoRepository obraModeloTextoRepository,
             IObraDespesaRepository obraDespesaRepository,
-            IRelatorioRepository relatorioRepository
+            IRelatorioRepository relatorioRepository,
+            IOcorrenciaRepository ocorrenciaRepository
         )
         {
             _dbContext = dbContext;
@@ -72,6 +74,7 @@
             ObraModelosTexto = obraModeloTextoRepository;
             ObraDespesas = obraDespesaRepository;
             Relatorios = relatorioRepository;
+            Ocorrencias = ocorrenciaRepository;
         }
 
         public int Save() => _dbContext.SaveChanges();
@@ -111,6 +114,7 @@
         IObraModeloTextoRepository ObraModelosTexto { get; }
         IObraDespesaRepository ObraDespesas { get; }
         IRelatorioRepository Relatorios { get; }
+        IOcorrenciaRepository Ocorrencias { get; }
         int Save();
     }
 }

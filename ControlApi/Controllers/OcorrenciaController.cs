@@ -10,22 +10,24 @@ namespace ControlApi.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class RelatorioController : ControllerBase
+    public class OcorrenciaController : ControllerBase
     {
-        private readonly IRelatorioService _service;
+        private readonly IOcorrenciaService _service;
 
-        public RelatorioController(IRelatorioService service)
+        public OcorrenciaController(IOcorrenciaService service)
         {
             _service = service;
         }
 
         [AllowAnonymous]
         [HttpPost("create")]
-        public async Task<IActionResult> Create([FromBody] CreateRelatorioRequest req)
+        public async Task<IActionResult> Create([FromBody] CreateOcorrenciaRequest req)
         {
             try
             {
                 if (req == null) return BadRequest("Payload inválido.");
+                if (string.IsNullOrWhiteSpace(req.Titulo)) return BadRequest("Título é obrigatório.");
+
                 var result = await _service.Create(req);
                 return Ok(result.Id);
             }
@@ -37,7 +39,7 @@ namespace ControlApi.Controllers
 
         [AllowAnonymous]
         [HttpGet("getPaged")]
-        public async Task<IActionResult> GetPaged([FromQuery] FiltersRelatorioDTO filters)
+        public async Task<IActionResult> GetPaged([FromQuery] FiltersOcorrenciaDTO filters)
         {
             try
             {
@@ -58,7 +60,7 @@ namespace ControlApi.Controllers
             {
                 if (id <= 0) return BadRequest("id inválido.");
                 var result = await _service.GetById(id);
-                if (result == null) return NotFound("Relatório não encontrado.");
+                if (result == null) return NotFound("Ocorrência não encontrada.");
                 return Ok(result);
             }
             catch (Exception ex)
@@ -68,13 +70,48 @@ namespace ControlApi.Controllers
         }
 
         [AllowAnonymous]
-        [HttpPatch("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateRelatorioStatusRequest req)
+        [HttpGet("obra/{obraId}")]
+        public async Task<IActionResult> GetByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+                var result = await _service.GetByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateOcorrenciaRequest req)
         {
             try
             {
                 if (id <= 0) return BadRequest("id inválido.");
                 if (req == null) return BadRequest("Payload inválido.");
+
+                var ok = await _service.Update(id, req);
+                return ok ? Ok(true) : BadRequest("Falha ao atualizar ocorrência.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOcorrenciaStatusRequest req)
+        {
+            try
+            {
+                if (id <= 0) return BadRequest("id inválido.");
+                if (req == null) return BadRequest("Payload inválido.");
+
                 var ok = await _service.UpdateStatus(id, req.Status);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar status.");
             }
@@ -92,57 +129,7 @@ namespace ControlApi.Controllers
             {
                 if (id <= 0) return BadRequest("id inválido.");
                 var ok = await _service.Delete(id);
-                return ok ? Ok("Relatório excluído com sucesso.") : BadRequest("Falha ao excluir.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [AllowAnonymous]
-        [HttpPut("item/{itemId}")]
-        public async Task<IActionResult> UpdateItem(int itemId, [FromBody] UpdateRelatorioSecaoItemRequest req)
-        {
-            try
-            {
-                if (itemId <= 0) return BadRequest("itemId inválido.");
-                if (req == null) return BadRequest("Payload inválido.");
-                var ok = await _service.UpdateItem(itemId, req);
-                return ok ? Ok(true) : BadRequest("Falha ao atualizar item.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [AllowAnonymous]
-        [HttpPost("item/{itemId}/foto")]
-        public async Task<IActionResult> AddFoto(int itemId, [FromBody] AddFotoToItemRequest req)
-        {
-            try
-            {
-                if (itemId <= 0) return BadRequest("itemId inválido.");
-                if (req == null) return BadRequest("Payload inválido.");
-                var ok = await _service.AddFotoToItem(itemId, req);
-                return ok ? Ok("Foto adicionada com sucesso.") : BadRequest("Falha ao adicionar foto.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [AllowAnonymous]
-        [HttpDelete("foto/{fotoId}")]
-        public async Task<IActionResult> DeleteFoto(int fotoId)
-        {
-            try
-            {
-                if (fotoId <= 0) return BadRequest("fotoId inválido.");
-                var ok = await _service.DeleteFoto(fotoId);
-                return ok ? Ok("Foto excluída com sucesso.") : BadRequest("Falha ao excluir foto.");
+                return ok ? Ok("Ocorrência excluída com sucesso.") : BadRequest("Falha ao excluir ocorrência.");
             }
             catch (Exception ex)
             {

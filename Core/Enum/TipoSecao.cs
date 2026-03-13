@@ -5,10 +5,9 @@
         Local = 1,
         MaoDeObra = 2,
         Equipamentos = 3,
-        TiposOcorrencia = 4,
-        TextoLivre = 5,
-        Fotos = 6,
-        Paralisacao = 7,
-        Acidentes = 8
+        TextoLivre = 4,
+        Fotos = 5,
+        Comentarios = 6,
+        Ocorrencias = 7
     }
 }

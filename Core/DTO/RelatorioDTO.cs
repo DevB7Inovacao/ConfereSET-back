@@ -9,6 +9,17 @@ namespace Core.DTO
         public string? ModeloTextoNome { get; set; }
         public int ObraId { get; set; }
         public string? ObraNome { get; set; }
+        public string? ObraStreetAddress { get; set; }
+        public string? ObraNumber { get; set; }
+        public string? ObraAddressLine2 { get; set; }
+        public string? ObraNeighborhood { get; set; }
+        public string? ObraCity { get; set; }
+        public string? ObraState { get; set; }
+        public string? ObraPostalCode { get; set; }
+        public string? ObraCountry { get; set; }
+        public string? ObraClientName { get; set; }
+        public string? ObraClientEmail { get; set; }
+        public string? ObraClientPhone { get; set; }
         public int CriadoPorUserId { get; set; }
         public string? CriadoPorNome { get; set; }
         public string? Titulo { get; set; }
@@ -26,6 +37,8 @@ namespace Core.DTO
         public TipoSecao TipoSecao { get; set; }
         public int Ordem { get; set; }
         public string? ConteudoJson { get; set; }
+        public int? TipoOcorrenciaId { get; set; }
+        public string? TipoOcorrenciaNome { get; set; }
         public List<RelatorioSecaoItemDTO> Itens { get; set; } = new();
     }
 

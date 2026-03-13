@@ -17,11 +17,10 @@ namespace Services
                 ["local"] = TipoSecao.Local,
                 ["mao-de-obra"] = TipoSecao.MaoDeObra,
                 ["equipamentos"] = TipoSecao.Equipamentos,
-                ["tipos-ocorrencia"] = TipoSecao.TiposOcorrencia,
                 ["texto-livre"] = TipoSecao.TextoLivre,
                 ["fotos"] = TipoSecao.Fotos,
-                ["paralisacao"] = TipoSecao.Paralisacao,
-                ["acidentes"] = TipoSecao.Acidentes,
+                ["comentarios"] = TipoSecao.Comentarios,
+                ["ocorrencias"] = TipoSecao.Ocorrencias,
             };
 
         public RelatorioService(IUnitOfWork unitOfWork)
@@ -133,19 +132,15 @@ namespace Services
             return _unitOfWork.Save() > 0;
         }
 
-        // ---------------------------------------------------------------
-        // Parse do HTML via HtmlAgilityPack
-        // Lê todos os elementos com atributo data-secao e monta as seções
-        // ---------------------------------------------------------------
         private async Task<List<RelatorioSecao>> ParseSecoesDoHtml(string html, Obras obra)
         {
             var secoes = new List<RelatorioSecao>();
+            var secoesMap = new Dictionary<TipoSecao, RelatorioSecao>();
+
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
-            var nodes = doc.DocumentNode
-                .SelectNodes("//*[@data-secao]");
-
+            var nodes = doc.DocumentNode.SelectNodes("//*[@data-secao]");
             if (nodes == null) return secoes;
 
             int ordem = 0;
@@ -155,6 +150,24 @@ namespace Services
                 if (string.IsNullOrWhiteSpace(dataSecao)) continue;
 
                 if (!DataSecaoMap.TryGetValue(dataSecao, out var tipoSecao))
+                    continue;
+
+                if (tipoSecao != TipoSecao.Ocorrencias && HasAncestorWithDataSecao(node))
+                    continue;
+
+                if (tipoSecao == TipoSecao.Ocorrencias)
+                {
+                    if (secoesMap.ContainsKey(tipoSecao))
+                        continue;
+
+                    var (secoesOcorrencias, proximaOrdem) = await BuildSecoesOcorrencias(obra, ordem);
+                    secoes.AddRange(secoesOcorrencias);
+                    ordem = proximaOrdem;
+                    secoesMap[tipoSecao] = new RelatorioSecao { DataSecao = dataSecao, TipoSecao = tipoSecao };
+                    continue;
+                }
+
+                if (secoesMap.ContainsKey(tipoSecao))
                     continue;
 
                 var secao = new RelatorioSecao
@@ -203,21 +216,72 @@ namespace Services
                         }).ToList();
                         break;
 
-                    case TipoSecao.TiposOcorrencia:
-                        var tipos = await _unitOfWork.ObraTiposOcorrencia.GetTiposOcorrenciaByObraId(obra.Id);
-                        secao.Itens = tipos.Select(t => new RelatorioSecaoItem
+                    case TipoSecao.TextoLivre:
+                        secao.Itens = new List<RelatorioSecaoItem>
                         {
-                            ReferenciaId = t.Id,
-                            Nome = t.Nome,
-                            Descricao = null
-                        }).ToList();
+                            new RelatorioSecaoItem { Nome = null, Descricao = null }
+                        };
+                        break;
+
+                    case TipoSecao.Fotos:
+                        secao.Itens = new List<RelatorioSecaoItem>
+                        {
+                            new RelatorioSecaoItem { Nome = null, Descricao = null }
+                        };
+                        break;
+
+                    case TipoSecao.Comentarios:
                         break;
                 }
 
+                secoesMap[tipoSecao] = secao;
                 secoes.Add(secao);
             }
 
             return secoes;
+        }
+
+        private async Task<(List<RelatorioSecao> Secoes, int ProximaOrdem)> BuildSecoesOcorrencias(Obras obra, int ordemInicial)
+        {
+            var ocorrencias = await _unitOfWork.Ocorrencias.GetByObraId(obra.Id);
+
+            if (!ocorrencias.Any())
+                return (new List<RelatorioSecao>(), ordemInicial);
+
+            var ordem = ordemInicial;
+            var secoes = new List<RelatorioSecao>();
+
+            foreach (var grupo in ocorrencias.GroupBy(o => new { o.TipoOcorrenciaId, o.TipoOcorrenciaNome }))
+            {
+                secoes.Add(new RelatorioSecao
+                {
+                    DataSecao = grupo.Key.TipoOcorrenciaNome ?? "ocorrencias",
+                    TipoSecao = TipoSecao.Ocorrencias,
+                    TipoOcorrenciaId = grupo.Key.TipoOcorrenciaId,
+                    ConteudoJson = grupo.Key.TipoOcorrenciaNome,
+                    Ordem = ordem++,
+                    Itens = grupo.Select(o => new RelatorioSecaoItem
+                    {
+                        ReferenciaId = o.Id,
+                        Nome = o.Titulo,
+                        Descricao = o.Descricao
+                    }).ToList()
+                });
+            }
+
+            return (secoes, ordem);
+        }
+
+        private static bool HasAncestorWithDataSecao(HtmlNode node)
+        {
+            var parent = node.ParentNode;
+            while (parent != null && parent.NodeType == HtmlNodeType.Element)
+            {
+                if (parent.GetAttributeValue("data-secao", null) != null)
+                    return true;
+                parent = parent.ParentNode;
+            }
+            return false;
         }
 
         private static RelatorioDTO MapToDTO(Relatorio r) => new()
@@ -227,6 +291,17 @@ namespace Services
             ModeloTextoNome = r.ModeloTexto?.Nome,
             ObraId = r.ObraId,
             ObraNome = r.Obra?.Name,
+            ObraStreetAddress = r.Obra?.StreetAddress,
+            ObraNumber = r.Obra?.Number,
+            ObraAddressLine2 = r.Obra?.AddressLine2,
+            ObraNeighborhood = r.Obra?.Neighborhood,
+            ObraCity = r.Obra?.City,
+            ObraState = r.Obra?.State,
+            ObraPostalCode = r.Obra?.PostalCode,
+            ObraCountry = r.Obra?.Country,
+            ObraClientName = r.Obra?.ClientName,
+            ObraClientEmail = r.Obra?.ClientEmail,
+            ObraClientPhone = r.Obra?.ClientPhone,
             CriadoPorUserId = r.CriadoPorUserId,
             CriadoPorNome = r.CriadoPor?.Name,
             Titulo = r.Titulo,
@@ -241,6 +316,8 @@ namespace Services
                 TipoSecao = s.TipoSecao,
                 Ordem = s.Ordem,
                 ConteudoJson = s.ConteudoJson,
+                TipoOcorrenciaId = s.TipoOcorrenciaId,
+                TipoOcorrenciaNome = s.TipoOcorrencia?.Nome,
                 Itens = s.Itens?.Select(i => new RelatorioSecaoItemDTO
                 {
                     Id = i.Id,
@@ -259,175 +336,6 @@ namespace Services
                 }).ToList() ?? new()
             }).ToList() ?? new()
         };
-
-        public async Task<string> GetRenderedHtml(int relatorioId)
-        {
-            var relatorio = await _unitOfWork.Relatorios.GetById(relatorioId);
-            if (relatorio == null) throw new Exception("Relatório não encontrado.");
-
-            var html = relatorio.HtmlSnapshot ?? "";
-            if (string.IsNullOrWhiteSpace(html)) return html;
-
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            foreach (var secao in relatorio.Secoes ?? new List<RelatorioSecao>())
-            {
-                var node = doc.DocumentNode
-                    .SelectSingleNode($"//*[@data-secao='{secao.DataSecao}']");
-
-                if (node == null) continue;
-
-                switch (secao.TipoSecao)
-                {
-                    case TipoSecao.MaoDeObra:
-                    case TipoSecao.Equipamentos:
-                    case TipoSecao.TiposOcorrencia:
-                        InjetarItensNaTabela(node, secao.Itens ?? new List<RelatorioSecaoItem>());
-                        break;
-                    case TipoSecao.Paralisacao:
-                    case TipoSecao.Acidentes:
-                        secao.Itens = new List<RelatorioSecaoItem>();
-                        break;
-                    case TipoSecao.Fotos:
-                        InjetarFotosNaSecao(node, secao.Itens ?? new List<RelatorioSecaoItem>());
-                        break;
-                    case TipoSecao.Local:
-                        if (!string.IsNullOrWhiteSpace(secao.ConteudoJson))
-                        {
-                            var localData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(secao.ConteudoJson);
-                            if (localData != null)
-                            {
-                                var innerHtml = node.InnerHtml;
-                                foreach (var kv in localData)
-                                    innerHtml = innerHtml.Replace($"{{{{{kv.Key.ToLowerInvariant()}}}}}", kv.Value.ToString(), StringComparison.OrdinalIgnoreCase);
-                                node.InnerHtml = innerHtml;
-                            }
-                        }
-                        break;
-                }
-            }
-
-            var finalHtml = doc.DocumentNode.OuterHtml;
-            finalHtml = finalHtml.Replace("{{data_relatorio}}", relatorio.DataRelatorio.ToString("dd/MM/yyyy"), StringComparison.OrdinalIgnoreCase);
-            finalHtml = finalHtml.Replace("{{autor_nome}}", relatorio.CriadoPor?.Name ?? "", StringComparison.OrdinalIgnoreCase);
-            finalHtml = finalHtml.Replace("{{cliente_nome}}", relatorio.Obra?.ClientName ?? "", StringComparison.OrdinalIgnoreCase);
-            finalHtml = finalHtml.Replace("{{local_nome}}", relatorio.Obra?.Name ?? "", StringComparison.OrdinalIgnoreCase);
-            finalHtml = finalHtml.Replace("{{local_endereco}}",
-                $"{relatorio.Obra?.StreetAddress}, {relatorio.Obra?.Number} - {relatorio.Obra?.City}/{relatorio.Obra?.State}",
-                StringComparison.OrdinalIgnoreCase);
-
-            const string charsetMeta = "<meta charset=\"utf-8\">";
-            if (!finalHtml.Contains("charset", StringComparison.OrdinalIgnoreCase))
-            {
-                finalHtml = finalHtml.Contains("<head>", StringComparison.OrdinalIgnoreCase)
-                    ? finalHtml.Replace("<head>", $"<head>{charsetMeta}", StringComparison.OrdinalIgnoreCase)
-                    : charsetMeta + finalHtml;
-            }
-
-            return finalHtml;
-        }
-
-        private static void InjetarItensNaTabela(HtmlNode secaoNode, IList<RelatorioSecaoItem> itens)
-        {
-            var tituloNode = secaoNode.SelectSingleNode(".//td[@colspan] | .//th[@colspan]");
-            var titulo = tituloNode?.InnerText?.Trim() ?? secaoNode.GetAttributeValue("data-secao", "");
-
-            var tabelaTitulo =
-                "<table style=\"border-collapse: collapse; width: 100%;\" border=\"1\">" +
-                "<colgroup><col style=\"width: 100%;\"></colgroup>" +
-                "<tbody>" +
-                $"<tr><td style=\"padding: 8px;\"><strong>{titulo}</strong></td></tr>" +
-                "</tbody>" +
-                "</table>";
-
-            var sbLinhas = new System.Text.StringBuilder();
-            foreach (var item in itens)
-            {
-                var nome = item.Nome ?? "";
-                var descricao = item.Descricao ?? "";
-                sbLinhas.Append(
-                    "<tr>" +
-                    $"<td style=\"width: 50%; padding: 8px;\">{nome}</td>" +
-                    $"<td style=\"width: 50%; padding: 8px;\">{descricao}</td>" +
-                    "</tr>");
-            }
-
-            var tabelaDados = itens.Any()
-                ? "<table style=\"border-collapse: collapse; width: 100%;\" border=\"1\">" +
-                  "<colgroup><col style=\"width: 50%;\"><col style=\"width: 50%;\"></colgroup>" +
-                  "<tbody>" +
-                  sbLinhas.ToString() +
-                  "</tbody>" +
-                  "</table>"
-                : "";
-
-            secaoNode.InnerHtml = tabelaTitulo + tabelaDados;
-        }
-
-        private static void InjetarFotosNaSecao(HtmlNode secaoNode, IList<RelatorioSecaoItem> itens)
-        {
-            var tituloNode = secaoNode.SelectSingleNode(".//td[@colspan] | .//th[@colspan]");
-            var titulo = tituloNode?.InnerText?.Trim() ?? "Registro Fotográfico";
-
-            var tabelaTitulo =
-                "<table style=\"border-collapse: collapse; width: 100%;\" border=\"1\">" +
-                "<colgroup><col style=\"width: 100%;\"></colgroup>" +
-                "<tbody>" +
-                $"<tr><td style=\"padding: 8px;\"><strong>{titulo}</strong></td></tr>" +
-                "</tbody>" +
-                "</table>";
-
-            if (!itens.Any())
-            {
-                secaoNode.InnerHtml = tabelaTitulo;
-                return;
-            }
-
-            var todasFotos = itens
-                .SelectMany(i => i.Fotos ?? new List<RelatorioItemFoto>(),
-                    (item, foto) => new { item.Nome, foto.ImagemBytes, foto.ContentType, foto.NomeArquivo })
-                .ToList();
-
-            var sbLinhas = new System.Text.StringBuilder();
-            sbLinhas.Append("<table style=\"border-collapse: collapse; width: 100%;\" border=\"1\">");
-            sbLinhas.Append("<colgroup><col style=\"width: 50%;\"><col style=\"width: 50%;\"></colgroup>");
-            sbLinhas.Append("<tbody>");
-
-            for (int i = 0; i < todasFotos.Count; i += 2)
-            {
-                sbLinhas.Append("<tr>");
-
-                var f1 = todasFotos[i];
-                var base64_1 = Convert.ToBase64String(f1.ImagemBytes);
-                sbLinhas.Append(
-                    "<td style=\"padding: 8px; text-align: center; vertical-align: top;\">" +
-                    $"<img src=\"data:{f1.ContentType};base64,{base64_1}\" style=\"max-width:100%;max-height:300px;\" />" +
-                    $"<br/><small>{f1.Nome ?? f1.NomeArquivo ?? ""}</small>" +
-                    "</td>");
-
-                if (i + 1 < todasFotos.Count)
-                {
-                    var f2 = todasFotos[i + 1];
-                    var base64_2 = Convert.ToBase64String(f2.ImagemBytes);
-                    sbLinhas.Append(
-                        "<td style=\"padding: 8px; text-align: center; vertical-align: top;\">" +
-                        $"<img src=\"data:{f2.ContentType};base64,{base64_2}\" style=\"max-width:100%;max-height:300px;\" />" +
-                        $"<br/><small>{f2.Nome ?? f2.NomeArquivo ?? ""}</small>" +
-                        "</td>");
-                }
-                else
-                {
-                    sbLinhas.Append("<td style=\"padding: 8px;\"></td>");
-                }
-
-                sbLinhas.Append("</tr>");
-            }
-
-            sbLinhas.Append("</tbody></table>");
-
-            secaoNode.InnerHtml = tabelaTitulo + sbLinhas.ToString();
-        }
     }
 
     public interface IRelatorioService
@@ -440,6 +348,5 @@ namespace Services
         Task<bool> UpdateItem(int itemId, UpdateRelatorioSecaoItemRequest req);
         Task<bool> AddFotoToItem(int itemId, AddFotoToItemRequest req);
         Task<bool> DeleteFoto(int fotoId);
-        Task<string> GetRenderedHtml(int relatorioId);
     }
 }

@@ -34,6 +34,7 @@ namespace Infrastructure
         public DbSet<RelatorioSecao> RelatorioSecoes { get; set; }
         public DbSet<RelatorioSecaoItem> RelatorioSecaoItens { get; set; }
         public DbSet<RelatorioItemFoto> RelatorioItemFotos { get; set; }
+        public DbSet<Ocorrencia> Ocorrencias { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -113,6 +114,11 @@ namespace Infrastructure
                     .WithMany(r => r.Secoes)
                     .HasForeignKey(x => x.RelatorioId)
                     .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.TipoOcorrencia)
+                    .WithMany()
+                    .HasForeignKey(x => x.TipoOcorrenciaId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
             });
 
             modelBuilder.Entity<RelatorioSecaoItem>(entity =>
@@ -131,6 +137,14 @@ namespace Infrastructure
                     .WithMany(i => i.Fotos)
                     .HasForeignKey(x => x.RelatorioSecaoItemId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Ocorrencia>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasOne(x => x.Obra).WithMany().HasForeignKey(x => x.ObraId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.TipoOcorrencia).WithMany().HasForeignKey(x => x.TipoOcorrenciaId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.CriadoPor).WithMany().HasForeignKey(x => x.CriadoPorUserId).OnDelete(DeleteBehavior.SetNull);
             });
 
             base.OnModelCreating(modelBuilder);

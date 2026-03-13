@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(DbContextClass))]
-    partial class DbContextClassModelSnapshot : ModelSnapshot
+    [Migration("20260313022719_add Ocorrencias")]
+    partial class addOcorrencias
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -817,9 +820,6 @@ namespace Infrastructure.Migrations
                     b.Property<int>("RelatorioId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("TipoOcorrenciaId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("TipoSecao")
                         .HasColumnType("integer");
 
@@ -829,8 +829,6 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RelatorioId");
-
-                    b.HasIndex("TipoOcorrenciaId");
 
                     b.ToTable("RelatorioSecoes");
                 });
@@ -1242,14 +1240,7 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Core.Models.TiposOcorrencia", "TipoOcorrencia")
-                        .WithMany()
-                        .HasForeignKey("TipoOcorrenciaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Relatorio");
-
-                    b.Navigation("TipoOcorrencia");
                 });
 
             modelBuilder.Entity("Core.Models.RelatorioSecaoItem", b =>
