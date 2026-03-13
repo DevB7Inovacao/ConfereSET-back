@@ -13,5 +13,6 @@ namespace Core.Models
         public Relatorio? Relatorio { get; set; }
         public TiposOcorrencia? TipoOcorrencia { get; set; }
         public List<RelatorioSecaoItem> Itens { get; set; } = new();
+        public List<RelatorioComentario> Comentarios { get; set; } = new();
     }
 }

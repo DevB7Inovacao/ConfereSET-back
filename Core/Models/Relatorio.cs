@@ -11,6 +11,7 @@ namespace Core.Models
         public StatusRelatorio Status { get; set; } = StatusRelatorio.Rascunho;
         public DateTime DataRelatorio { get; set; } = DateTime.Now;
         public string? HtmlSnapshot { get; set; }
+        public string? ObservacaoRejeicao { get; set; }
         public ModeloTexto? ModeloTexto { get; set; }
         public Obras? Obra { get; set; }
         public User? CriadoPor { get; set; }

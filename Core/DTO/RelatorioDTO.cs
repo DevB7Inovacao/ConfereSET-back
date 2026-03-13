@@ -26,6 +26,7 @@ namespace Core.DTO
         public StatusRelatorio Status { get; set; }
         public DateTime DataRelatorio { get; set; }
         public string? HtmlSnapshot { get; set; }
+        public string? ObservacaoRejeicao { get; set; }
         public List<RelatorioSecaoDTO> Secoes { get; set; } = new();
     }
 
@@ -40,6 +41,7 @@ namespace Core.DTO
         public int? TipoOcorrenciaId { get; set; }
         public string? TipoOcorrenciaNome { get; set; }
         public List<RelatorioSecaoItemDTO> Itens { get; set; } = new();
+        public List<RelatorioComentarioDTO> Comentarios { get; set; } = new();
     }
 
     public class RelatorioSecaoItemDTO
@@ -59,6 +61,27 @@ namespace Core.DTO
         public string? ContentType { get; set; }
         public string? NomeArquivo { get; set; }
         public string? ImagemBase64 { get; set; }
+    }
+
+    public class RelatorioComentarioDTO
+    {
+        public int Id { get; set; }
+        public int RelatorioSecaoId { get; set; }
+        public int AutorId { get; set; }
+        public string? AutorNome { get; set; }
+        public string? Texto { get; set; }
+        public DateTime CreatedDate { get; set; }
+    }
+
+    public class AddComentarioRequest
+    {
+        public required int AutorId { get; set; }
+        public required string Texto { get; set; }
+    }
+
+    public class UpdateComentarioRequest
+    {
+        public required string Texto { get; set; }
     }
 
     public class RelatorioPagedDTO
@@ -92,6 +115,7 @@ namespace Core.DTO
     public class UpdateRelatorioStatusRequest
     {
         public required StatusRelatorio Status { get; set; }
+        public string? ObservacaoRejeicao { get; set; }
     }
 
     public class FiltersRelatorioDTO

@@ -35,6 +35,7 @@ namespace Infrastructure
         public DbSet<RelatorioSecaoItem> RelatorioSecaoItens { get; set; }
         public DbSet<RelatorioItemFoto> RelatorioItemFotos { get; set; }
         public DbSet<Ocorrencia> Ocorrencias { get; set; }
+        public DbSet<RelatorioComentario> RelatorioComentarios { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -145,6 +146,19 @@ namespace Infrastructure
                 entity.HasOne(x => x.Obra).WithMany().HasForeignKey(x => x.ObraId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(x => x.TipoOcorrencia).WithMany().HasForeignKey(x => x.TipoOcorrenciaId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(x => x.CriadoPor).WithMany().HasForeignKey(x => x.CriadoPorUserId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<RelatorioComentario>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasOne(x => x.RelatorioSecao)
+                    .WithMany(s => s.Comentarios)
+                    .HasForeignKey(x => x.RelatorioSecaoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.Autor)
+                    .WithMany()
+                    .HasForeignKey(x => x.AutorId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             base.OnModelCreating(modelBuilder);

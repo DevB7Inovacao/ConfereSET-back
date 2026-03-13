@@ -72,12 +72,26 @@ namespace Services
             };
         }
 
-        public async Task<bool> UpdateStatus(int id, StatusRelatorio status)
+        public async Task<bool> UpdateStatus(int id, UpdateRelatorioStatusRequest req)
         {
             var relatorio = await _unitOfWork.Relatorios.GetById(id);
             if (relatorio == null) throw new Exception("Relatório não encontrado.");
 
-            relatorio.Status = status;
+            ValidarTransicaoStatus(relatorio.Status, req.Status);
+
+            if (req.Status == StatusRelatorio.Rejeitado)
+            {
+                if (string.IsNullOrWhiteSpace(req.ObservacaoRejeicao))
+                    throw new Exception("É obrigatório informar uma observação ao reprovar o relatório.");
+
+                relatorio.ObservacaoRejeicao = req.ObservacaoRejeicao.Trim();
+            }
+            else
+            {
+                relatorio.ObservacaoRejeicao = null;
+            }
+
+            relatorio.Status = req.Status;
             _unitOfWork.Relatorios.Update(relatorio);
             return _unitOfWork.Save() > 0;
         }
@@ -130,6 +144,60 @@ namespace Services
 
             _unitOfWork.Relatorios.DeleteFoto(foto);
             return _unitOfWork.Save() > 0;
+        }
+
+        public async Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req)
+        {
+            var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
+            if (secao == null) throw new Exception("Seção não encontrada.");
+            if (secao.TipoSecao != TipoSecao.Comentarios)
+                throw new Exception("Esta seção não é do tipo Comentários.");
+
+            var comentario = new RelatorioComentario
+            {
+                RelatorioSecaoId = secaoId,
+                AutorId = req.AutorId,
+                Texto = req.Texto.Trim()
+            };
+
+            await _unitOfWork.Relatorios.AddComentario(comentario);
+            _unitOfWork.Save();
+
+            var saved = await _unitOfWork.Relatorios.GetComentarioById(comentario.Id);
+            return MapComentarioToDTO(saved!);
+        }
+
+        public async Task<bool> UpdateComentario(int comentarioId, UpdateComentarioRequest req)
+        {
+            var comentario = await _unitOfWork.Relatorios.GetComentarioById(comentarioId);
+            if (comentario == null) throw new Exception("Comentário não encontrado.");
+
+            comentario.Texto = req.Texto.Trim();
+            _unitOfWork.Relatorios.UpdateComentario(comentario);
+            return _unitOfWork.Save() > 0;
+        }
+
+        public async Task<bool> DeleteComentario(int comentarioId)
+        {
+            var comentario = await _unitOfWork.Relatorios.GetComentarioById(comentarioId);
+            if (comentario == null) throw new Exception("Comentário não encontrado.");
+
+            _unitOfWork.Relatorios.DeleteComentario(comentario);
+            return _unitOfWork.Save() > 0;
+        }
+
+        private static void ValidarTransicaoStatus(StatusRelatorio atual, StatusRelatorio novo)
+        {
+            var transicoesPermitidas = new Dictionary<StatusRelatorio, HashSet<StatusRelatorio>>
+            {
+                [StatusRelatorio.Rascunho] = [StatusRelatorio.Submetido],
+                [StatusRelatorio.Submetido] = [StatusRelatorio.Aprovado, StatusRelatorio.Rejeitado],
+                [StatusRelatorio.Rejeitado] = [StatusRelatorio.Submetido],
+                [StatusRelatorio.Aprovado] = [],
+            };
+
+            if (!transicoesPermitidas.TryGetValue(atual, out var permitidos) || !permitidos.Contains(novo))
+                throw new Exception($"Transição de status inválida: {atual} → {novo}.");
         }
 
         private async Task<List<RelatorioSecao>> ParseSecoesDoHtml(string html, Obras obra)
@@ -284,6 +352,16 @@ namespace Services
             return false;
         }
 
+        private static RelatorioComentarioDTO MapComentarioToDTO(RelatorioComentario c) => new()
+        {
+            Id = c.Id,
+            RelatorioSecaoId = c.RelatorioSecaoId,
+            AutorId = c.AutorId,
+            AutorNome = c.Autor?.Name,
+            Texto = c.Texto,
+            CreatedDate = c.CreatedDate
+        };
+
         private static RelatorioDTO MapToDTO(Relatorio r) => new()
         {
             Id = r.Id,
@@ -308,6 +386,7 @@ namespace Services
             Status = r.Status,
             DataRelatorio = r.DataRelatorio,
             HtmlSnapshot = r.HtmlSnapshot,
+            ObservacaoRejeicao = r.ObservacaoRejeicao,
             Secoes = r.Secoes?.Select(s => new RelatorioSecaoDTO
             {
                 Id = s.Id,
@@ -333,7 +412,8 @@ namespace Services
                         NomeArquivo = f.NomeArquivo,
                         ImagemBase64 = Convert.ToBase64String(f.ImagemBytes)
                     }).ToList() ?? new()
-                }).ToList() ?? new()
+                }).ToList() ?? new(),
+                Comentarios = s.Comentarios?.Select(MapComentarioToDTO).ToList() ?? new()
             }).ToList() ?? new()
         };
     }
@@ -343,10 +423,13 @@ namespace Services
         Task<Relatorio> Create(CreateRelatorioRequest req);
         Task<RelatorioDTO?> GetById(int id);
         Task<RelatorioPagedDTO> GetPaged(FiltersRelatorioDTO filters);
-        Task<bool> UpdateStatus(int id, StatusRelatorio status);
+        Task<bool> UpdateStatus(int id, UpdateRelatorioStatusRequest req);
         Task<bool> Delete(int id);
         Task<bool> UpdateItem(int itemId, UpdateRelatorioSecaoItemRequest req);
         Task<bool> AddFotoToItem(int itemId, AddFotoToItemRequest req);
         Task<bool> DeleteFoto(int fotoId);
+        Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req);
+        Task<bool> UpdateComentario(int comentarioId, UpdateComentarioRequest req);
+        Task<bool> DeleteComentario(int comentarioId);
     }
 }

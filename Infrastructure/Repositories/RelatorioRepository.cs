@@ -41,6 +41,9 @@ namespace Infrastructure.Repositories
                 .Include(x => x.Secoes.OrderBy(s => s.Ordem))
                     .ThenInclude(s => s.Itens)
                         .ThenInclude(i => i.Fotos)
+                .Include(x => x.Secoes.OrderBy(s => s.Ordem))
+                    .ThenInclude(s => s.Comentarios)
+                        .ThenInclude(c => c.Autor)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -114,6 +117,36 @@ namespace Infrastructure.Repositories
         {
             _dbContext.RelatorioItemFotos.Remove(foto);
         }
+
+        public async Task<RelatorioComentario?> GetComentarioById(int comentarioId)
+        {
+            return await _dbContext.RelatorioComentarios
+                .Include(x => x.Autor)
+                .FirstOrDefaultAsync(x => x.Id == comentarioId);
+        }
+
+        public async Task AddComentario(RelatorioComentario comentario)
+        {
+            await _dbContext.RelatorioComentarios.AddAsync(comentario);
+        }
+
+        public void UpdateComentario(RelatorioComentario comentario)
+        {
+            _dbContext.RelatorioComentarios.Update(comentario);
+        }
+
+        public void DeleteComentario(RelatorioComentario comentario)
+        {
+            _dbContext.RelatorioComentarios.Remove(comentario);
+        }
+
+        public async Task<RelatorioSecao?> GetSecaoById(int secaoId)
+        {
+            return await _dbContext.RelatorioSecoes
+                .Include(x => x.Comentarios)
+                    .ThenInclude(c => c.Autor)
+                .FirstOrDefaultAsync(x => x.Id == secaoId);
+        }
     }
 
     public interface IRelatorioRepository
@@ -130,5 +163,10 @@ namespace Infrastructure.Repositories
         Task AddFoto(RelatorioItemFoto foto);
         Task<RelatorioItemFoto?> GetFotoById(int fotoId);
         void DeleteFoto(RelatorioItemFoto foto);
+        Task<RelatorioComentario?> GetComentarioById(int comentarioId);
+        Task AddComentario(RelatorioComentario comentario);
+        void UpdateComentario(RelatorioComentario comentario);
+        void DeleteComentario(RelatorioComentario comentario);
+        Task<RelatorioSecao?> GetSecaoById(int secaoId);
     }
 }
