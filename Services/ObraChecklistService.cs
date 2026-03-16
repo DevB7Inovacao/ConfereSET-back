@@ -90,6 +90,41 @@ namespace Services
             return _unitOfWork.Save() > 0;
         }
 
+        public async Task<bool> SincronizarChecklist(int checklistId)
+        {
+            var checklist = await _unitOfWork.Checklists.GetById(checklistId);
+            if (checklist == null) throw new Exception("Checklist não encontrado.");
+
+            var itensAtivos = await _unitOfWork.ChecklistItems.GetByChecklist(checklistId);
+            var idsAtivos = itensAtivos.Where(i => i.Status == 1).Select(i => i.Id).ToHashSet();
+            var idsTodos = itensAtivos.Select(i => i.Id).ToHashSet();
+
+            var obraChecklists = await _unitOfWork.ObraChecklists.GetByChecklistId(checklistId);
+
+            foreach (var obraChecklist in obraChecklists)
+            {
+                var itensExistentes = await _unitOfWork.ObraChecklistItems.GetByObraChecklist(obraChecklist.Id);
+                var idsExistentes = itensExistentes.Select(i => i.ChecklistItemId).ToHashSet();
+
+                foreach (var itemId in idsAtivos.Except(idsExistentes))
+                {
+                    await _unitOfWork.ObraChecklistItems.Add(new ObraChecklistItem
+                    {
+                        ObraChecklistId = obraChecklist.Id,
+                        ChecklistItemId = itemId,
+                        Resposta = 0
+                    });
+                }
+
+                foreach (var item in itensExistentes.Where(i => !idsTodos.Contains(i.ChecklistItemId)))
+                {
+                    _unitOfWork.ObraChecklistItems.Delete(item);
+                }
+            }
+
+            return _unitOfWork.Save() >= 0;
+        }
+
         private static ObraChecklistDTO MapToDTO(ObraChecklist x) => new()
         {
             Id = x.Id,
@@ -117,5 +152,6 @@ namespace Services
         Task<List<ObraChecklistDTO>> GetByObra(int obraId);
         Task<bool> ResponderItem(int obraChecklistItemId, ResponderChecklistItemRequest req);
         Task<bool> RemoveChecklistFromObra(int obraChecklistId);
+        Task<bool> SincronizarChecklist(int checklistId);
     }
 }

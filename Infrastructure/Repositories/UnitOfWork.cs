@@ -28,6 +28,7 @@
         public IChecklistItemRepository ChecklistItems { get; }
         public IObraChecklistRepository ObraChecklists { get; }
         public IObraChecklistItemRepository ObraChecklistItems { get; }
+        public IAtividadeRecenteRepository AtividadesRecentes { get; }
 
         public UnitOfWork(DbContextClass dbContext,
             IUserRepository userRepository,
@@ -53,7 +54,8 @@
             IOcorrenciaRepository ocorrenciaRepository,
             IChecklistItemRepository checklistItemRepository,
             IObraChecklistRepository obraChecklistRepository,
-            IObraChecklistItemRepository obraChecklistItemRepository
+            IObraChecklistItemRepository obraChecklistItemRepository,
+            IAtividadeRecenteRepository atividadeRecenteRepository
         )
         {
             _dbContext = dbContext;
@@ -81,6 +83,7 @@
             ChecklistItems = checklistItemRepository;
             ObraChecklists = obraChecklistRepository;
             ObraChecklistItems = obraChecklistItemRepository;
+            AtividadesRecentes = atividadeRecenteRepository;
         }
 
         public int Save() => _dbContext.SaveChanges();
@@ -123,6 +126,7 @@
         IChecklistItemRepository ChecklistItems { get; }
         IObraChecklistRepository ObraChecklists { get; }
         IObraChecklistItemRepository ObraChecklistItems { get; }
+        IAtividadeRecenteRepository AtividadesRecentes { get; }
         int Save();
     }
 }

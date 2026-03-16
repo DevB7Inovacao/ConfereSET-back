@@ -41,6 +41,7 @@ namespace Infrastructure.ServiceExtension
             services.AddScoped<IChecklistItemRepository, ChecklistItemRepository>();
             services.AddScoped<IObraChecklistRepository, ObraChecklistRepository>();
             services.AddScoped<IObraChecklistItemRepository, ObraChecklistItemRepository>();
+            services.AddScoped<IAtividadeRecenteRepository, AtividadeRecenteRepository>();
 
             return services;
         }

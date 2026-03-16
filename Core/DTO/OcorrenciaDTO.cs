@@ -51,6 +51,7 @@ namespace Core.DTO
     {
         public int? ObraId { get; set; }
         public int? EmpresaId { get; set; }
+        public int? OperadorId { get; set; }
         public int? CriadoPorUserId { get; set; }
         public StatusOcorrencia? Status { get; set; }
         public int? TipoOcorrenciaId { get; set; }

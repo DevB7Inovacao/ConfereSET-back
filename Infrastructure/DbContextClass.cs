@@ -38,6 +38,7 @@ namespace Infrastructure
         public DbSet<ChecklistItem> ChecklistItens { get; set; }
         public DbSet<ObraChecklist> ObraChecklists { get; set; }
         public DbSet<ObraChecklistItem> ObraChecklistItens { get; set; }
+        public DbSet<AtividadeRecente> AtividadesRecentes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -177,6 +178,13 @@ namespace Infrastructure
                 entity.HasKey(k => k.Id);
                 entity.HasOne(x => x.ObraChecklist).WithMany(o => o.Itens).HasForeignKey(x => x.ObraChecklistId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(x => x.ChecklistItem).WithMany().HasForeignKey(x => x.ChecklistItemId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<AtividadeRecente>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasOne(x => x.Operador).WithMany().HasForeignKey(x => x.OperadorId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.Obra).WithMany().HasForeignKey(x => x.ObraId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
             });
 
             base.OnModelCreating(modelBuilder);

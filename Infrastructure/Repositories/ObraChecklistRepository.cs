@@ -33,6 +33,16 @@ namespace Infrastructure.Repositories
                 .OrderByDescending(x => x.Id)
                 .ToListAsync();
         }
+
+        public async Task<List<ObraChecklist>> GetByChecklistId(int checklistId)
+        {
+            return await _dbContext.Set<ObraChecklist>()
+                .Include(x => x.Obra)
+                .Include(x => x.Itens)
+                    .ThenInclude(i => i.ChecklistItem)
+                .Where(x => x.ChecklistId == checklistId)
+                .ToListAsync();
+        }
     }
 
     public interface IObraChecklistRepository : IGenericRepository<ObraChecklist>
@@ -40,5 +50,6 @@ namespace Infrastructure.Repositories
         Task<bool> Exists(int obraId, int checklistId);
         Task<ObraChecklist?> GetById(int id);
         Task<List<ObraChecklist>> GetByObra(int obraId);
+        Task<List<ObraChecklist>> GetByChecklistId(int checklistId);
     }
 }

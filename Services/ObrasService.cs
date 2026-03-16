@@ -1,4 +1,5 @@
 ﻿using Core.DTO;
+using Core.Enums;
 using Core.Models;
 using Infrastructure.Repositories;
 
@@ -7,10 +8,12 @@ namespace Services
     public class ObrasService : IObrasService
     {
         public IUnitOfWork _unitOfWork;
+        private readonly IAtividadeRecenteService _atividadeService;
 
-        public ObrasService(IUnitOfWork unitOfWork)
+        public ObrasService(IUnitOfWork unitOfWork, IAtividadeRecenteService atividadeService)
         {
             _unitOfWork = unitOfWork;
+            _atividadeService = atividadeService;
         }
 
         public async Task<Obras> CreateObra(Obras obras)
@@ -41,12 +44,10 @@ namespace Services
             {
                 var obra = await _unitOfWork.Obras.GetObraById(obraId);
                 if (obra == null)
-                {
                     throw new Exception("Obra não encontrada.");
-                }
+
                 _unitOfWork.Obras.Delete(obra);
                 var result = _unitOfWork.Save();
-
                 return result > 0;
             }
             catch (Exception ex)
@@ -61,15 +62,11 @@ namespace Services
             {
                 var obra = await _unitOfWork.Obras.GetObraById(obraId);
                 if (obra == null)
-                {
                     throw new Exception("Obra não encontrada.");
-                }
 
                 obra.Status = obra.Status == 1 ? 0 : 1;
-
                 _unitOfWork.Obras.Update(obra);
                 var result = _unitOfWork.Save();
-
                 return result > 0;
             }
             catch (Exception ex)
@@ -90,9 +87,7 @@ namespace Services
                 var obras = await _unitOfWork.Obras.GetAllObrasPaged(filtersDTO);
 
                 if (obras == null || obras.Results == null || !obras.Results.Any())
-                {
                     throw new Exception("Nenhum dado foi encontrado.");
-                }
 
                 var obraIds = obras.Results.Select(o => o.Id).ToList();
                 var operadoresCounts = await GetOperadoresCountsByObraIds(obraIds);
@@ -130,8 +125,7 @@ namespace Services
 
         public async Task<List<ObraSimpleDTO>> GetObrasSimple()
         {
-            var list = await _unitOfWork.Obras.GetObrasSimple();
-            return list;
+            return await _unitOfWork.Obras.GetObrasSimple();
         }
 
         public async Task<bool> AddOperadorToObra(int obraId, int operadorId)
@@ -154,6 +148,14 @@ namespace Services
                     throw new Exception("Operador já está vinculado a esta obra.");
 
                 var result = _unitOfWork.Save();
+
+                if (result > 0)
+                    await _atividadeService.Registrar(
+                        operadorId,
+                        TipoAtividade.VinculadoAObra,
+                        $"Você foi vinculado à obra '{obra.Name}'.",
+                        obraId);
+
                 return result > 0;
             }
             catch (Exception ex)
@@ -166,11 +168,21 @@ namespace Services
         {
             try
             {
+                var obra = await _unitOfWork.Obras.GetObraById(obraId);
+
                 var removed = await _unitOfWork.ObraOperadores.RemoveOperadorFromObra(obraId, operadorId);
                 if (!removed)
                     throw new Exception("Relação não encontrada.");
 
                 var result = _unitOfWork.Save();
+
+                if (result > 0 && obra != null)
+                    await _atividadeService.Registrar(
+                        operadorId,
+                        TipoAtividade.RemovidoDeObra,
+                        $"Você foi removido da obra '{obra.Name}'.",
+                        obraId);
+
                 return result > 0;
             }
             catch (Exception ex)

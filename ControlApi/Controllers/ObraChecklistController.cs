@@ -91,5 +91,21 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [AllowAnonymous]
+        [HttpPost("sincronizar/{checklistId}")]
+        public async Task<IActionResult> SincronizarChecklist(int checklistId)
+        {
+            try
+            {
+                if (checklistId <= 0) return BadRequest("checklistId inválido.");
+                var ok = await _service.SincronizarChecklist(checklistId);
+                return ok ? Ok(true) : NotFound("Checklist não encontrado.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

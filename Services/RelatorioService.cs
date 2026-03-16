@@ -10,6 +10,7 @@ namespace Services
     public class RelatorioService : IRelatorioService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IAtividadeRecenteService _atividadeService;
 
         private static readonly Dictionary<string, TipoSecao> DataSecaoMap =
             new(StringComparer.OrdinalIgnoreCase)
@@ -23,9 +24,10 @@ namespace Services
                 ["ocorrencias"] = TipoSecao.Ocorrencias,
             };
 
-        public RelatorioService(IUnitOfWork unitOfWork)
+        public RelatorioService(IUnitOfWork unitOfWork, IAtividadeRecenteService atividadeService)
         {
             _unitOfWork = unitOfWork;
+            _atividadeService = atividadeService;
         }
 
         public async Task<Relatorio> Create(CreateRelatorioRequest req)
@@ -93,7 +95,32 @@ namespace Services
 
             relatorio.Status = req.Status;
             _unitOfWork.Relatorios.Update(relatorio);
-            return _unitOfWork.Save() > 0;
+            var saved = _unitOfWork.Save() > 0;
+
+            if (saved)
+            {
+                var obraNome = relatorio.Obra?.Name ?? $"obra #{relatorio.ObraId}";
+                var (tipo, descricao) = req.Status switch
+                {
+                    StatusRelatorio.Submetido => (TipoAtividade.RelatorioSubmetido,
+                        $"Relatório '{relatorio.Titulo}' submetido para aprovação na {obraNome}."),
+                    StatusRelatorio.Aprovado => (TipoAtividade.RelatorioAprovado,
+                        $"Relatório '{relatorio.Titulo}' foi aprovado na {obraNome}."),
+                    StatusRelatorio.Rejeitado => (TipoAtividade.RelatorioRejeitado,
+                        $"Relatório '{relatorio.Titulo}' foi rejeitado na {obraNome}."),
+                    _ => ((TipoAtividade?)null, (string?)null)
+                };
+
+                if (tipo.HasValue)
+                    await _atividadeService.Registrar(
+                        relatorio.CriadoPorUserId,
+                        tipo.Value,
+                        descricao!,
+                        relatorio.ObraId,
+                        relatorio.Id);
+            }
+
+            return saved;
         }
 
         public async Task<bool> Delete(int id)
@@ -101,8 +128,22 @@ namespace Services
             var relatorio = await _unitOfWork.Relatorios.GetById(id);
             if (relatorio == null) throw new Exception("Relatório não encontrado.");
 
+            var operadorId = relatorio.CriadoPorUserId;
+            var obraId = relatorio.ObraId;
+            var titulo = relatorio.Titulo;
+            var obraNome = relatorio.Obra?.Name ?? $"obra #{obraId}";
+
             _unitOfWork.Relatorios.Delete(relatorio);
-            return _unitOfWork.Save() > 0;
+            var saved = _unitOfWork.Save() > 0;
+
+            if (saved)
+                await _atividadeService.Registrar(
+                    operadorId,
+                    TipoAtividade.RelatorioExcluido,
+                    $"Relatório '{titulo}' foi excluído da {obraNome}.",
+                    obraId);
+
+            return saved;
         }
 
         public async Task<bool> UpdateItem(int itemId, UpdateRelatorioSecaoItemRequest req)
@@ -164,6 +205,14 @@ namespace Services
             _unitOfWork.Save();
 
             var saved = await _unitOfWork.Relatorios.GetComentarioById(comentario.Id);
+
+            await _atividadeService.Registrar(
+                req.AutorId,
+                TipoAtividade.ComentarioAdicionado,
+                $"Você adicionou um comentário em um relatório.",
+                secao.RelatorioId,
+                secaoId);
+
             return MapComentarioToDTO(saved!);
         }
 
@@ -285,17 +334,11 @@ namespace Services
                         break;
 
                     case TipoSecao.TextoLivre:
-                        secao.Itens = new List<RelatorioSecaoItem>
-                        {
-                            new RelatorioSecaoItem { Nome = null, Descricao = null }
-                        };
+                        secao.Itens = [new RelatorioSecaoItem { Nome = null, Descricao = null }];
                         break;
 
                     case TipoSecao.Fotos:
-                        secao.Itens = new List<RelatorioSecaoItem>
-                        {
-                            new RelatorioSecaoItem { Nome = null, Descricao = null }
-                        };
+                        secao.Itens = [new RelatorioSecaoItem { Nome = null, Descricao = null }];
                         break;
 
                     case TipoSecao.Comentarios:

@@ -27,6 +27,19 @@ namespace Infrastructure.Repositories
                 .Include(x => x.CriadoPor)
                 .AsQueryable();
 
+            if (filters.OperadorId.HasValue)
+            {
+                var obrasDoOperador = await _dbContext.Set<ObraOperador>()
+                    .Where(oo => oo.OperadorId == filters.OperadorId.Value)
+                    .Select(oo => oo.ObraId)
+                    .ToListAsync();
+
+                if (!obrasDoOperador.Any())
+                    return new PagedResult<Ocorrencia> { Results = new List<Ocorrencia>(), PageCount = 0 };
+
+                query = query.Where(x => obrasDoOperador.Contains(x.ObraId));
+            }
+
             if (filters.ObraId.HasValue)
                 query = query.Where(x => x.ObraId == filters.ObraId.Value);
 

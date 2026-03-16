@@ -8,10 +8,12 @@ namespace Services
     public class OcorrenciaService : IOcorrenciaService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IAtividadeRecenteService _atividadeService;
 
-        public OcorrenciaService(IUnitOfWork unitOfWork)
+        public OcorrenciaService(IUnitOfWork unitOfWork, IAtividadeRecenteService atividadeService)
         {
             _unitOfWork = unitOfWork;
+            _atividadeService = atividadeService;
         }
 
         public async Task<Ocorrencia> Create(CreateOcorrenciaRequest req)
@@ -36,6 +38,15 @@ namespace Services
 
             await _unitOfWork.Ocorrencias.Add(ocorrencia);
             _unitOfWork.Save();
+
+            if (req.CriadoPorUserId.HasValue)
+                await _atividadeService.Registrar(
+                    req.CriadoPorUserId.Value,
+                    TipoAtividade.OcorrenciaRegistrada,
+                    $"Ocorrência '{ocorrencia.Titulo}' registrada na obra '{obra.Name}'.",
+                    req.ObraId,
+                    ocorrencia.Id);
+
             return ocorrencia;
         }
 
