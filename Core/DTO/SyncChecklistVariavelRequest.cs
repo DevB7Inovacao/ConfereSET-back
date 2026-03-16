@@ -2,13 +2,6 @@
 
 namespace Core.DTO
 {
-    public class SyncChecklistVariavelRequest
-    {
-        public int EmpresaId { get; set; }
-        public int ChecklistId { get; set; }
-        public List<string> Tokens { get; set; } = new();
-    }
-
     public class SyncChecklistVariavelResponse
     {
         public int ChecklistId { get; set; }

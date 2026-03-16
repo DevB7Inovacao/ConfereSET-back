@@ -8,37 +8,22 @@ namespace ControlApi.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class ChecklistController : ControllerBase
+    public class ChecklistItemController : ControllerBase
     {
-        private readonly IChecklistService _service;
+        private readonly IChecklistItemService _service;
 
-        public ChecklistController(IChecklistService service)
+        public ChecklistItemController(IChecklistItemService service)
         {
             _service = service;
         }
 
         [AllowAnonymous]
         [HttpPost("create")]
-        public async Task<IActionResult> Create([FromBody] CreateChecklistRequest req)
+        public async Task<IActionResult> Create([FromBody] CreateChecklistItemRequest req)
         {
             try
             {
-                var created = await _service.Create(req);
-                return Ok(created.Id);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [AllowAnonymous]
-        [HttpGet("getPaged")]
-        public async Task<IActionResult> GetPaged([FromQuery] FiltersChecklistDTO filters)
-        {
-            try
-            {
-                var result = await _service.GetPaged(filters);
+                var result = await _service.Create(req);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -48,14 +33,29 @@ namespace ControlApi.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet("getById/{id}")]
+        [HttpGet("byChecklist/{checklistId}")]
+        public async Task<IActionResult> GetByChecklist(int checklistId)
+        {
+            try
+            {
+                var result = await _service.GetByChecklist(checklistId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             try
             {
-                var model = await _service.GetById(id);
-                if (model == null) return NotFound("Checklist não encontrado.");
-                return Ok(model);
+                var result = await _service.GetById(id);
+                if (result == null) return NotFound("Item não encontrado.");
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -65,7 +65,7 @@ namespace ControlApi.Controllers
 
         [AllowAnonymous]
         [HttpPut("update/{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateChecklistRequest req)
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateChecklistItemRequest req)
         {
             try
             {

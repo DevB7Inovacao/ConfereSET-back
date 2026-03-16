@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(DbContextClass))]
-    partial class DbContextClassModelSnapshot : ModelSnapshot
+    [Migration("20260316124026_ObraChecklist")]
+    partial class ObraChecklist
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -42,6 +45,10 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Texto")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
@@ -86,6 +93,41 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ChecklistId");
 
                     b.ToTable("ChecklistItens");
+                });
+
+            modelBuilder.Entity("Core.Models.ChecklistVariavel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChecklistId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ModeloTextoVariavelId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChecklistId");
+
+                    b.HasIndex("ModeloTextoVariavelId");
+
+                    b.ToTable("ChecklistVariaveis");
                 });
 
             modelBuilder.Entity("Core.Models.Despesas", b =>
@@ -1101,6 +1143,25 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Checklist");
+                });
+
+            modelBuilder.Entity("Core.Models.ChecklistVariavel", b =>
+                {
+                    b.HasOne("Core.Models.Checklist", "Checklist")
+                        .WithMany()
+                        .HasForeignKey("ChecklistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Core.Models.ModeloTextoVariavel", "ModeloTextoVariavel")
+                        .WithMany()
+                        .HasForeignKey("ModeloTextoVariavelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Checklist");
+
+                    b.Navigation("ModeloTextoVariavel");
                 });
 
             modelBuilder.Entity("Core.Models.ModeloTextoVariavelVinculo", b =>

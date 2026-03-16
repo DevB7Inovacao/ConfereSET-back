@@ -23,7 +23,6 @@ namespace Infrastructure
         public DbSet<Despesas> Despesas { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<Checklist> Checklists { get; set; }
-        public DbSet<ChecklistVariavel> ChecklistVariaveis { get; set; }
         public DbSet<ObraOperador> ObraOperadores { get; set; }
         public DbSet<ObraMaoDeObra> ObraMaoDeObra { get; set; }
         public DbSet<ObraEquipamento> ObraEquipamentos { get; set; }
@@ -36,6 +35,9 @@ namespace Infrastructure
         public DbSet<RelatorioItemFoto> RelatorioItemFotos { get; set; }
         public DbSet<Ocorrencia> Ocorrencias { get; set; }
         public DbSet<RelatorioComentario> RelatorioComentarios { get; set; }
+        public DbSet<ChecklistItem> ChecklistItens { get; set; }
+        public DbSet<ObraChecklist> ObraChecklists { get; set; }
+        public DbSet<ObraChecklistItem> ObraChecklistItens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -67,7 +69,6 @@ namespace Infrastructure
             modelBuilder.Entity<Despesas>(entity => { entity.HasKey(k => k.Id); });
             modelBuilder.Entity<SupportTicket>(entity => { entity.HasKey(k => k.Id); });
             modelBuilder.Entity<Checklist>(entity => { entity.HasKey(k => k.Id); });
-            modelBuilder.Entity<ChecklistVariavel>(entity => { entity.HasKey(k => k.Id); });
             modelBuilder.Entity<ObraOperador>(entity => { entity.HasKey(k => k.Id); });
 
             modelBuilder.Entity<ObraMaoDeObra>(entity =>
@@ -159,6 +160,23 @@ namespace Infrastructure
                     .WithMany()
                     .HasForeignKey(x => x.AutorId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ChecklistItem>(entity => { entity.HasKey(k => k.Id); });
+
+            modelBuilder.Entity<ObraChecklist>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasIndex(x => new { x.ObraId, x.ChecklistId }).IsUnique();
+                entity.HasOne(x => x.Obra).WithMany().HasForeignKey(x => x.ObraId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.Checklist).WithMany().HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ObraChecklistItem>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasOne(x => x.ObraChecklist).WithMany(o => o.Itens).HasForeignKey(x => x.ObraChecklistId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.ChecklistItem).WithMany().HasForeignKey(x => x.ChecklistItemId).OnDelete(DeleteBehavior.Restrict);
             });
 
             base.OnModelCreating(modelBuilder);

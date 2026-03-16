@@ -40,6 +40,8 @@ builder.Services.AddScoped<ISupportTicketsService, SupportTicketsService>();
 builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IRelatorioService, RelatorioService>();
 builder.Services.AddScoped<IOcorrenciaService, OcorrenciaService>();
+builder.Services.AddScoped<IObraChecklistService, ObraChecklistService>();
+builder.Services.AddScoped<IChecklistItemService, ChecklistItemService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

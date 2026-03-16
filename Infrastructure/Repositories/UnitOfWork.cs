@@ -17,7 +17,6 @@
         public IDespesasRepository Despesas { get; set; }
         public ISupportTicketsRepository SupportTickets { get; }
         public IChecklistRepository Checklists { get; }
-        public IChecklistVariavelRepository ChecklistsVariavel { get; }
         public IObraOperadorRepository ObraOperadores { get; }
         public IObraMaoDeObraRepository ObraMaoDeObra { get; }
         public IObraEquipamentoRepository ObraEquipamentos { get; }
@@ -26,6 +25,9 @@
         public IObraDespesaRepository ObraDespesas { get; }
         public IRelatorioRepository Relatorios { get; }
         public IOcorrenciaRepository Ocorrencias { get; }
+        public IChecklistItemRepository ChecklistItems { get; }
+        public IObraChecklistRepository ObraChecklists { get; }
+        public IObraChecklistItemRepository ObraChecklistItems { get; }
 
         public UnitOfWork(DbContextClass dbContext,
             IUserRepository userRepository,
@@ -41,7 +43,6 @@
             IDespesasRepository despesasRepository,
             ISupportTicketsRepository supportTicketsRepository,
             IChecklistRepository checklistRepository,
-            IChecklistVariavelRepository checklistVariavelRepository,
             IObraOperadorRepository obraOperadorRepository,
             IObraMaoDeObraRepository obraMaoDeObraRepository,
             IObraEquipamentoRepository obraEquipamentoRepository,
@@ -49,7 +50,10 @@
             IObraModeloTextoRepository obraModeloTextoRepository,
             IObraDespesaRepository obraDespesaRepository,
             IRelatorioRepository relatorioRepository,
-            IOcorrenciaRepository ocorrenciaRepository
+            IOcorrenciaRepository ocorrenciaRepository,
+            IChecklistItemRepository checklistItemRepository,
+            IObraChecklistRepository obraChecklistRepository,
+            IObraChecklistItemRepository obraChecklistItemRepository
         )
         {
             _dbContext = dbContext;
@@ -66,7 +70,6 @@
             Despesas = despesasRepository;
             SupportTickets = supportTicketsRepository;
             Checklists = checklistRepository;
-            ChecklistsVariavel = checklistVariavelRepository;
             ObraOperadores = obraOperadorRepository;
             ObraMaoDeObra = obraMaoDeObraRepository;
             ObraEquipamentos = obraEquipamentoRepository;
@@ -75,6 +78,9 @@
             ObraDespesas = obraDespesaRepository;
             Relatorios = relatorioRepository;
             Ocorrencias = ocorrenciaRepository;
+            ChecklistItems = checklistItemRepository;
+            ObraChecklists = obraChecklistRepository;
+            ObraChecklistItems = obraChecklistItemRepository;
         }
 
         public int Save() => _dbContext.SaveChanges();
@@ -106,7 +112,6 @@
         IDespesasRepository Despesas { get; }
         ISupportTicketsRepository SupportTickets { get; }
         IChecklistRepository Checklists { get; }
-        IChecklistVariavelRepository ChecklistsVariavel { get; }
         IObraOperadorRepository ObraOperadores { get; }
         IObraMaoDeObraRepository ObraMaoDeObra { get; }
         IObraEquipamentoRepository ObraEquipamentos { get; }
@@ -115,6 +120,9 @@
         IObraDespesaRepository ObraDespesas { get; }
         IRelatorioRepository Relatorios { get; }
         IOcorrenciaRepository Ocorrencias { get; }
+        IChecklistItemRepository ChecklistItems { get; }
+        IObraChecklistRepository ObraChecklists { get; }
+        IObraChecklistItemRepository ObraChecklistItems { get; }
         int Save();
     }
 }
