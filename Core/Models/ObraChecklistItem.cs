@@ -6,7 +6,7 @@
         public ObraChecklist? ObraChecklist { get; set; }
         public required int ChecklistItemId { get; set; }
         public ChecklistItem? ChecklistItem { get; set; }
-        /// <summary>0 = pendente, 1 = conforme, 2 = não conforme</summary>
+        /// <summary>0 = pendente, 1 = conforme, 2 = não conforme, 3 = não se aplica</summary>
         public int Resposta { get; set; } = 0;
         public string? Observacao { get; set; }
     }

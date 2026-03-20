@@ -17,7 +17,7 @@
         public int ChecklistItemId { get; set; }
         public string? Descricao { get; set; }
         public int Ordem { get; set; }
-        /// <summary>0 = pendente, 1 = conforme, 2 = não conforme</summary>
+        /// <summary>0 = pendente, 1 = conforme, 2 = não conforme, 3 = não se aplica</summary>
         public int Resposta { get; set; }
         public string? Observacao { get; set; }
     }
