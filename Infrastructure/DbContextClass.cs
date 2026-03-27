@@ -6,8 +6,7 @@ namespace Infrastructure
 {
     public class DbContextClass : DbContext
     {
-        public DbContextClass(DbContextOptions<DbContextClass> contextOptions) : base(contextOptions)
-        { }
+        public DbContextClass(DbContextOptions<DbContextClass> contextOptions) : base(contextOptions) { }
 
         public DbSet<User> User { get; set; }
         public DbSet<Empresas> Empresas { get; set; }
@@ -39,6 +38,9 @@ namespace Infrastructure
         public DbSet<ObraChecklist> ObraChecklists { get; set; }
         public DbSet<ObraChecklistItem> ObraChecklistItens { get; set; }
         public DbSet<AtividadeRecente> AtividadesRecentes { get; set; }
+        public DbSet<Plano> Planos { get; set; }
+        public DbSet<Assinatura> Assinaturas { get; set; }
+        public DbSet<PagamentoAssinatura> PagamentosAssinatura { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -185,6 +187,21 @@ namespace Infrastructure
                 entity.HasKey(k => k.Id);
                 entity.HasOne(x => x.Operador).WithMany().HasForeignKey(x => x.OperadorId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(x => x.Obra).WithMany().HasForeignKey(x => x.ObraId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+            });
+
+            modelBuilder.Entity<Plano>(entity => { entity.HasKey(k => k.Id); });
+
+            modelBuilder.Entity<Assinatura>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.Plano).WithMany().HasForeignKey(x => x.PlanoId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PagamentoAssinatura>(entity =>
+            {
+                entity.HasKey(k => k.Id);
+                entity.HasOne(x => x.Assinatura).WithMany(a => a.Pagamentos).HasForeignKey(x => x.AssinaturaId).OnDelete(DeleteBehavior.Cascade);
             });
 
             base.OnModelCreating(modelBuilder);

@@ -1,4 +1,5 @@
 ﻿using Core.Models;
+using Infrastructure.MercadoPago;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +17,9 @@ namespace Infrastructure.ServiceExtension
             {
                 options.UseNpgsql(connectionString);
             });
+
+            services.AddHttpClient<IMercadoPagoClient, MercadoPagoClient>();
+
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IEmpresasRepository, EmpresasRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -42,6 +46,9 @@ namespace Infrastructure.ServiceExtension
             services.AddScoped<IObraChecklistRepository, ObraChecklistRepository>();
             services.AddScoped<IObraChecklistItemRepository, ObraChecklistItemRepository>();
             services.AddScoped<IAtividadeRecenteRepository, AtividadeRecenteRepository>();
+            services.AddScoped<IPlanoRepository, PlanoRepository>();
+            services.AddScoped<IAssinaturaRepository, AssinaturaRepository>();
+            services.AddScoped<IPagamentoAssinaturaRepository, PagamentoAssinaturaRepository>();
 
             return services;
         }

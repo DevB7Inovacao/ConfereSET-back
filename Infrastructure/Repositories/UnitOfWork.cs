@@ -29,6 +29,9 @@
         public IObraChecklistRepository ObraChecklists { get; }
         public IObraChecklistItemRepository ObraChecklistItems { get; }
         public IAtividadeRecenteRepository AtividadesRecentes { get; }
+        public IPlanoRepository Planos { get; }
+        public IAssinaturaRepository Assinaturas { get; }
+        public IPagamentoAssinaturaRepository PagamentosAssinatura { get; }
 
         public UnitOfWork(DbContextClass dbContext,
             IUserRepository userRepository,
@@ -55,7 +58,10 @@
             IChecklistItemRepository checklistItemRepository,
             IObraChecklistRepository obraChecklistRepository,
             IObraChecklistItemRepository obraChecklistItemRepository,
-            IAtividadeRecenteRepository atividadeRecenteRepository
+            IAtividadeRecenteRepository atividadeRecenteRepository,
+            IPlanoRepository planoRepository,
+            IAssinaturaRepository assinaturaRepository,
+            IPagamentoAssinaturaRepository pagamentoAssinaturaRepository
         )
         {
             _dbContext = dbContext;
@@ -84,6 +90,9 @@
             ObraChecklists = obraChecklistRepository;
             ObraChecklistItems = obraChecklistItemRepository;
             AtividadesRecentes = atividadeRecenteRepository;
+            Planos = planoRepository;
+            Assinaturas = assinaturaRepository;
+            PagamentosAssinatura = pagamentoAssinaturaRepository;
         }
 
         public int Save() => _dbContext.SaveChanges();
@@ -127,6 +136,9 @@
         IObraChecklistRepository ObraChecklists { get; }
         IObraChecklistItemRepository ObraChecklistItems { get; }
         IAtividadeRecenteRepository AtividadesRecentes { get; }
+        IPlanoRepository Planos { get; }
+        IAssinaturaRepository Assinaturas { get; }
+        IPagamentoAssinaturaRepository PagamentosAssinatura { get; }
         int Save();
     }
 }
