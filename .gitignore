@@ -1,0 +1,36 @@
+﻿# Arquivos de log
+*.log
+logs/
+
+# Diretórios de build
+bin/
+obj/
+
+# Configurações do usuário
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Diretórios de publicação
+publish/
+out/
+
+# Arquivos de configuração sensíveis
+appsettings.Development.json
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Arquivos de backup
+*.bak
+*.old
+
+# Arquivos do Visual Studio
+.vscode/
+.vs/
+
+
+dadosContabo.txt
+

@@ -19,12 +19,16 @@ namespace Core.DTO
 
     public class CreateAssinaturaRequest
     {
-        public required int EmpresaId { get; set; }
-        public required int PlanoId { get; set; }
-        public required string PayerEmail { get; set; }
-        public required string PayerFirstName { get; set; }
-        public required string PayerLastName { get; set; }
-    }
+		public required int EmpresaId { get; set; }
+		public required int PlanoId { get; set; }
+		public required string PayerEmail { get; set; }
+		public required string PayerFirstName { get; set; }
+		public required string PayerLastName { get; set; }
+		public required string Token { get; set; } // card_token_id
+		public required string PaymentMethodId { get; set; }
+		public required int Installments { get; set; }
+		public required decimal TransactionAmount { get; set; }
+	}
 
     public class CheckoutAssinaturaResponse
     {
@@ -32,7 +36,14 @@ namespace Core.DTO
         public string MPSubscriptionId { get; set; } = string.Empty;
     }
 
-    public class AtribuirPlanoVitalicioRequest
+  public class CallBackAssinaturaResponse
+  {
+		public bool Success { get; set; }
+		public string? Message { get; set; }
+	}
+
+
+		public class AtribuirPlanoVitalicioRequest
     {
         public required int EmpresaId { get; set; }
         public required int PlanoId { get; set; }

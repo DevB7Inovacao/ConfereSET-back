@@ -48,12 +48,12 @@ namespace Infrastructure.MercadoPago
             return Deserialize<MPPreapprovalResponse>(json);
         }
 
-        public async Task<MPPreapprovalResponse> GetPreapproval(string subscriptionId)
+        public async Task<MPPreapprovalResponseSimplified> GetPreapproval(string subscriptionId)
         {
             var response = await _http.GetAsync($"preapproval/{subscriptionId}");
             await EnsureSuccess(response);
             var json = await response.Content.ReadAsStringAsync();
-            return Deserialize<MPPreapprovalResponse>(json);
+            return Deserialize<MPPreapprovalResponseSimplified>(json);
         }
 
         public async Task CancelPreapproval(string subscriptionId)
@@ -68,8 +68,15 @@ namespace Infrastructure.MercadoPago
             var json = await response.Content.ReadAsStringAsync();
             return Deserialize<MPPaymentResponse>(json);
         }
+    public async Task<MPPreapprovalPlanResponseSimplified> GetPreapprovalPlan(string id)
+    {
+			var response = await _http.GetAsync($"preapproval_plan/{id}");
+			await EnsureSuccess(response);
+			var json = await response.Content.ReadAsStringAsync();
+			return Deserialize<MPPreapprovalPlanResponseSimplified>(json);
+		}
 
-        private async Task<string> PostAsync<T>(string url, T body)
+				private async Task<string> PostAsync<T>(string url, T body)
         {
             var json = SerializeInvariant(body);
             _logger.LogDebug("MP POST {Url} body: {Json}", url, json);
@@ -88,6 +95,7 @@ namespace Infrastructure.MercadoPago
             await EnsureSuccess(response);
             return await response.Content.ReadAsStringAsync();
         }
+
 
         private static string SerializeInvariant<T>(T body)
         {
@@ -125,10 +133,12 @@ namespace Infrastructure.MercadoPago
         Task<MPPreapprovalPlanResponse> CreatePreapprovalPlan(MPCreatePreapprovalPlanRequest req);
         Task<MPPreapprovalPlanResponse> UpdatePreapprovalPlan(string planId, MPUpdatePreapprovalPlanRequest req);
         Task<MPPreapprovalResponse> CreatePreapproval(MPCreatePreapprovalRequest req);
-        Task<MPPreapprovalResponse> GetPreapproval(string subscriptionId);
+        Task<MPPreapprovalResponseSimplified> GetPreapproval(string subscriptionId);
         Task CancelPreapproval(string subscriptionId);
         Task<MPPaymentResponse> GetPayment(string paymentId);
-    }
+    Task<MPPreapprovalPlanResponseSimplified> GetPreapprovalPlan(string id);
+
+		}
 
     public class MPCreatePreapprovalPlanRequest
     {
@@ -152,15 +162,18 @@ namespace Infrastructure.MercadoPago
         public string CurrencyId { get; set; } = "BRL";
     }
 
-    public class MPCreatePreapprovalRequest
-    {
-        public string PreapprovalPlanId { get; set; } = string.Empty;
-        public string Reason { get; set; } = string.Empty;
-        public string PayerEmail { get; set; } = string.Empty;
-        public string BackUrl { get; set; } = string.Empty;
-    }
+	public class MPCreatePreapprovalRequest
+	{
+		public string PreapprovalPlanId { get; set; } = string.Empty;
+		public string Reason { get; set; } = string.Empty;
+		public string PayerEmail { get; set; } = string.Empty;
+		public string? CardTokenId { get; set; } // Opcional - se quiser cobrar já
+		public MPAutoRecurring AutoRecurring { get; set; } = new();
+		public string BackUrl { get; set; } = string.Empty;
+		public string Status { get; set; } = "pending"; // "pending" ou "authorized"
+	}
 
-    public class MPPreapprovalPlanResponse
+	public class MPPreapprovalPlanResponse
     {
         public string Id { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
@@ -181,4 +194,92 @@ namespace Infrastructure.MercadoPago
         public DateTime? DateApproved { get; set; }
         public string? PreapprovalId { get; set; }
     }
+	public class MPPreapprovalPlanResponseSimplified
+	{
+		[JsonPropertyName("id")]
+		public string Id { get; set; } = string.Empty;
+
+		[JsonPropertyName("reason")]
+		public string Reason { get; set; } = string.Empty;
+
+		[JsonPropertyName("auto_recurring")]
+		public MPAutoRecurringPlanSimplified AutoRecurring { get; set; } = new();
+
+		[JsonPropertyName("init_point")]
+		public string InitPoint { get; set; } = string.Empty;
+
+		[JsonPropertyName("date_created")]
+		public DateTime DateCreated { get; set; }
+
+		[JsonPropertyName("last_modified")]
+		public DateTime LastModified { get; set; }
+
+		[JsonPropertyName("status")]
+		public string Status { get; set; } = string.Empty;
+	}
+
+	public class MPAutoRecurringPlanSimplified
+	{
+		[JsonPropertyName("frequency")]
+		public int Frequency { get; set; }
+
+		[JsonPropertyName("frequency_type")]
+		public string FrequencyType { get; set; } = string.Empty;
+
+		[JsonPropertyName("repetitions")]
+		public int? Repetitions { get; set; }
+
+		[JsonPropertyName("transaction_amount")]
+		public decimal TransactionAmount { get; set; } = 0;
+
+		[JsonPropertyName("currency_id")]
+		public string CurrencyId { get; set; } = string.Empty;
+	}
+	public class MPPreapprovalResponseSimplified
+	{
+		[JsonPropertyName("id")]
+		public string Id { get; set; } = string.Empty;
+
+		[JsonPropertyName("preapproval_plan_id")]
+		public string PreapprovalPlanId { get; set; } = string.Empty;
+
+		[JsonPropertyName("reason")]
+		public string Reason { get; set; } = string.Empty;
+
+		[JsonPropertyName("init_point")]
+		public string InitPoint { get; set; } = string.Empty;
+
+		[JsonPropertyName("auto_recurring")]
+		public MPAutoRecurringSimplified AutoRecurring { get; set; } = new();
+
+		[JsonPropertyName("payment_method_id")]
+		public string PaymentMethodId { get; set; } = string.Empty;
+
+		[JsonPropertyName("next_payment_date")]
+		public DateTime? NextPaymentDate { get; set; }
+
+		[JsonPropertyName("date_created")]
+		public DateTime DateCreated { get; set; }
+
+		[JsonPropertyName("last_modified")]
+		public DateTime LastModified { get; set; }
+
+		[JsonPropertyName("status")]
+		public string Status { get; set; } = string.Empty;
+	}
+
+	public class MPAutoRecurringSimplified
+	{
+		[JsonPropertyName("frequency")]
+		public int Frequency { get; set; }
+
+		[JsonPropertyName("frequency_type")]
+		public string FrequencyType { get; set; } = string.Empty;
+
+		[JsonPropertyName("currency_id")]
+		public string CurrencyId { get; set; } = string.Empty;
+
+		[JsonPropertyName("transaction_amount")]
+		public decimal TransactionAmount { get; set; }
+	}
 }

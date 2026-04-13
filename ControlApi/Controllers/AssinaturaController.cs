@@ -30,8 +30,21 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+		[HttpPost("callback")]
+		public async Task<IActionResult> Callback([FromBody] string preapproval_id)
+		{
+			try
+			{
+				var result = await _assinaturaService.CallBack(preapproval_id);
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
 
-        [AllowAnonymous]
+		[AllowAnonymous]
         [HttpPost("vitalicio")]
         public async Task<IActionResult> AtribuirVitalicio([FromBody] AtribuirPlanoVitalicioRequest req)
         {
