@@ -27,8 +27,6 @@ namespace Services
 		{
 			try
 			{
-
-
 				var empresa = await _unitOfWork.Empresas.GetEmpresaById(req.EmpresaId)
 						?? throw new Exception("Empresa não encontrada.");
 
@@ -45,29 +43,32 @@ namespace Services
 				if (existente != null)
 					throw new Exception("Empresa já possui uma assinatura ativa.");
 
-				var mpResponse = await _mpClient.GetPreapprovalPlan(plano.MPPreapprovalPlanId);
+				var mpResponsePlan = await _mpClient.GetPreapprovalPlan(plano.MPPreapprovalPlanId);
 
-
+				var externalRef = Guid.NewGuid().ToString();
 
 				var assinatura = new Assinatura
 				{
 					EmpresaId = req.EmpresaId,
 					PlanoId = req.PlanoId,
+					MPSubscriptionId= null,
 					Status = StatusAssinatura.Pendente,
 					DataInicio = DateTime.UtcNow,
 					DataVencimento = DateTime.UtcNow.AddMonths((int)plano.Recorrencia),
-					//MPSubscriptionId = mpResponse.Id,
+					ExternalReference = externalRef,
 					MPPayerEmail = req.PayerEmail,
-					UltimoStatusMP = mpResponse.Status
+					UltimoStatusMP = mpResponsePlan.Status
 				};
 
 				await _unitOfWork.Assinaturas.Add(assinatura);
 				_unitOfWork.Save();
 
+				var initPoint = mpResponsePlan.InitPoint;
+
 				return new CheckoutAssinaturaResponse
 				{
-					InitPoint = mpResponse.InitPoint,
-					MPSubscriptionId = mpResponse.Id
+					InitPoint = initPoint,
+					MPSubscriptionId = mpResponsePlan.Id
 				};
 			}
 			catch (Exception ex)
@@ -172,7 +173,10 @@ namespace Services
 		public async Task ProcessarWebhookAssinatura(string mpSubscriptionId)
 		{
 			var mpData = await _mpClient.GetPreapproval(mpSubscriptionId);
-			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(mpSubscriptionId);
+
+			// ESTRATÉGIA: Buscar assinatura pendente pelo MPPreapprovalPlanId
+			// e que não tenha sido associada ainda
+			var assinatura = await _unitOfWork.Assinaturas.GetPendingByPlanIdAndNoMPId(mpData.PreapprovalPlanId);
 
 			if (assinatura == null) return;
 
@@ -187,7 +191,8 @@ namespace Services
 
 			if (assinatura.Status == StatusAssinatura.Ativa && assinatura.Plano != null)
 				assinatura.DataVencimento = DateTime.UtcNow.AddMonths((int)assinatura.Plano.Recorrencia);
-
+			assinatura.MPSubscriptionId = mpSubscriptionId;
+			
 			_unitOfWork.Assinaturas.Update(assinatura);
 			_unitOfWork.Save();
 		}
@@ -244,21 +249,6 @@ namespace Services
 					return new CallBackAssinaturaResponse { Success = false,Message="Assinatura não autorizada." };
 			}
 			return new CallBackAssinaturaResponse { Message = "Não localizado a assinatura!", Success = true };
-
-			//var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(preapproval_id);
-			//if (assinatura == null) return new CallBackAssinaturaResponse { Success=false,Message:""};
-			//retorna só status
-			//var pagamento = new PagamentoAssinatura
-			//{
-			//	AssinaturaId = assinatura.Id,
-			//	Valor = payment.,
-			//	DataPagamento = payment.DateApproved ?? DateTime.UtcNow,
-			//	MPPaymentId = mpPaymentId,
-			//	Status = payment.Status
-			//};
-
-			//await _unitOfWork.PagamentosAssinatura.Add(pagamento);
-			//_unitOfWork.Save();
 		}
 	}
 

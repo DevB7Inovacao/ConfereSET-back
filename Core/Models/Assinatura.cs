@@ -15,5 +15,6 @@ namespace Core.Models
         public Empresas? Empresa { get; set; }
         public Plano? Plano { get; set; }
         public List<PagamentoAssinatura> Pagamentos { get; set; } = new();
-    }
+		public string ?ExternalReference { get; set; }
+	}
 }

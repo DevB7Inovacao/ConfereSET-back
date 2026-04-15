@@ -167,10 +167,11 @@ namespace Infrastructure.MercadoPago
 		public string PreapprovalPlanId { get; set; } = string.Empty;
 		public string Reason { get; set; } = string.Empty;
 		public string PayerEmail { get; set; } = string.Empty;
-		public string? CardTokenId { get; set; } // Opcional - se quiser cobrar já
+		//public string? CardTokenId { get; set; } // Opcional - se quiser cobrar já
 		public MPAutoRecurring AutoRecurring { get; set; } = new();
 		public string BackUrl { get; set; } = string.Empty;
 		public string Status { get; set; } = "pending"; // "pending" ou "authorized"
+		public string ExternalReference { get; set; }
 	}
 
 	public class MPPreapprovalPlanResponse
@@ -245,6 +246,9 @@ namespace Infrastructure.MercadoPago
 
 		[JsonPropertyName("reason")]
 		public string Reason { get; set; } = string.Empty;
+
+		[JsonPropertyName("external_reference")]
+		public string ExternalReference { get; set; } = string.Empty;
 
 		[JsonPropertyName("init_point")]
 		public string InitPoint { get; set; } = string.Empty;
