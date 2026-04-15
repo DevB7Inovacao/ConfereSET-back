@@ -250,6 +250,49 @@ namespace Services
 			}
 			return new CallBackAssinaturaResponse { Message = "Não localizado a assinatura!", Success = true };
 		}
+		public async Task<bool> AtualizarAssinatura(int assinaturaId, decimal? novoValor = null, string? cardToken = null)
+		{
+			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaById(assinaturaId)
+					?? throw new Exception("Assinatura não encontrada.");
+
+			if (string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
+				throw new Exception("Assinatura não vinculada ao Mercado Pago.");
+
+			if (assinatura.Status != StatusAssinatura.Ativa)
+				throw new Exception("Só é possível alterar assinaturas ativas.");
+
+			// Monta payload dinâmico
+			var updateRequest = new Dictionary<string, object>();
+
+			// Troca de valor
+			if (novoValor.HasValue)
+			{
+				updateRequest["auto_recurring"] = new
+				{
+					transaction_amount = novoValor.Value
+				};
+
+				// Atualiza local também (opcional mas recomendado)
+				if (assinatura.Plano != null)
+					assinatura.Plano.Valor = novoValor.Value;
+			}
+
+			// 💳 Troca de cartão
+			if (!string.IsNullOrWhiteSpace(cardToken))
+			{
+				updateRequest["card_token_id"] = cardToken;
+			}
+
+			// Segurança: não deixa request vazio
+			if (!updateRequest.Any())
+				throw new Exception("Nenhuma alteração informada.");
+
+			// 🔗 Chamada no Mercado Pago
+			await _mpClient.UpdatePreapproval(assinatura.MPSubscriptionId, updateRequest);
+
+			_unitOfWork.Assinaturas.Update(assinatura);
+			return _unitOfWork.Save() > 0;
+		}
 	}
 
 	public interface IAssinaturaService
@@ -264,5 +307,6 @@ namespace Services
 		Task ProcessarWebhookAssinatura(string mpSubscriptionId);
 		Task ProcessarWebhookPagamento(string mpPaymentId);
 		Task<CallBackAssinaturaResponse> CallBack(string preapproval_id);
+		Task<bool> AtualizarAssinatura(int assinaturaId, decimal? novoValor = null, string? cardToken = null);
 	}
 }

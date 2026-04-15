@@ -43,6 +43,20 @@ namespace ControlApi.Controllers
 				return BadRequest(ex.Message);
 			}
 		}
+	
+		[HttpPut("{id}/atualizar")]
+		public async Task<IActionResult> Atualizar(int id, [FromBody] AtualizarAssinaturaRequest req)
+		{
+			try
+			{
+				var result = await _assinaturaService.AtualizarAssinatura(id, req.NovoValor, req.CardToken);
+				return result ? Ok(true) : BadRequest("Falha ao atualizar assinatura.");
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
 
 		[AllowAnonymous]
 		[HttpPost("vitalicio")]
