@@ -91,7 +91,7 @@ namespace API.Controllers
 				return BadRequest();
 		}
 
-		[AllowAnonymous]
+		
 		[HttpGet]
 		[Route("getUsersPaged")]
 		public async Task<IActionResult> GetUsersPaged([FromQuery] FiltersDTO filtersDTO)
