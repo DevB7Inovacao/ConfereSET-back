@@ -1,4 +1,5 @@
-﻿using Core.DTO;
+﻿using ControlApi;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Infrastructure.Security;
@@ -91,17 +92,19 @@ namespace API.Controllers
 				return BadRequest();
 		}
 
-		
-		[HttpGet]
-		[Route("getUsersPaged")]
+
+	
+		[HttpGet("getUsersPaged")]
 		public async Task<IActionResult> GetUsersPaged([FromQuery] FiltersDTO filtersDTO)
 		{
+			var empresaId = User.GetEmpresaId();
+			filtersDTO.EmpresaId= empresaId;
 			var result = await userService.GetUsersPaged(filtersDTO);
 			if (result != null)
 				return Ok(result);
 			else
 				return BadRequest();
-		}
+		}	
 
 		/// <summary>
 		/// Get data by userid

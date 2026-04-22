@@ -14,5 +14,6 @@ namespace Core.Models
         public required int Type { get; set; }
         public required int Status { get; set; }
         public required Empresas Empresa { get; set; }
-    }
+		public int EmpresaId { get; set; }
+	}
 }

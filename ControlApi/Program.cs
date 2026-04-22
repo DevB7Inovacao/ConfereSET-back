@@ -55,12 +55,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = !string.IsNullOrWhiteSpace(issuer),
-            ValidateAudience = !string.IsNullOrWhiteSpace(audience),
-            ValidateLifetime = true,
+					ValidateIssuer = false,     
+					ValidateAudience = false,
+					ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
+          
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key ?? "")),
             ClockSkew = TimeSpan.Zero,
         };
@@ -117,6 +116,7 @@ builder.Services.AddCors(options =>
         })
         .AllowAnyMethod()
         .AllowAnyHeader()
+        .AllowCredentials()
     );
 });
 
@@ -146,6 +146,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors(CorsPolicyName);
 app.MigrateDatabase();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

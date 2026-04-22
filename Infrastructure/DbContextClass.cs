@@ -44,7 +44,15 @@ namespace Infrastructure
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<User>(entity => { entity.HasKey(k => k.Id); });
+            modelBuilder.Entity<User>(entity => 
+            { entity.HasKey(k => k.Id);
+
+							entity.HasOne(a => a.Empresa)
+							.WithMany(s => s.Users)
+							.HasForeignKey(a => a.EmpresaId);
+						});
+
+
             modelBuilder.Entity<Empresas>(entity => { entity.HasKey(k => k.Id); });
             modelBuilder.Entity<Obras>(entity => { entity.HasKey(k => k.Id); });
 
