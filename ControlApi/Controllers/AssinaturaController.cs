@@ -106,11 +106,12 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
+		[Authorize]
 		[HttpGet("all")]
 		public async Task<IActionResult> GetAllPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
 		{
-			var (items, total) = await _assinaturaService.GetAllPaged(page, pageSize);
+			int empresaId = User.GetEmpresaId();
+			var (items, total) = await _assinaturaService.GetAllPaged(page, pageSize,empresaId);
 			return Ok(new { items, total });
 		}
 

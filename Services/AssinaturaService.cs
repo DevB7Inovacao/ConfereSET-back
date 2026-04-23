@@ -141,9 +141,9 @@ namespace Services
 			return _unitOfWork.Save() > 0;
 		}
 
-		public async Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize)
+		public async Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId)
 		{
-			var items = await _unitOfWork.Assinaturas.GetAllPaged(page, pageSize);
+			var items = await _unitOfWork.Assinaturas.GetAllPaged(page, pageSize, empresaId);
 			var total = await _unitOfWork.Assinaturas.CountAll();
 			return (items.Select(MapToDTO).ToList(), total);
 		}
@@ -302,7 +302,7 @@ namespace Services
 		Task<AssinaturaDTO?> GetByEmpresaId(int empresaId);
 		Task<AssinaturaDTO?> GetById(int id);
 		Task<bool> Cancelar(int id);
-		Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize);
+		Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId);
 		Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId);
 		Task ProcessarWebhookAssinatura(string mpSubscriptionId);
 		Task ProcessarWebhookPagamento(string mpPaymentId);

@@ -19,5 +19,6 @@ namespace Core.Models
         public string? Phone { get; set; }
         public string? Address { get; set; }
     public ICollection<User> Users { get; set; } = new List<User>();
+		public ICollection<Plano> Planos { get; set; } = new List<Plano>();
 	}
 }

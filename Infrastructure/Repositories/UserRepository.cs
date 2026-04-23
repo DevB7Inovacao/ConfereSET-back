@@ -63,7 +63,7 @@ namespace Infrastructure.Repositories
         {
             return await _dbContext.Set<User>()
                 .AsNoTracking()
-                .Where(u => u.Empresa != null && u.Empresa.Id == empresaId && u.Type == type)
+                .Where(u => u.Empresa != null && u.Empresa.Id == empresaId && u.Type == (TypeUser)type)
                 .CountAsync();
         }
     }

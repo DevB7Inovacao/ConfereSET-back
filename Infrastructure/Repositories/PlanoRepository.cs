@@ -21,10 +21,11 @@ namespace Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<Plano>> GetAll()
+        public async Task<List<Plano>> GetAll(int empresaid)
         {
             return await _dbContext.Set<Plano>()
                 .AsNoTracking()
+                .Where(x=>x.EmpresaId==empresaid)
                 .OrderBy(x => x.Valor)
                 .ToListAsync();
         }
@@ -34,6 +35,6 @@ namespace Infrastructure.Repositories
     {
         Task<Plano?> GetPlanoById(int id);
         Task<List<Plano>> GetAllAtivos();
-        Task<List<Plano>> GetAll();
+        Task<List<Plano>> GetAll(int empresaid);
     }
 }

@@ -23,7 +23,8 @@ namespace Core.DTO
         public RecorrenciaPlano Recorrencia { get; set; } = RecorrenciaPlano.Mensal;
         public int LimiteGestores { get; set; }
         public int LimiteOperadores { get; set; }
-    }
+		public int EmpresaId { get; set; }
+	}
 
     public class UpdatePlanoRequest
     {

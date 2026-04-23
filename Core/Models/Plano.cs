@@ -12,5 +12,7 @@ namespace Core.Models
         public int LimiteOperadores { get; set; }
         public bool Ativo { get; set; } = true;
         public string? MPPreapprovalPlanId { get; set; }
-    }
+		public int? EmpresaId { get; set; }
+		public Empresas? Empresa { get; set; }
+	}
 }

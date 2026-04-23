@@ -63,7 +63,7 @@ namespace ControlApi.Controllers
             var user = await _empresasService.GetUserById(req.UserId);
             if (user == null) return Unauthorized("Usuário não encontrado.");
 
-            if (user.Type != req.UserType) return Forbid("Tipo de usuário inconsistente.");
+            if (user.Type != (TypeUser)req.UserType) return Forbid("Tipo de usuário inconsistente.");
 
             var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
             if (result) return Ok(true);

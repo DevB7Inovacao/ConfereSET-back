@@ -22,6 +22,7 @@ namespace Services
 
         public async Task<PlanoDTO> Create(CreatePlanoRequest req)
         {
+   
             var plano = new Plano
             {
                 Nome = req.Nome,
@@ -31,7 +32,9 @@ namespace Services
                 LimiteGestores = req.LimiteGestores,
                 LimiteOperadores = req.LimiteOperadores,
                 Ativo = true,
-                MPPreapprovalPlanId = null
+                MPPreapprovalPlanId = null,
+                EmpresaId=req.EmpresaId
+                
             };
 
             if (req.Valor > 0)
@@ -92,9 +95,9 @@ namespace Services
             return MapToDTO(plano);
         }
 
-        public async Task<List<PlanoDTO>> GetAll()
+        public async Task<List<PlanoDTO>> GetAll(int empresaid)
         {
-            var planos = await _unitOfWork.Planos.GetAll();
+            var planos = await _unitOfWork.Planos.GetAll(empresaid);
             return planos.Select(MapToDTO).ToList();
         }
 
@@ -128,7 +131,7 @@ namespace Services
     {
         Task<PlanoDTO> Create(CreatePlanoRequest req);
         Task<PlanoDTO> Update(int id, UpdatePlanoRequest req);
-        Task<List<PlanoDTO>> GetAll();
+        Task<List<PlanoDTO>> GetAll(int empresaid);
         Task<List<PlanoDTO>> GetAtivos();
         Task<PlanoDTO?> GetById(int id);
     }

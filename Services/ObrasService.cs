@@ -140,7 +140,7 @@ namespace Services
                 if (operador == null)
                     throw new Exception("Operador não encontrado.");
 
-                if (operador.Type != 3)
+                if (operador.Type != TypeUser.operador)
                     throw new Exception("Usuário não é um operador.");
 
                 var added = await _unitOfWork.ObraOperadores.AddOperadorToObra(obraId, operadorId);
