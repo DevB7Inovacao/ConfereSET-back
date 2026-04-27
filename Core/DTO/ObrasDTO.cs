@@ -27,7 +27,8 @@ namespace Core.DTO
         public DateTime? StartDate { get; set; }
         public int ProgressPercentage { get; set; }
         public int OperadoresCount { get; set; }
-    }
+		public string? NameCompany { get; set; }
+	}
 
     public class ObrasPagedDTO
     {

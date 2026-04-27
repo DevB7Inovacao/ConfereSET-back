@@ -23,5 +23,6 @@ namespace Core.DTO
         public string? ClientDocument { get; set; }
         public int? EmpresaId { get; set; }
         public DateTime? StartDate { get; set; }
-    }
+		public string ?NameCompany { get; set; }
+	}
 }

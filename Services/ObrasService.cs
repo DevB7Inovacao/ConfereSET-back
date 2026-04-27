@@ -112,7 +112,8 @@ namespace Services
                     EmpresaId = obra.EmpresaId,
                     StartDate = obra.StartDate,
                     ProgressPercentage = obra.ProgressPercentage,
-                    OperadoresCount = operadoresCounts.ContainsKey(obra.Id) ? operadoresCounts[obra.Id] : 0
+                    OperadoresCount = operadoresCounts.ContainsKey(obra.Id) ? operadoresCounts[obra.Id] : 0,
+                    NameCompany=obra.NameCompany
                 }).ToList();
 
                 return new ObrasPagedDTO() { Result = obraDTO, PageCount = obras.PageCount };

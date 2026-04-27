@@ -72,7 +72,10 @@ namespace Services
 
 			item.Resposta = req.Resposta;
 			item.Observacao = req.Observacao;
-
+			item.Empresa = req.Empresa;
+			item.DataHora = req.DataHora;
+			item.Equipamento = req.Equipamento;
+			item.Marca = req.Marca;
 			_unitOfWork.ObraChecklistItems.Update(item);
 			return _unitOfWork.Save() > 0;
 		}
@@ -81,7 +84,7 @@ namespace Services
 			var item = await _unitOfWork.ObraChecklistItems.GetById(obraChecklistItemId);
 			if (item == null) throw new Exception("Item não encontrado.");
 
-
+			item.Resposta = req.Resposta;
 			item.Observacao = req.Observacao;
 			item.Empresa = req.Empresa;
 			item.DataHora = req.DataHora;

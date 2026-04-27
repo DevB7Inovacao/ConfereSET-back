@@ -47,8 +47,9 @@ namespace ControlApi.Controllers
                     ClientDocument = obras.ClientDocument,
                     EmpresaId = obras.EmpresaId,
                     StartDate = obras.StartDate,
-                    ProgressPercentage = 0
-                };
+                    ProgressPercentage = 0,
+                    NameCompany=obras.NameCompany
+								};
 
                 var result = await _obrasService.CreateObra(obra);
 
@@ -100,8 +101,9 @@ namespace ControlApi.Controllers
             if (req.ClientEmail != null) existing.ClientEmail = string.IsNullOrWhiteSpace(req.ClientEmail) ? null : req.ClientEmail;
             if (req.ClientPhone != null) existing.ClientPhone = string.IsNullOrWhiteSpace(req.ClientPhone) ? null : req.ClientPhone;
             if (req.ClientDocument != null) existing.ClientDocument = string.IsNullOrWhiteSpace(req.ClientDocument) ? null : req.ClientDocument;
+            if(req.NameCompany !=null) existing.NameCompany= string.IsNullOrWhiteSpace(req.NameCompany) ? null : req.NameCompany;
 
-            if (req.StartDate.HasValue) existing.StartDate = req.StartDate;
+			if (req.StartDate.HasValue) existing.StartDate = req.StartDate;
 
             var result = await _obrasService.UpdateObra(existing, obraId);
             if (result) return Ok(true);
@@ -175,7 +177,8 @@ namespace ControlApi.Controllers
                 ClientDocument = obra.ClientDocument,
                 EmpresaId = obra.EmpresaId,
                 StartDate = obra.StartDate,
-                ProgressPercentage = obra.ProgressPercentage
+                ProgressPercentage = obra.ProgressPercentage,
+                NameCompany=obra.NameCompany
             };
 
             return Ok(dto);
