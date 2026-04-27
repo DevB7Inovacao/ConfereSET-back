@@ -13,8 +13,8 @@ namespace Services
 		private readonly IMercadoPagoClient _mpClient;
 		private readonly string _backUrl;
 
-		private const int TipoGestor = 2;
-		private const int TipoOperador = 3;
+		private const int TipoGestor = (int)TypeUser.gerente;
+		private const int TipoOperador = (int)TypeUser.operador;
 
 		public AssinaturaService(IUnitOfWork unitOfWork, IMercadoPagoClient mpClient, IConfiguration configuration)
 		{

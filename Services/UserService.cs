@@ -37,8 +37,8 @@ namespace Services
             {
                 var users = await _unitOfWork.Users.GetAllUsersPaged(filtersDTO);
 
-                if (users == null || users.Results == null || !users.Results.Any())
-                    throw new Exception("Nenhum dado foi encontrado.");
+                //if (users == null || users.Results == null || !users.Results.Any())
+                //    throw new Exception("Nenhum dado foi encontrado.");
 
                 var usersDTO = users.Results.Select(users => new UsersDTO
                 {

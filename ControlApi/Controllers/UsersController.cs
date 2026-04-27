@@ -93,18 +93,17 @@ namespace API.Controllers
 		}
 
 
-	
+
 		[HttpGet("getUsersPaged")]
 		public async Task<IActionResult> GetUsersPaged([FromQuery] FiltersDTO filtersDTO)
 		{
 			var empresaId = User.GetEmpresaId();
-			filtersDTO.EmpresaId= empresaId;
+			filtersDTO.EmpresaId = empresaId;
 			var result = await userService.GetUsersPaged(filtersDTO);
-			if (result != null)
-				return Ok(result);
-			else
-				return BadRequest();
-		}	
+
+			return Ok(result);
+
+		}
 
 		/// <summary>
 		/// Get data by userid
