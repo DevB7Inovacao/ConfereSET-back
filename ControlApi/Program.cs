@@ -1,15 +1,16 @@
+using ControlApi.Middleware;
 using Infrastructure.Authenticate;
+using Infrastructure.ServiceExtension;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Events;
+using Serilog.Exceptions;
 using Services;
 using System.Text;
-using Infrastructure.ServiceExtension;
-using Microsoft.OpenApi.Models;
-using ControlApi.Middleware;
-using Serilog;
-using Serilog.Exceptions;
-using Serilog.Events;
-using Microsoft.AspNetCore.HttpOverrides;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -126,6 +127,18 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+	options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+	options.SerializerOptions.MaxDepth = 64;
+});
+
+builder.Services.AddControllers()
+		.AddJsonOptions(options =>
+		{
+			options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+			options.JsonSerializerOptions.MaxDepth = 64;
+		});
 
 var app = builder.Build();
 

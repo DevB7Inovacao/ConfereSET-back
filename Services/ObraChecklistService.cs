@@ -164,6 +164,10 @@ namespace Services
 				Marca = i.Marca,
 			}).OrderBy(i => i.Ordem).ToList()
 		};
+		public async Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId)
+		{
+			return await _unitOfWork.ObraChecklists.GetByObraEmpresa(empresaId);
+		}
 	}
 
 	public interface IObraChecklistService
@@ -175,6 +179,7 @@ namespace Services
 		Task<bool> RemoveChecklistFromObra(int obraChecklistId);
 		Task<bool> SincronizarChecklist(int checklistId);
 		Task<bool> ResponderItensAdicionais(int obraChecklistItemId, ResponderChecklistItemRequest req);
+		Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId);
 
 	}
 }

@@ -62,6 +62,20 @@ namespace ControlApi.Controllers
 				return BadRequest(ex.Message);
 			}
 		}
+		[AllowAnonymous]
+		[HttpGet("empresa/{empresaId}")]
+		public async Task<IActionResult> GetByObraEmpresa(int empresaId)
+		{
+			try
+			{
+				var result = await _service.GetByObraEmpresa(empresaId);
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
 
 		[AllowAnonymous]
 		[HttpPut("responder/{obraChecklistItemId}")]
