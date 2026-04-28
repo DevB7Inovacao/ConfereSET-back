@@ -73,7 +73,7 @@ namespace ControlApi.Controllers
 			}
 			catch (Exception ex)
 			{
-				return BadRequest(ex.Message);
+				return BadRequest("Erro ao obter checklists da empresa: " + ex.Message);
 			}
 		}
 
