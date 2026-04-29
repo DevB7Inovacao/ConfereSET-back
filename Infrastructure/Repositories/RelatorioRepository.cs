@@ -34,7 +34,7 @@ namespace Infrastructure.Repositories
         {
             return await _dbContext.Relatorios
                 .Include(x => x.ModeloTexto)
-                .Include(x => x.Obra)
+                .Include(x => x.Obra).ThenInclude(x=>x.Empresa)
                 .Include(x => x.CriadoPor)
                 .Include(x => x.Secoes.OrderBy(s => s.Ordem))
                     .ThenInclude(s => s.TipoOcorrencia)
@@ -51,7 +51,7 @@ namespace Infrastructure.Repositories
         {
             var query = _dbContext.Relatorios
                 .Include(x => x.ModeloTexto)
-                .Include(x => x.Obra)
+                .Include(x => x.Obra).ThenInclude(x=>x.Empresa)
                 .Include(x => x.CriadoPor)
                 .AsQueryable();
 

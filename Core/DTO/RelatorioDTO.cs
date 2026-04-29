@@ -28,7 +28,10 @@ namespace Core.DTO
         public string? HtmlSnapshot { get; set; }
         public string? ObservacaoRejeicao { get; set; }
         public List<RelatorioSecaoDTO> Secoes { get; set; } = new();
-    }
+		public string? EmpresaNome { get; set; }
+		public string? EmpresaTelefone { get; set; }
+		public string? EmpresaEmail { get; set; }
+	}
 
     public class RelatorioSecaoDTO
     {

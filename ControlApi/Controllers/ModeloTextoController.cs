@@ -11,10 +11,12 @@ namespace ControlApi.Controllers
     public class ModeloTextoController : ControllerBase
     {
         private readonly IModeloTextoService _service;
+    private readonly IRelatorioService _relatorioService;
 
-        public ModeloTextoController(IModeloTextoService service)
+        public ModeloTextoController(IModeloTextoService service,IRelatorioService relatorioService)
         {
             _service = service;
+      _relatorioService = relatorioService;
         }
 
         [AllowAnonymous]
@@ -84,12 +86,13 @@ namespace ControlApi.Controllers
         {
             try
             {
+     
                 var ok = await _service.Delete(id);
                 return ok ? Ok(true) : BadRequest("Falha ao excluir.");
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest("Não foi possível excluir o modelo de texto.");
             }
         }
 

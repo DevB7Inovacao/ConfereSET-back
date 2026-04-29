@@ -58,7 +58,7 @@ namespace ControlApi.Controllers
             if (req == null) return BadRequest("Payload inválido.");
             if (req.UserId <= 0) return BadRequest("userId inválido.");
 
-            if (req.UserType != 1) return Forbid("Apenas admin pode alterar dados da empresa.");
+            if (req.UserType != (int)TypeUser.admin) return Forbid("Apenas admin pode alterar dados da empresa.");
 
             var user = await _empresasService.GetUserById(req.UserId);
             if (user == null) return Unauthorized("Usuário não encontrado.");

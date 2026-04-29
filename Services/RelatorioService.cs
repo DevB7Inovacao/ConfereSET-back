@@ -457,8 +457,12 @@ namespace Services
                     }).ToList() ?? new()
                 }).ToList() ?? new(),
                 Comentarios = s.Comentarios?.Select(MapComentarioToDTO).ToList() ?? new()
-            }).ToList() ?? new()
-        };
+            }).ToList() ?? new(),
+
+					EmpresaNome= r.Obra?.Empresa?.Name,
+					EmpresaTelefone= r.Obra?.Empresa?.Phone,
+					EmpresaEmail=r.Obra?.Empresa?.ContactEmail
+				};
     }
 
     public interface IRelatorioService

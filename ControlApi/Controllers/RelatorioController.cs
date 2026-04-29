@@ -38,7 +38,8 @@ namespace ControlApi.Controllers
         [AllowAnonymous]
         [HttpGet("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersRelatorioDTO filters)
-        {
+        
+    {
             try
             {
                 var result = await _service.GetPaged(filters);
