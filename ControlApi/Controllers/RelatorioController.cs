@@ -134,8 +134,26 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+		[AllowAnonymous]
+		[HttpPost("item/{itemId}/multiple-fotos")]
+		public async Task<IActionResult> AddMultipleFotos(int itemId, [FromBody] AddMultipleFotosRequest req)
+		{
+			try
+			{
+				if (itemId <= 0) return BadRequest("itemId inválido.");
+				if (req?.Fotos == null || !req.Fotos.Any()) return BadRequest("Nenhuma foto enviada.");
 
-        [AllowAnonymous]
+				var ok = await _service.AddMultipleFotosToItem(itemId, req.Fotos);
+				return ok ? Ok("Fotos adicionadas com sucesso.") : BadRequest("Falha ao adicionar fotos.");
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
+
+		
+		[AllowAnonymous]
         [HttpDelete("foto/{fotoId}")]
         public async Task<IActionResult> DeleteFoto(int fotoId)
         {
@@ -150,8 +168,27 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+		[AllowAnonymous]
+		[HttpPost("fotos/delete-multiple")]
+		public async Task<IActionResult> DeleteMultipleFotos([FromBody] DeleteMultipleFotosRequest req)
+		{
+			try
+			{
+				if (req?.FotoIds == null || !req.FotoIds.Any())
+					return BadRequest("Nenhuma foto especificada.");
 
-        [AllowAnonymous]
+				var ok = await _service.DeleteMultipleFotos(req.FotoIds);
+				return ok ? Ok("Fotos excluídas com sucesso.") : BadRequest("Falha ao excluir fotos.");
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
+
+	
+
+		[AllowAnonymous]
         [HttpPost("secao/{secaoId}/comentario")]
         public async Task<IActionResult> AddComentario(int secaoId, [FromBody] AddComentarioRequest req)
         {
