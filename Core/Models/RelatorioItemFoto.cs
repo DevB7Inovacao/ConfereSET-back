@@ -3,9 +3,10 @@
     public class RelatorioItemFoto : BaseModel
     {
         public required int RelatorioSecaoItemId { get; set; }
-        public required byte[] ImagemBytes { get; set; }
+        public  byte[]? ImagemBytes { get; set; }
         public required string ContentType { get; set; }
         public string? NomeArquivo { get; set; }
         public RelatorioSecaoItem? RelatorioSecaoItem { get; set; }
-    }
+		public string S3Url { get; set; } = string.Empty; // URL da imagem no S3
+	}
 }

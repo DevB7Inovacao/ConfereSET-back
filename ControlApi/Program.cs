@@ -1,3 +1,4 @@
+using Amazon.S3;
 using ControlApi.Middleware;
 using Infrastructure.Authenticate;
 using Infrastructure.ServiceExtension;
@@ -177,6 +178,8 @@ builder.Services.AddControllers()
 			options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
 			options.JsonSerializerOptions.MaxDepth = 64;
 		});
+//builder.Services.AddAWSService<IAmazonS3>();
+builder.Services.AddScoped<IS3Service, S3Service>();
 
 var app = builder.Build();
 

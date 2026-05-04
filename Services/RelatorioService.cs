@@ -11,6 +11,7 @@ namespace Services
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IAtividadeRecenteService _atividadeService;
+		private readonly IS3Service _s3Service;
 
 		private static readonly Dictionary<string, TipoSecao> DataSecaoMap =
 				new(StringComparer.OrdinalIgnoreCase)
@@ -24,10 +25,11 @@ namespace Services
 					["ocorrencias"] = TipoSecao.Ocorrencias,
 				};
 
-		public RelatorioService(IUnitOfWork unitOfWork, IAtividadeRecenteService atividadeService)
+		public RelatorioService(IUnitOfWork unitOfWork, IAtividadeRecenteService atividadeService, IS3Service s3Service)
 		{
 			_unitOfWork = unitOfWork;
 			_atividadeService = atividadeService;
+			_s3Service = s3Service;
 		}
 
 		public async Task<Relatorio> Create(CreateRelatorioRequest req)
@@ -181,22 +183,73 @@ namespace Services
 		{
 			var item = await _unitOfWork.Relatorios.GetItemById(itemId);
 			if (item == null) throw new Exception("Item não encontrado.");
+
 			foreach (var f in fotos)
 			{
-				var foto = new RelatorioItemFoto
+				try
 				{
-					RelatorioSecaoItemId = itemId,
-					ImagemBytes = Convert.FromBase64String(f.ImagemBase64),
-					ContentType = f.ContentType,
-					NomeArquivo = f.NomeArquivo
-				};
+					// Converter Base64 para bytes
+					var imageBytes = Convert.FromBase64String(f.ImagemBase64);
 
-				await _unitOfWork.Relatorios.AddFoto(foto);
+					// Validar tamanho da imagem (ex: máximo 10MB)
+					//if (imageBytes.Length > 10 * 1024 * 1024)
+					//{
+					//	_logger.LogWarning("Imagem muito grande: {NomeArquivo}, Tamanho: {Tamanho} bytes",
+					//			f.NomeArquivo, imageBytes.Length);
+					//	continue; // Pular esta imagem
+					//}
+
+					// Upload para S3
+					var s3Url = await _s3Service.UploadImageAsync(imageBytes, f.NomeArquivo, f.ContentType);
+
+					var foto = new RelatorioItemFoto
+					{
+						RelatorioSecaoItemId = itemId,
+						S3Url = s3Url,
+						ContentType = f.ContentType,
+						NomeArquivo = f.NomeArquivo,
+					};
+
+					await _unitOfWork.Relatorios.AddFoto(foto);
+				}
+				catch (Exception ex)
+				{
+				
+					throw;
+				}
 			}
-			return _unitOfWork.Save() > 0;
+
+			return  _unitOfWork.Save() > 0;
 		}
 
+		public async Task<bool> DeleteMultipleFotos(List<int> fotoIds)
+		{
+			foreach (var id in fotoIds)
+			{
+				var foto = await _unitOfWork.Relatorios.GetFotoById(id);
+				if (foto == null)
+				{
+					//_logger.LogWarning("Foto não encontrada: {FotoId}", id);
+					continue;
+				}
 
+				try
+				{
+					// Deletar do S3
+					await _s3Service.DeleteImageAsync(foto.S3Url);
+
+					// Deletar do banco
+					_unitOfWork.Relatorios.DeleteFoto(foto);
+				}
+				catch (Exception ex)
+				{
+					//_logger.LogError(ex, "Erro ao deletar foto {FotoId} do S3", id);
+					throw;
+				}
+			}
+
+			return  _unitOfWork.Save() > 0;
+		}
 		public async Task<bool> DeleteFoto(int fotoId)
 		{
 			var foto = await _unitOfWork.Relatorios.GetFotoById(fotoId);
@@ -205,17 +258,17 @@ namespace Services
 			_unitOfWork.Relatorios.DeleteFoto(foto);
 			return _unitOfWork.Save() > 0;
 		}
-		public async Task<bool> DeleteMultipleFotos(List<int> fotoIds)
-		{
-			foreach (var id in fotoIds)
-			{
-				var foto = await _unitOfWork.Relatorios.GetFotoById(id);
-				if (foto == null) throw new Exception("Foto não encontrada.");
+		//public async Task<bool> DeleteMultipleFotos(List<int> fotoIds)
+		//{
+		//	foreach (var id in fotoIds)
+		//	{
+		//		var foto = await _unitOfWork.Relatorios.GetFotoById(id);
+		//		if (foto == null) throw new Exception("Foto não encontrada.");
 
-				_unitOfWork.Relatorios.DeleteFoto(foto);
-			}
-			return _unitOfWork.Save() > 0;
-		}
+		//		_unitOfWork.Relatorios.DeleteFoto(foto);
+		//	}
+		//	return _unitOfWork.Save() > 0;
+		//}
 
 
 		public async Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req)
@@ -484,7 +537,8 @@ namespace Services
 						RelatorioSecaoItemId = f.RelatorioSecaoItemId,
 						ContentType = f.ContentType,
 						NomeArquivo = f.NomeArquivo,
-						ImagemBase64 = Convert.ToBase64String(f.ImagemBytes)
+						ImagemBase64 = f.ImagemBytes!=null? Convert.ToBase64String(f.ImagemBytes) : null,
+						S3Url=f.S3Url,
 					}).ToList() ?? new()
 				}).ToList() ?? new(),
 				Comentarios = s.Comentarios?.Select(MapComentarioToDTO).ToList() ?? new()
@@ -494,6 +548,24 @@ namespace Services
 			EmpresaTelefone = r.Obra?.Empresa?.Phone,
 			EmpresaEmail = r.Obra?.Empresa?.ContactEmail
 		};
+		public async Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot)
+		{
+			try
+			{
+				var relatorio = await _unitOfWork.Relatorios.GetById(id);//_context.Relatorios.FindAsync(id);
+				if (relatorio == null) return false;
+
+				relatorio.HtmlSnapshot = htmlSnapshot;
+				relatorio.UpdatedDate = DateTime.UtcNow;
+				_unitOfWork.Relatorios.Update(relatorio);
+				_unitOfWork.Save();
+				return true;
+			}
+			catch (Exception ex)
+			{
+				return false;
+			}
+		}
 	}
 
 	public interface IRelatorioService
@@ -511,5 +583,6 @@ namespace Services
 		Task<bool> DeleteComentario(int comentarioId);
 		Task<bool> AddMultipleFotosToItem(int itemId, List<AddFotoToItemRequest> fotos);
 		Task<bool> DeleteMultipleFotos(List<int> fotoIds);
+		Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot);
 	}
 }

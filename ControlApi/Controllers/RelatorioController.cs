@@ -237,5 +237,25 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
-    }
+		[AllowAnonymous]
+		[HttpPatch("{id}/html-snapshot")]
+		public async Task<IActionResult> UpdateHtmlSnapshot(int id, [FromBody] UpdateHtmlSnapshotRequest req)
+		{
+			try
+			{
+				if (id <= 0) return BadRequest("id inválido.");
+				if (req == null || string.IsNullOrWhiteSpace(req.HtmlSnapshot))
+					return BadRequest("Payload inválido.");
+
+				var ok = await _service.UpdateHtmlSnapshot(id, req.HtmlSnapshot);
+				return ok ? Ok(true) : BadRequest("Falha ao atualizar HTML.");
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
+
+		
+	}
 }
