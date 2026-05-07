@@ -23,12 +23,16 @@ namespace Services
                     throw new ArgumentNullException(nameof(empresas));
 
                 var existingCNPJ = await _unitOfWork.Empresas.GetEmpresasByCNPJ(empresas.CNPJ);
-                if (existingCNPJ != null || empresas == null || !ValidarCNPJ(empresas.CNPJ))
+                if (existingCNPJ != null || empresas == null 
+          ||
+          !ValidarCNPJ(empresas.CNPJ)
+          )
                 {
                     throw new Exception("CNPJ inválido.");
                 }
-
+             
                 await _unitOfWork.Empresas.Add(empresas);
+
                 _unitOfWork.Save();
                 return empresas;
             }

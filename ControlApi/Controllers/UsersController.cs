@@ -35,7 +35,16 @@ namespace API.Controllers
 
 			if (user != null && Encrypt.EncryptPassword(userDTO.Password) == user.Password)
 			{
-				token = await _jWTManager.Authenticate(user);
+				try
+				{
+					token = await _jWTManager.Authenticate(user);
+				}
+				catch (Exception ex)
+				{
+
+					throw;
+				}
+
 			}
 
 
@@ -104,6 +113,16 @@ namespace API.Controllers
 			return Ok(result);
 
 		}
+
+		[HttpGet("getUsers")]
+		public async Task<IActionResult> GetUsers([FromQuery] FiltersDTO filtersDTO)
+		{
+		
+			var result = await userService.GetUsers(filtersDTO);
+
+			return Ok(result);
+		}
+
 
 		/// <summary>
 		/// Get data by userid

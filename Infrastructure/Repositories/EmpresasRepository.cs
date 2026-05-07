@@ -23,13 +23,16 @@ namespace Infrastructure.Repositories
 
         public async Task<Empresas> GetEmpresasByCNPJ(string cnpj)
         {
-            return await _dbContext.Set<Empresas>().FirstOrDefaultAsync(x => x.CNPJ == cnpj);
+            return await _dbContext.Set<Empresas>()
+        .Include(x=>x.Users)
+        .FirstOrDefaultAsync(x => x.CNPJ == cnpj);
         }
 
         public async Task<PagedResult<Empresas>> GetAllEmpresasPaged(FiltersDTO filtersDTO)
         {
              return await _dbContext.Set<Empresas>()
-            .Where(x => string.IsNullOrEmpty(filtersDTO.Name) || EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
+            .Where(x => string.IsNullOrEmpty(filtersDTO.Name) 
+            || EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
             .GetPagedAsync<Empresas>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
     }

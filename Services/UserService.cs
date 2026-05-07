@@ -148,7 +148,40 @@ namespace Services
             if (empresaId <= 0) return 0;
             return await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, type);
         }
-    }
+    public async Task<UsersPagedDTO> GetUsers(FiltersDTO filtersDTO)
+    {
+			try
+			{
+				var users = await _unitOfWork.Users.GetAllPaged(filtersDTO);
+
+				//if (users == null || users.Results == null || !users.Results.Any())
+				//    throw new Exception("Nenhum dado foi encontrado.");
+
+				var usersDTO = users.Results.Select(users => new UsersDTO
+				{
+					Id = users.Id,
+					Name = users.Name,
+					Email = users.Email,
+					Type = users.Type,
+					Status = users.Status,
+					Empresas = new EmpresasDTO
+					{
+						Id = users.Empresa != null ? users.Empresa.Id : 0,
+						Name = users.Empresa != null ? users.Empresa.Name : string.Empty,
+						CNPJ = users.Empresa != null ? users.Empresa.CNPJ : string.Empty,
+						Status = users.Empresa != null ? users.Empresa.Status : null
+					}
+				}).ToList();
+
+				return new UsersPagedDTO() { Result = usersDTO, PageCount = users.PageCount };
+			}
+			catch (Exception ex)
+			{
+				throw new Exception(ex.Message);
+			}
+		}
+
+		}
 
     public interface IUserService
     {
@@ -161,5 +194,6 @@ namespace Services
         Task<bool> DeleteUser(int userId);
         Task<int> CountUsersByEmpresaId(int empresaId);
         Task<int> CountUsersByEmpresaIdAndType(int empresaId, int type);
-    }
+		Task<UsersPagedDTO> GetUsers(FiltersDTO filtersDTO);
+	}
 }

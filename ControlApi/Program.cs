@@ -1,5 +1,5 @@
-using Amazon.S3;
 using ControlApi.Middleware;
+using Core.Mapping;
 using Infrastructure.Authenticate;
 using Infrastructure.ServiceExtension;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -180,6 +180,7 @@ builder.Services.AddControllers()
 		});
 //builder.Services.AddAWSService<IAmazonS3>();
 builder.Services.AddScoped<IS3Service, S3Service>();
+builder.Services.AddAutoMapper(cfg => { }, typeof(EmpresasMappingProfile));
 
 var app = builder.Build();
 

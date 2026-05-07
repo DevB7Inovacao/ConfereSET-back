@@ -2,6 +2,7 @@
 using Infrastructure.MercadoPago;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,8 +16,10 @@ namespace Infrastructure.ServiceExtension
 
             services.AddDbContext<DbContextClass>(options =>
             {
-                options.UseNpgsql(connectionString);
-            });
+                options.UseNpgsql(connectionString)
+               .ConfigureWarnings(warnings =>
+							 warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+		});
 
             services.AddHttpClient<IMercadoPagoClient, MercadoPagoClient>();
 
