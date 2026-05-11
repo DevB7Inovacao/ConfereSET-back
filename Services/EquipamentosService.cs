@@ -111,7 +111,9 @@ namespace Services
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
+        return new EquipamentosPagedDTO();
+
+                //throw new Exception(ex.Message);
             }
         }
 

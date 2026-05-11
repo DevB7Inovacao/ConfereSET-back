@@ -110,7 +110,8 @@ namespace Services
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
+        return new MaoDeObraPagedDTO();
+                //throw new Exception(ex.Message);
             }
         }
 

@@ -512,7 +512,7 @@ namespace Services
 			Titulo = r.Titulo,
 			Status = r.Status,
 			DataRelatorio = r.DataRelatorio,
-			HtmlSnapshot = r.HtmlSnapshot,
+			HtmlSnapshot = r.ModeloTexto.Texto,//r.HtmlSnapshot,
 			ObservacaoRejeicao = r.ObservacaoRejeicao,
 			Secoes = r.Secoes?.Select(s => new RelatorioSecaoDTO
 			{

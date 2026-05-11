@@ -17,6 +17,6 @@ namespace Core.DTO
     public class EquipamentosPagedDTO
     {
         public int PageCount { get; set; }
-        public IList<EquipamentosDTO> Result { get; set; }
+        public IList<EquipamentosDTO>? Result { get; set; }
     }
 }

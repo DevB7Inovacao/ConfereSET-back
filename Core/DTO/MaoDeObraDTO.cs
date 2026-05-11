@@ -17,6 +17,6 @@ namespace Core.DTO
     public class MaoDeObraPagedDTO
     {
         public int PageCount { get; set; }
-        public IList<MaoDeObraDTO> Result { get; set; }
+        public IList<MaoDeObraDTO> ?Result { get; set; }
     }
 }
