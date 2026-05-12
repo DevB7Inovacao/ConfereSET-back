@@ -34,7 +34,7 @@ namespace ControlApi.Controllers
 				var empresa = _mapper.Map<Empresas>(empresas);
 				var result = await _empresasService.CreateEmpresa(empresa);
 
-				if (result.Id > 0)
+				if (result.Success)
 					return Ok("Empresa cadastrada com sucesso.");
 				else
 					return BadRequest("Erro ao cadastrar empresa.");

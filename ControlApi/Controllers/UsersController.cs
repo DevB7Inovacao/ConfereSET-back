@@ -70,7 +70,7 @@ namespace API.Controllers
 		[Route("create")]
 		public async Task<IActionResult> Create(CreateUserRequest userdata)
 		{
-			var hasEmpresa = (userdata.IdEmpresa != null) ? _empresaService.GetEmpresaById((int)userdata.IdEmpresa) : null;
+			var hasEmpresa = (userdata.IdEmpresa != null) ? await _empresaService.GetEmpresaById((int)userdata.IdEmpresa) : null;
 
 			if (hasEmpresa == null)
 			{
@@ -81,7 +81,12 @@ namespace API.Controllers
 					CNPJ = userdata.CNPJ ?? "",
 				};
 
-				hasEmpresa = _empresaService.CreateEmpresa(empresa);
+				var result = await _empresaService.CreateEmpresa(empresa);
+				if (!result.Success)
+				{
+					return BadRequest(result.Message);
+				}
+				hasEmpresa = result.Data as Empresas;
 			}
 
 			var user = new User()
@@ -91,7 +96,7 @@ namespace API.Controllers
 				Email = userdata.Email,
 				Status = userdata.Status,
 				Type = userdata.Type,
-				Empresa = await hasEmpresa
+				Empresa =  hasEmpresa
 			};
 			var isUserCreated = await userService.CreateUser(user);
 
