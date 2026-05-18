@@ -34,34 +34,11 @@ namespace Services
 
 		public async Task<Relatorio> Create(CreateRelatorioRequest req)
 		{
-			// Compat: mantém assinatura antiga; usa CriadoPorUserId do request e não valida empresa.
-			return await CreateInternal(req, req.CriadoPorUserId, null);
-		}
-
-		/// <summary>
-		/// Cria o relatório atribuindo a autoria ao <paramref name="criadoPorUserIdJwt"/> (vindo do JWT,
-		/// ignorando o valor presente no request) e valida que a obra pertence à empresa do chamador.
-		/// </summary>
-		public async Task<Relatorio> Create(CreateRelatorioRequest req, int criadoPorUserIdJwt, int empresaIdJwt)
-		{
-			return await CreateInternal(req, criadoPorUserIdJwt, empresaIdJwt);
-		}
-
-		private async Task<Relatorio> CreateInternal(CreateRelatorioRequest req, int criadoPorUserId, int? empresaIdJwt)
-		{
 			var modelo = await _unitOfWork.ModeloTextos.GetById(req.ModeloTextoId);
 			if (modelo == null) throw new Exception("Modelo de texto não encontrado.");
 
 			var obra = await _unitOfWork.Obras.GetObraById(req.ObraId);
 			if (obra == null) throw new Exception("Obra não encontrada.");
-
-			// Escopo de empresa: obra deve pertencer à empresa do chamador (quando contexto disponível).
-			if (empresaIdJwt.HasValue && obra.EmpresaId != empresaIdJwt.Value)
-				throw new UnauthorizedAccessException("Obra não pertence à sua empresa.");
-
-			// Igualmente, modelo de texto deve pertencer à mesma empresa.
-			if (empresaIdJwt.HasValue && modelo.EmpresaId != empresaIdJwt.Value)
-				throw new UnauthorizedAccessException("Modelo de texto não pertence à sua empresa.");
 
 			var secoes = await ParseSecoesDoHtml(modelo.Texto, obra);
 
@@ -69,7 +46,7 @@ namespace Services
 			{
 				ModeloTextoId = req.ModeloTextoId,
 				ObraId = req.ObraId,
-				CriadoPorUserId = criadoPorUserId,
+				CriadoPorUserId = req.CriadoPorUserId,
 				Titulo = req.Titulo.Trim(),
 				Status = StatusRelatorio.Rascunho,
 				DataRelatorio = req.DataRelatorio ?? DateTime.Now,
@@ -80,59 +57,6 @@ namespace Services
 			await _unitOfWork.Relatorios.Add(relatorio);
 			_unitOfWork.Save();
 			return relatorio;
-		}
-
-		/// <summary>
-		/// Variante de <see cref="GetById"/> que valida o escopo de empresa.
-		/// Retorna <c>null</c> tanto para inexistente quanto para "fora da empresa" — o caller
-		/// devolve 404 nos dois casos (não vaza informação de existência cruzada).
-		/// </summary>
-		public async Task<RelatorioDTO?> GetByIdScoped(int id, int empresaIdJwt)
-		{
-			var relatorio = await _unitOfWork.Relatorios.GetById(id);
-			if (relatorio == null) return null;
-			if (relatorio.Obra?.EmpresaId != empresaIdJwt) return null;
-			return MapToDTO(relatorio);
-		}
-
-		/// <summary>
-		/// Retorna um DTO leve do relatório a partir do id de um item, validando escopo de empresa.
-		/// </summary>
-		public async Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt)
-		{
-			var item = await _unitOfWork.Relatorios.GetItemById(itemId);
-			if (item == null) return null;
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(item.RelatorioSecaoId);
-			if (secao == null) return null;
-			return await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
-		}
-
-		public async Task<RelatorioDTO?> GetRelatorioByFotoId(int fotoId, int empresaIdJwt)
-		{
-			var foto = await _unitOfWork.Relatorios.GetFotoById(fotoId);
-			if (foto == null) return null;
-			var item = await _unitOfWork.Relatorios.GetItemById(foto.RelatorioSecaoItemId);
-			if (item == null) return null;
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(item.RelatorioSecaoId);
-			if (secao == null) return null;
-			return await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
-		}
-
-		public async Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt)
-		{
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
-			if (secao == null) return null;
-			return await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
-		}
-
-		public async Task<(RelatorioDTO? relatorio, int? autorComentarioId)> GetRelatorioAndAutorByComentarioId(int comentarioId, int empresaIdJwt)
-		{
-			var comentario = await _unitOfWork.Relatorios.GetComentarioById(comentarioId);
-			if (comentario == null) return (null, null);
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(comentario.RelatorioSecaoId);
-			if (secao == null) return (null, null);
-			var dto = await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
-			return (dto, comentario.AutorId);
 		}
 
 		public async Task<RelatorioDTO?> GetById(int id)
@@ -647,13 +571,7 @@ namespace Services
 	public interface IRelatorioService
 	{
 		Task<Relatorio> Create(CreateRelatorioRequest req);
-		Task<Relatorio> Create(CreateRelatorioRequest req, int criadoPorUserIdJwt, int empresaIdJwt);
 		Task<RelatorioDTO?> GetById(int id);
-		Task<RelatorioDTO?> GetByIdScoped(int id, int empresaIdJwt);
-		Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt);
-		Task<RelatorioDTO?> GetRelatorioByFotoId(int fotoId, int empresaIdJwt);
-		Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt);
-		Task<(RelatorioDTO? relatorio, int? autorComentarioId)> GetRelatorioAndAutorByComentarioId(int comentarioId, int empresaIdJwt);
 		Task<RelatorioPagedDTO> GetPaged(FiltersRelatorioDTO filters);
 		Task<bool> UpdateStatus(int id, UpdateRelatorioStatusRequest req);
 		Task<bool> Delete(int id);

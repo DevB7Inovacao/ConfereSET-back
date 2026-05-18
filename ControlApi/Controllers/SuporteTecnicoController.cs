@@ -1,4 +1,4 @@
-using Core.DTO;
+﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -7,11 +7,6 @@ using Services;
 
 namespace ControlApi.Controllers
 {
-    /// <summary>
-    /// Chamados de suporte técnico. Todos os endpoints exigem autenticação; o
-    /// <c>EmpresaId</c> do recurso é sempre derivado do JWT (o body é ignorado) para impedir
-    /// que um usuário abra ou liste chamados em nome de outra empresa.
-    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -26,6 +21,7 @@ namespace ControlApi.Controllers
             _supportTicketsService = supportTicketsService;
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         [RequestSizeLimit(10 * 1024 * 1024)]
@@ -33,10 +29,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                if (req.EmpresaId <= 0) return BadRequest("EmpresaId inválido.");
                 if (string.IsNullOrWhiteSpace(req.Title)) return BadRequest("Título é obrigatório.");
                 if (string.IsNullOrWhiteSpace(req.Description)) return BadRequest("Descrição é obrigatória.");
-
-                var empresaJwt = User.GetEmpresaId();
 
                 byte[]? bytes = null;
                 string? fileName = null;
@@ -55,8 +50,7 @@ namespace ControlApi.Controllers
 
                 var ticket = new SupportTicket
                 {
-                    // EmpresaId sempre vem do JWT — body ignorado por segurança.
-                    EmpresaId = empresaJwt,
+                    EmpresaId = req.EmpresaId,
                     Subject = req.Subject,
                     Title = req.Title,
                     Description = req.Description,
@@ -73,102 +67,62 @@ namespace ControlApi.Controllers
                 else
                     return BadRequest("Erro ao enviar chamado.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersSupportTicketsDTO filtersDTO)
         {
             try
             {
-                filtersDTO ??= new FiltersSupportTicketsDTO();
-                // Escopo de empresa forçado pelo JWT.
-                filtersDTO.EmpresaId = User.GetEmpresaId();
-
                 var result = await _supportTicketsService.GetPaged(filtersDTO);
                 return Ok(result);
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateSupportTicketRequest req)
         {
-            try
-            {
-                if (id <= 0) return BadRequest("id inválido.");
-                if (req == null) return BadRequest("Payload inválido.");
+            if (id <= 0) return BadRequest("id inválido.");
+            if (req == null) return BadRequest("Payload inválido.");
 
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem alterar chamados.");
+            var existing = await _supportTicketsService.GetById(id);
+            if (existing == null) return NotFound("Chamado não encontrado.");
 
-                var existing = await _supportTicketsService.GetById(id);
-                if (existing == null) return NotFound("Chamado não encontrado.");
+            if (req.Subject.HasValue) existing.Subject = req.Subject.Value;
+            if (req.Status.HasValue) existing.Status = req.Status.Value;
 
-                var empresaJwt = User.GetEmpresaId();
-                if (existing.EmpresaId != empresaJwt)
-                    return StatusCode(StatusCodes.Status403Forbidden, "Chamado pertence a outra empresa.");
+            if (req.Title != null) existing.Title = string.IsNullOrWhiteSpace(req.Title) ? existing.Title : req.Title;
+            if (req.Description != null) existing.Description = string.IsNullOrWhiteSpace(req.Description) ? existing.Description : req.Description;
 
-                if (req.Subject.HasValue) existing.Subject = req.Subject.Value;
-                if (req.Status.HasValue) existing.Status = req.Status.Value;
+            var result = await _supportTicketsService.Update(existing, id);
+            if (result) return Ok(true);
 
-                if (req.Title != null) existing.Title = string.IsNullOrWhiteSpace(req.Title) ? existing.Title : req.Title;
-                if (req.Description != null) existing.Description = string.IsNullOrWhiteSpace(req.Description) ? existing.Description : req.Description;
-
-                var result = await _supportTicketsService.Update(existing, id);
-                if (result) return Ok(true);
-
-                return BadRequest("Falha ao atualizar chamado.");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest("Falha ao atualizar chamado.");
         }
 
+        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                if (id <= 0) return BadRequest("id inválido.");
-
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem excluir chamados.");
-
-                var existing = await _supportTicketsService.GetById(id);
-                if (existing == null) return NotFound("Chamado não encontrado.");
-
-                var empresaJwt = User.GetEmpresaId();
-                if (existing.EmpresaId != empresaJwt)
-                    return StatusCode(StatusCodes.Status403Forbidden, "Chamado pertence a outra empresa.");
-
                 bool result = await _supportTicketsService.Delete(id);
-                return result ? Ok("Chamado excluído com sucesso.") : BadRequest("Falha ao excluir chamado.");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+                if (result)
+                    return Ok("Chamado excluído com sucesso.");
+                else
+                    return BadRequest("Falha ao excluir chamado.");
             }
             catch (Exception ex)
             {
@@ -176,22 +130,83 @@ namespace ControlApi.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
         {
             try
             {
-                if (id <= 0) return BadRequest("id inválido.");
+                bool result = await _supportTicketsService.ToggleStatus(id);
+                if (result)
+                    return Ok("Status do chamado alterado com sucesso.");
+                else
+                    return BadRequest("Falha ao alterar o status do chamado.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem alterar o status.");
+        [AllowAnonymous]
+        [HttpGet("getById/{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            if (id <= 0) return BadRequest("id inválido.");
 
-                var existing = await _supportTicketsService.GetById(id);
-                if (existing == null) return NotFound("Chamado não encontrado.");
+            var ticket = await _supportTicketsService.GetById(id);
+            if (ticket == null) return NotFound("Chamado não encontrado.");
 
-                var empresaJwt = User.GetEmpresaId();
-                if (existing.EmpresaId != empresaJwt)
-                    return StatusCode(StatusCodes.Status403Forbidden, "Chamado pertence a outra empresa.");
+            var dto = new SupportTicketDTO
+            {
+                Id = ticket.Id,
+                EmpresaId = ticket.EmpresaId,
+                Subject = ticket.Subject,
+                Title = ticket.Title,
+                Description = ticket.Description,
+                Status = ticket.Status,
+                HasAttachment = ticket.AttachmentBytes != null && ticket.AttachmentBytes.Length > 0,
+                AttachmentFileName = ticket.AttachmentFileName,
+                AttachmentContentType = ticket.AttachmentContentType,
+                CreatedDate = ticket.CreatedDate,
+                UpdatedDate = ticket.UpdatedDate
+            };
 
-                bool result = await _supportTicketsService.ToggleS
+            return Ok(dto);
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("simple")]
+        public async Task<IActionResult> GetSimple([FromQuery] int empresaId)
+        {
+            try
+            {
+                if (empresaId <= 0) return BadRequest("empresaId inválido.");
+                var result = await _supportTicketsService.GetSimple(empresaId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("download-attachment/{id}")]
+        public async Task<IActionResult> DownloadAttachment(int id)
+        {
+            if (id <= 0) return BadRequest("id inválido.");
+
+            var ticket = await _supportTicketsService.GetById(id);
+            if (ticket == null) return NotFound("Chamado não encontrado.");
+            if (ticket.AttachmentBytes == null || ticket.AttachmentBytes.Length == 0) return NotFound("Chamado não possui anexo.");
+
+            var contentType = string.IsNullOrWhiteSpace(ticket.AttachmentContentType) ? "application/octet-stream" : ticket.AttachmentContentType;
+            var fileName = string.IsNullOrWhiteSpace(ticket.AttachmentFileName) ? $"anexo_chamado_{id}" : ticket.AttachmentFileName;
+
+            return File(ticket.AttachmentBytes, contentType, fileName);
+        }
+    }
+}

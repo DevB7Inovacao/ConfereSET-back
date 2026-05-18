@@ -57,19 +57,10 @@ namespace Infrastructure.Repositories
 		}
 		public async Task<Assinatura?> GetPendingByPlanIdAndNoMPId(string preapprovalPlanId)
 		{
-			// Legado — mantido para compatibilidade de interface. Não usar em novos fluxos.
+			// Busca a assinatura pendente mais recente para este plano
+			// que ainda não tem MPPreapprovalId associado
 			return await _dbContext.Set<Assinatura>()
 					.Where(a => a.Plano.MPPreapprovalPlanId == preapprovalPlanId
-											&& a.Status == StatusAssinatura.Pendente
-											&& a.MPSubscriptionId == null)
-					.OrderByDescending(a => a.DataInicio)
-					.FirstOrDefaultAsync();
-		}
-
-		public async Task<Assinatura?> GetPendingEmpresaSemMPId(int empresaId)
-		{
-			return await _dbContext.Set<Assinatura>()
-					.Where(a => a.EmpresaId == empresaId
 											&& a.Status == StatusAssinatura.Pendente
 											&& a.MPSubscriptionId == null)
 					.OrderByDescending(a => a.DataInicio)
@@ -86,6 +77,5 @@ namespace Infrastructure.Repositories
 		Task<int> CountAll();
 		Task<Assinatura?> GetByExternalReference(string externaReference);
 		Task<Assinatura?> GetPendingByPlanIdAndNoMPId(string preapprovalPlanId);
-		Task<Assinatura?> GetPendingEmpresaSemMPId(int empresaId);
 	}
 }

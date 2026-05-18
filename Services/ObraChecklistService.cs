@@ -168,27 +168,6 @@ namespace Services
 		{
 			return await _unitOfWork.ObraChecklists.GetByObraEmpresa(empresaId);
 		}
-
-		/// <summary>
-		/// Resolve <c>ObraChecklistItemId → ObraId</c> para validações de escopo no controller.
-		/// Retorna <c>null</c> se o item não existir.
-		/// </summary>
-		public async Task<int?> GetObraIdByItemId(int obraChecklistItemId)
-		{
-			var item = await _unitOfWork.ObraChecklistItems.GetById(obraChecklistItemId);
-			if (item == null) return null;
-			var obraChecklist = await _unitOfWork.ObraChecklists.GetById(item.ObraChecklistId);
-			return obraChecklist?.ObraId;
-		}
-
-		/// <summary>
-		/// Resolve <c>ObraChecklistId → ObraId</c> para validações de escopo no controller.
-		/// </summary>
-		public async Task<int?> GetObraIdByObraChecklistId(int obraChecklistId)
-		{
-			var obraChecklist = await _unitOfWork.ObraChecklists.GetById(obraChecklistId);
-			return obraChecklist?.ObraId;
-		}
 	}
 
 	public interface IObraChecklistService
@@ -201,7 +180,6 @@ namespace Services
 		Task<bool> SincronizarChecklist(int checklistId);
 		Task<bool> ResponderItensAdicionais(int obraChecklistItemId, ResponderChecklistItemRequest req);
 		Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId);
-		Task<int?> GetObraIdByItemId(int obraChecklistItemId);
-		Task<int?> GetObraIdByObraChecklistId(int obraChecklistId);
+
 	}
 }

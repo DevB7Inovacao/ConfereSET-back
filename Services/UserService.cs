@@ -18,7 +18,7 @@ namespace Services
         {
             if (user != null)
             {
-                user.Password = Encrypt.HashPassword(user.Password);
+                user.Password = Encrypt.EncryptPassword(user.Password);
                 await _unitOfWork.Users.Add(user);
 
                 var result = _unitOfWork.Save();
@@ -29,30 +29,6 @@ namespace Services
                     return false;
             }
             return false;
-        }
-
-        /// <summary>
-        /// Valida a senha do usuário considerando o algoritmo de hash em uso (BCrypt) e o legado
-        /// (AES reversível). Se a senha bate via AES, regrava com BCrypt — assim a migração é
-        /// transparente: usuário não precisa redefinir senha, mas o banco vai sendo atualizado.
-        /// </summary>
-        public async Task<bool> VerifyPasswordAndUpgrade(User user, string plainPassword)
-        {
-            if (user == null || string.IsNullOrEmpty(plainPassword) || string.IsNullOrEmpty(user.Password))
-                return false;
-
-            var (ok, needsUpgrade) = Encrypt.VerifyPassword(plainPassword, user.Password);
-
-            if (!ok) return false;
-
-            if (needsUpgrade)
-            {
-                user.Password = Encrypt.HashPassword(plainPassword);
-                _unitOfWork.Users.Update(user);
-                _unitOfWork.Save();
-            }
-
-            return await Task.FromResult(true);
         }
 
         public async Task<UsersPagedDTO> GetUsersPaged(FiltersDTO filtersDTO)
@@ -142,7 +118,7 @@ namespace Services
                 if (user != null)
                 {
                     if (!string.IsNullOrWhiteSpace(userParam.Password))
-                        user.Password = Encrypt.HashPassword(userParam.Password);
+                        user.Password = Encrypt.EncryptPassword(userParam.Password);
                     user.Email = userParam.Email;
                     user.Name = userParam.Name;
                     user.Status = userParam.Status;
@@ -210,7 +186,6 @@ namespace Services
     public interface IUserService
     {
         Task<bool> CreateUser(User user);
-        Task<bool> VerifyPasswordAndUpgrade(User user, string plainPassword);
         Task<UsersPagedDTO> GetUsersPaged(FiltersDTO filtersDTO);
         Task<IEnumerable<User>> GetAllUsers();
         Task<UserSafeDTO?> GetUserById(int userId);

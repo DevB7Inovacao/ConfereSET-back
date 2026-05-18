@@ -1,4 +1,4 @@
-using Core.DTO;
+﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -12,18 +12,6 @@ using System.Threading.Tasks;
 
 namespace ControlApi.Controllers
 {
-    /// <summary>
-    /// Catálogo de Mão de Obra.
-    /// <para>
-    /// Regras de autorização (validadas neste controller, não em filtros globais):
-    /// <list type="bullet">
-    /// <item>Todos os endpoints exigem JWT válido (<c>[Authorize]</c>).</item>
-    /// <item>Operações de escrita (<c>Create</c>, <c>Update</c>, <c>Delete</c>, <c>ToggleStatus</c>) exigem admin/gerente.</item>
-    /// <item>O modelo <see cref="MaoDeObra"/> não possui <c>EmpresaId</c> no schema atual (catálogo global) —
-    /// por isso não há validação de escopo por empresa pós-fetch; apenas role-gate.</item>
-    /// </list>
-    /// </para>
-    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -38,15 +26,13 @@ namespace ControlApi.Controllers
             _maoDeObraService = maoDeObraService;
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateMaoDeObraRequest req)
         {
             try
             {
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
-
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Funcao)) return BadRequest("Função é obrigatória.");
 
@@ -64,83 +50,117 @@ namespace ControlApi.Controllers
                 else
                     return BadRequest("Erro ao cadastrar mão de obra.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersMaoDeObraDTO filtersDTO)
         {
-            try
-            {
-                // Garante que o JWT é válido (lança 403 se claim faltar).
-                _ = User.GetEmpresaId();
+            var result = await _maoDeObraService.GetMaoDeObraPaged(filtersDTO);
+            if (result != null)
+                return Ok(result);
 
-                var result = await _maoDeObraService.GetMaoDeObraPaged(filtersDTO);
-                if (result != null)
-                    return Ok(result);
-
-                return BadRequest();
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest();
         }
 
+        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateMaoDeObraRequest req)
         {
-            try
-            {
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
+            if (id <= 0) return BadRequest("id inválido.");
+            if (req == null) return BadRequest("Payload inválido.");
 
-                if (id <= 0) return BadRequest("id inválido.");
-                if (req == null) return BadRequest("Payload inválido.");
+            var existing = await _maoDeObraService.GetMaoDeObraById(id);
+            if (existing == null) return NotFound("Mão de obra não encontrada.");
 
-                var existing = await _maoDeObraService.GetMaoDeObraById(id);
-                if (existing == null) return NotFound("Mão de obra não encontrada.");
+            if (req.Funcao != null && !string.IsNullOrWhiteSpace(req.Funcao))
+                existing.Funcao = req.Funcao.Trim();
 
-                if (req.Funcao != null && !string.IsNullOrWhiteSpace(req.Funcao))
-                    existing.Funcao = req.Funcao.Trim();
+            if (req.Descricao != null)
+                existing.Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim();
 
-                if (req.Descricao != null)
-                    existing.Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim();
+            if (req.Status.HasValue)
+                existing.Status = req.Status.Value;
 
-                if (req.Status.HasValue)
-                    existing.Status = req.Status.Value;
+            var ok = await _maoDeObraService.UpdateMaoDeObra(existing, id);
+            if (ok) return Ok(true);
 
-                var ok = await _maoDeObraService.UpdateMaoDeObra(existing, id);
-                if (ok) return Ok(true);
-
-                return BadRequest("Falha ao atualizar mão de obra.");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest("Falha ao atualizar mão de obra.");
         }
 
+        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                if (!User.IsAdminOrGerente())
+                var ok = await _maoDeObraService.DeleteMaoDeObra(id);
+                if (ok) return Ok("Mão de obra excluída com sucesso.");
+                return BadRequest("Falha ao excluir mão de obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("toggle-status/{id}")]
+        public async Task<IActionResult> ToggleStatus(int id)
+        {
+            try
+            {
+                var ok = await _maoDeObraService.ToggleMaoDeObraStatus(id);
+                if (ok) return Ok("Status da mão de obra alterado com sucesso.");
+                return BadRequest("Falha ao alterar o status da mão de obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("getById/{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            if (id <= 0) return BadRequest("id inválido.");
+
+            var item = await _maoDeObraService.GetMaoDeObraById(id);
+            if (item == null) return NotFound("Mão de obra não encontrada.");
+
+            var dto = new MaoDeObraDTO
+            {
+                Id = item.Id,
+                Funcao = item.Funcao,
+                Descricao = item.Descricao,
+                Status = item.Status
+            };
+
+            return Ok(dto);
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("simple")]
+        public async Task<IActionResult> GetSimple()
+        {
+            try
+            {
+                var result = await _maoDeObraService.GetMaoDeObraSimple();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+}

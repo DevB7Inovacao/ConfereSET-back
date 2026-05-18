@@ -1,21 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Variáveis com defaults sobreescrevíveis via env (CI/CD ou outro dev).
-EC2_HOST="${EC2_HOST:-52.6.22.249}"
-EC2_USER="${EC2_USER:-ubuntu}"
-SSH_KEY="${SSH_KEY:-/c/keys/kpr_b7.pem}"
+EC2_HOST="52.6.22.249"
+EC2_USER="ubuntu"
+SSH_KEY="/c/keys/kpr_b7.pem"
 
 REMOTE_TMP="/tmp/confere-back-new"
 REMOTE_APP="/var/www/confere-back"
 SERVICE_NAME="confere-back"
 
 PROJECT_PATH="./ControlApi/ControlApi.csproj"
-# IMPORTANTE: o csproj é net9.0 (vide ControlApi.csproj). O antigo "net8.0" aqui
-# fazia o script tentar empacotar um diretório que NÃO existe — silenciosamente
-# pulando o deploy ou copiando o release errado.
-TARGET_FRAMEWORK="${TARGET_FRAMEWORK:-net9.0}"
-PUBLISH_DIR="./ControlApi/bin/Release/${TARGET_FRAMEWORK}/publish"
+PUBLISH_DIR="./ControlApi/bin/Release/net8.0/publish"
 
 HEALTH_LOCAL="http://127.0.0.1:5000/api/Health"
 HEALTH_NGINX="http://localhost/api/Health"

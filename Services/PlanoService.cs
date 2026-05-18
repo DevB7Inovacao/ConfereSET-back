@@ -123,8 +123,7 @@ namespace Services
             LimiteGestores = p.LimiteGestores,
             LimiteOperadores = p.LimiteOperadores,
             Ativo = p.Ativo,
-            MPPreapprovalPlanId = p.MPPreapprovalPlanId,
-            EmpresaId = p.EmpresaId
+            MPPreapprovalPlanId = p.MPPreapprovalPlanId
         };
     }
 

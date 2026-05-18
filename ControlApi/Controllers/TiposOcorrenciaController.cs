@@ -1,4 +1,4 @@
-using Core.DTO;
+﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -8,18 +8,6 @@ using System;
 
 namespace ControlApi.Controllers
 {
-    /// <summary>
-    /// Catálogo de Tipos de Ocorrência.
-    /// <para>
-    /// Regras de autorização:
-    /// <list type="bullet">
-    /// <item>Todos os endpoints exigem JWT válido (<c>[Authorize]</c>).</item>
-    /// <item>Operações de escrita exigem admin/gerente.</item>
-    /// <item>O modelo <see cref="TiposOcorrencia"/> não possui <c>EmpresaId</c> no schema atual (catálogo global) —
-    /// portanto, não há validação de escopo por empresa pós-fetch; apenas role-gate.</item>
-    /// </list>
-    /// </para>
-    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -34,15 +22,13 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateTipoOcorrenciaRequest req)
         {
             try
             {
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
-
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Nome)) return BadRequest("Nome é obrigatório.");
                 if (req.Gravidade < 0 || req.Gravidade > 3) return BadRequest("Gravidade inválida.");
@@ -63,95 +49,128 @@ namespace ControlApi.Controllers
                 else
                     return BadRequest("Erro ao cadastrar tipo de ocorrência.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersTiposOcorrenciaDTO filtersDTO)
         {
-            try
-            {
-                _ = User.GetEmpresaId();
+            var result = await _service.GetPaged(filtersDTO);
+            if (result != null)
+                return Ok(result);
 
-                var result = await _service.GetPaged(filtersDTO);
-                if (result != null)
-                    return Ok(result);
-
-                return BadRequest();
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest();
         }
 
+        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTipoOcorrenciaRequest req)
         {
-            try
+            if (id <= 0) return BadRequest("id inválido.");
+            if (req == null) return BadRequest("Payload inválido.");
+
+            var existing = await _service.GetById(id);
+            if (existing == null) return NotFound("Tipo de ocorrência não encontrado.");
+
+            if (req.Nome != null && !string.IsNullOrWhiteSpace(req.Nome))
+                existing.Nome = req.Nome.Trim();
+
+            if (req.Descricao != null)
+                existing.Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim();
+
+            if (req.Gravidade.HasValue)
             {
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
-
-                if (id <= 0) return BadRequest("id inválido.");
-                if (req == null) return BadRequest("Payload inválido.");
-
-                var existing = await _service.GetById(id);
-                if (existing == null) return NotFound("Tipo de ocorrência não encontrado.");
-
-                if (req.Nome != null && !string.IsNullOrWhiteSpace(req.Nome))
-                    existing.Nome = req.Nome.Trim();
-
-                if (req.Descricao != null)
-                    existing.Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim();
-
-                if (req.Gravidade.HasValue)
-                {
-                    if (req.Gravidade.Value < 0 || req.Gravidade.Value > 3) return BadRequest("Gravidade inválida.");
-                    existing.Gravidade = req.Gravidade.Value;
-                }
-
-                if (req.Requisitos.HasValue)
-                    existing.Requisitos = req.Requisitos.Value;
-
-                if (req.Status.HasValue)
-                    existing.Status = req.Status.Value;
-
-                var ok = await _service.Update(existing, id);
-                if (ok) return Ok(true);
-
-                return BadRequest("Falha ao atualizar tipo de ocorrência.");
+                if (req.Gravidade.Value < 0 || req.Gravidade.Value > 3) return BadRequest("Gravidade inválida.");
+                existing.Gravidade = req.Gravidade.Value;
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+
+            if (req.Requisitos.HasValue)
+                existing.Requisitos = req.Requisitos.Value;
+
+            if (req.Status.HasValue)
+                existing.Status = req.Status.Value;
+
+            var ok = await _service.Update(existing, id);
+            if (ok) return Ok(true);
+
+            return BadRequest("Falha ao atualizar tipo de ocorrência.");
         }
 
+        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                if (!User.IsAdminOrGerente())
-                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
-
                 var ok = await _service.Delete(id);
-                if (ok) return Ok(
+                if (ok) return Ok("Tipo de ocorrência excluído com sucesso.");
+                return BadRequest("Falha ao excluir tipo de ocorrência.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("toggle-status/{id}")]
+        public async Task<IActionResult> ToggleStatus(int id)
+        {
+            try
+            {
+                var ok = await _service.ToggleStatus(id);
+                if (ok) return Ok("Status do tipo de ocorrência alterado com sucesso.");
+                return BadRequest("Falha ao alterar o status do tipo de ocorrência.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("getById/{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            if (id <= 0) return BadRequest("id inválido.");
+
+            var item = await _service.GetById(id);
+            if (item == null) return NotFound("Tipo de ocorrência não encontrado.");
+
+            var dto = new TiposOcorrenciaDTO
+            {
+                Id = item.Id,
+                Nome = item.Nome,
+                Descricao = item.Descricao,
+                Gravidade = item.Gravidade,
+                Requisitos = item.Requisitos,
+                Status = item.Status
+            };
+
+            return Ok(dto);
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("simple")]
+        public async Task<IActionResult> GetSimple()
+        {
+            try
+            {
+                var result = await _service.GetSimple();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+}

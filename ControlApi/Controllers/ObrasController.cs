@@ -1,4 +1,4 @@
-using Core.DTO;
+﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -8,88 +8,27 @@ using System.Security.Claims;
 
 namespace ControlApi.Controllers
 {
-    /// <summary>
-    /// Endpoints transacionais de obras e seus relacionamentos (operadores, mão-de-obra,
-    /// equipamentos, tipos de ocorrência, modelos de texto, despesas).
-    /// <para>
-    /// Regras de autorização (validadas neste controller):
-    /// <list type="bullet">
-    /// <item><b>Empresa</b>: somente recursos da própria empresa do JWT.</item>
-    /// <item><b>Escrita</b>: criar/atualizar/excluir/toggle-status exige <c>admin</c>/<c>gerente</c>.</item>
-    /// <item><b>Filhos</b>: validar que o recurso filho (operador, mão-de-obra, equipamento,
-    /// tipo de ocorrência, modelo de texto, despesa) pertence à mesma empresa antes de vincular/desvincular.</item>
-    /// </list>
-    /// </para>
-    /// Contratos (rotas/DTOs/métodos HTTP) preservados.
-    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ObrasController : ControllerBase
     {
         private readonly IJWTManager _jWTManager;
-        private readonly IObrasService _obrasService;
-        private readonly IUserService _userService;
+        IObrasService _obrasService;
 
-        public ObrasController(IJWTManager jWTManager, IObrasService obrasService, IUserService userService)
+        public ObrasController(IJWTManager jWTManager, IObrasService obrasService)
         {
-            _jWTManager = jWTManager;
-            _obrasService = obrasService;
-            _userService = userService;
+            this._jWTManager = jWTManager;
+            this._obrasService = obrasService;
         }
 
-        // ---------------------------------------------------------------------
-        // Helpers
-        // ---------------------------------------------------------------------
-
-        /// <summary>
-        /// Carrega a obra e valida que pertence à empresa do JWT.
-        /// Retorna (null, NotFound) se não existe, (null, Forbidden) se de outra empresa.
-        /// </summary>
-        private async Task<(Obras? obra, IActionResult? denied)> LoadObraAndAssertEmpresa(int obraId)
-        {
-            var obra = await _obrasService.GetObraById(obraId);
-            if (obra == null) return (null, NotFound("Obra não encontrada."));
-
-            var empresaJwt = User.GetEmpresaId();
-            if (obra.EmpresaId != empresaJwt)
-                return (null, StatusCode(StatusCodes.Status403Forbidden, "Obra pertence a outra empresa."));
-
-            return (obra, null);
-        }
-
-        private IActionResult? AssertAdminOrGerente()
-        {
-            if (!User.IsAdminOrGerente())
-                return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
-            return null;
-        }
-
-        private async Task<IActionResult?> AssertOperadorBelongsToEmpresa(int operadorId)
-        {
-            var op = await _userService.GetUserById(operadorId);
-            if (op == null) return NotFound("Operador não encontrado.");
-            if (op.EmpresaId != User.GetEmpresaId())
-                return StatusCode(StatusCodes.Status403Forbidden, "Operador pertence a outra empresa.");
-            return null;
-        }
-
-        // ---------------------------------------------------------------------
-        // CRUD principal
-        // ---------------------------------------------------------------------
-
+        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateObra([FromBody] CreateObraRequest obras)
         {
             try
             {
-                if (obras == null) return BadRequest("Payload inválido.");
-                var deny = AssertAdminOrGerente();
-                if (deny != null) return deny;
-
-                var empresaJwt = User.GetEmpresaId();
-
                 var obra = new Obras()
                 {
                     Name = obras.Name,
@@ -106,12 +45,11 @@ namespace ControlApi.Controllers
                     ClientEmail = obras.ClientEmail,
                     ClientPhone = obras.ClientPhone,
                     ClientDocument = obras.ClientDocument,
-                    // EmpresaId é sempre forçado pelo JWT, ignorando o body.
-                    EmpresaId = empresaJwt,
+                    EmpresaId = obras.EmpresaId,
                     StartDate = obras.StartDate,
                     ProgressPercentage = 0,
-                    NameCompany = obras.NameCompany
-                };
+                    NameCompany=obras.NameCompany
+								};
 
                 var result = await _obrasService.CreateObra(obra);
 
@@ -120,208 +58,141 @@ namespace ControlApi.Controllers
                 else
                     return BadRequest("Erro ao cadastrar obra.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("getObrasPaged")]
         public async Task<IActionResult> GetObrasPaged([FromQuery] FiltersObrasDTO filtersDTO)
         {
-            try
-            {
-                filtersDTO ??= new FiltersObrasDTO();
-                // Escopo de empresa é obrigatório e vem do JWT.
-                filtersDTO.EmpresaId = User.GetEmpresaId();
-
-                var result = await _obrasService.GetObrasPaged(filtersDTO);
-                if (result != null)
-                    return Ok(result);
-                else
-                    return BadRequest();
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _obrasService.GetObrasPaged(filtersDTO);
+            if (result != null)
+                return Ok(result);
+            else
+                return BadRequest();
         }
 
+        [AllowAnonymous]
         [HttpPut("{obraId}")]
         public async Task<IActionResult> UpdateObra(int obraId, [FromBody] UpdateObraRequest req)
         {
-            try
-            {
-                if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (req == null) return BadRequest("Payload inválido.");
+            if (obraId <= 0) return BadRequest("obraId inválido.");
+            if (req == null) return BadRequest("Payload inválido.");
 
-                var deny = AssertAdminOrGerente();
-                if (deny != null) return deny;
+            var existing = await _obrasService.GetObraById(obraId);
+            if (existing == null) return NotFound("Obra não encontrada.");
 
-                var (existing, denied) = await LoadObraAndAssertEmpresa(obraId);
-                if (existing == null) return denied!;
+            if (!string.IsNullOrWhiteSpace(req.Name)) existing.Name = req.Name;
 
-                if (!string.IsNullOrWhiteSpace(req.Name)) existing.Name = req.Name;
+            if (req.StreetAddress != null) existing.StreetAddress = string.IsNullOrWhiteSpace(req.StreetAddress) ? null : req.StreetAddress;
+            if (req.Number != null) existing.Number = string.IsNullOrWhiteSpace(req.Number) ? null : req.Number;
+            if (req.AddressLine2 != null) existing.AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2;
+            if (req.Neighborhood != null) existing.Neighborhood = string.IsNullOrWhiteSpace(req.Neighborhood) ? null : req.Neighborhood;
+            if (req.City != null) existing.City = string.IsNullOrWhiteSpace(req.City) ? null : req.City;
+            if (req.State != null) existing.State = string.IsNullOrWhiteSpace(req.State) ? null : req.State;
+            if (req.PostalCode != null) existing.PostalCode = string.IsNullOrWhiteSpace(req.PostalCode) ? null : req.PostalCode;
+            if (req.Country != null) existing.Country = string.IsNullOrWhiteSpace(req.Country) ? null : req.Country;
 
-                if (req.StreetAddress != null) existing.StreetAddress = string.IsNullOrWhiteSpace(req.StreetAddress) ? null : req.StreetAddress;
-                if (req.Number != null) existing.Number = string.IsNullOrWhiteSpace(req.Number) ? null : req.Number;
-                if (req.AddressLine2 != null) existing.AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2;
-                if (req.Neighborhood != null) existing.Neighborhood = string.IsNullOrWhiteSpace(req.Neighborhood) ? null : req.Neighborhood;
-                if (req.City != null) existing.City = string.IsNullOrWhiteSpace(req.City) ? null : req.City;
-                if (req.State != null) existing.State = string.IsNullOrWhiteSpace(req.State) ? null : req.State;
-                if (req.PostalCode != null) existing.PostalCode = string.IsNullOrWhiteSpace(req.PostalCode) ? null : req.PostalCode;
-                if (req.Country != null) existing.Country = string.IsNullOrWhiteSpace(req.Country) ? null : req.Country;
+            if (req.ClientName != null) existing.ClientName = string.IsNullOrWhiteSpace(req.ClientName) ? null : req.ClientName;
+            if (req.ClientEmail != null) existing.ClientEmail = string.IsNullOrWhiteSpace(req.ClientEmail) ? null : req.ClientEmail;
+            if (req.ClientPhone != null) existing.ClientPhone = string.IsNullOrWhiteSpace(req.ClientPhone) ? null : req.ClientPhone;
+            if (req.ClientDocument != null) existing.ClientDocument = string.IsNullOrWhiteSpace(req.ClientDocument) ? null : req.ClientDocument;
+            if(req.NameCompany !=null) existing.NameCompany= string.IsNullOrWhiteSpace(req.NameCompany) ? null : req.NameCompany;
 
-                if (req.ClientName != null) existing.ClientName = string.IsNullOrWhiteSpace(req.ClientName) ? null : req.ClientName;
-                if (req.ClientEmail != null) existing.ClientEmail = string.IsNullOrWhiteSpace(req.ClientEmail) ? null : req.ClientEmail;
-                if (req.ClientPhone != null) existing.ClientPhone = string.IsNullOrWhiteSpace(req.ClientPhone) ? null : req.ClientPhone;
-                if (req.ClientDocument != null) existing.ClientDocument = string.IsNullOrWhiteSpace(req.ClientDocument) ? null : req.ClientDocument;
-                if (req.NameCompany != null) existing.NameCompany = string.IsNullOrWhiteSpace(req.NameCompany) ? null : req.NameCompany;
+			if (req.StartDate.HasValue) existing.StartDate = req.StartDate;
 
-                if (req.StartDate.HasValue) existing.StartDate = req.StartDate;
+            var result = await _obrasService.UpdateObra(existing, obraId);
+            if (result) return Ok(true);
 
-                var result = await _obrasService.UpdateObra(existing, obraId);
-                if (result) return Ok(true);
-
-                return BadRequest("Falha ao atualizar obra.");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return BadRequest("Falha ao atualizar obra.");
         }
 
+        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> DeleteObra(int id)
         {
             try
             {
-                if (id <= 0) return BadRequest("id inválido.");
-                var deny = AssertAdminOrGerente();
-                if (deny != null) return deny;
-
-                var (existing, denied) = await LoadObraAndAssertEmpresa(id);
-                if (existing == null) return denied!;
-
                 bool result = await _obrasService.DeleteObra(id);
                 if (result)
                     return Ok("Obra excluída com sucesso.");
                 else
                     return BadRequest("Falha ao excluir obra.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleObraStatus(int id)
         {
             try
             {
-                if (id <= 0) return BadRequest("id inválido.");
-                var deny = AssertAdminOrGerente();
-                if (deny != null) return deny;
-
-                var (existing, denied) = await LoadObraAndAssertEmpresa(id);
-                if (existing == null) return denied!;
-
                 bool result = await _obrasService.ToggleObraStatus(id);
                 if (result)
                     return Ok("Status da obra alterado com sucesso.");
                 else
                     return BadRequest("Falha ao alterar o status da obra.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("getById/{obraId}")]
         public async Task<IActionResult> GetById(int obraId)
         {
-            try
-            {
-                if (obraId <= 0) return BadRequest("obraId inválido.");
+            if (obraId <= 0) return BadRequest("obraId inválido.");
 
-                var (obra, denied) = await LoadObraAndAssertEmpresa(obraId);
-                if (obra == null) return denied!;
+            var obra = await _obrasService.GetObraById(obraId);
+            if (obra == null) return NotFound("Obra não encontrada.");
 
-                var dto = new ObrasDTO
-                {
-                    Id = obra.Id,
-                    Name = obra.Name,
-                    Status = obra.Status,
-                    StreetAddress = obra.StreetAddress,
-                    Number = obra.Number,
-                    AddressLine2 = obra.AddressLine2,
-                    Neighborhood = obra.Neighborhood,
-                    City = obra.City,
-                    State = obra.State,
-                    PostalCode = obra.PostalCode,
-                    Country = obra.Country,
-                    ClientName = obra.ClientName,
-                    ClientEmail = obra.ClientEmail,
-                    ClientPhone = obra.ClientPhone,
-                    ClientDocument = obra.ClientDocument,
-                    EmpresaId = obra.EmpresaId,
-                    StartDate = obra.StartDate,
-                    ProgressPercentage = obra.ProgressPercentage,
-                    NameCompany = obra.NameCompany
-                };
+            var dto = new ObrasDTO
+            {
+                Id = obra.Id,
+                Name = obra.Name,
+                Status = obra.Status,
+                StreetAddress = obra.StreetAddress,
+                Number = obra.Number,
+                AddressLine2 = obra.AddressLine2,
+                Neighborhood = obra.Neighborhood,
+                City = obra.City,
+                State = obra.State,
+                PostalCode = obra.PostalCode,
+                Country = obra.Country,
+                ClientName = obra.ClientName,
+                ClientEmail = obra.ClientEmail,
+                ClientPhone = obra.ClientPhone,
+                ClientDocument = obra.ClientDocument,
+                EmpresaId = obra.EmpresaId,
+                StartDate = obra.StartDate,
+                ProgressPercentage = obra.ProgressPercentage,
+                NameCompany=obra.NameCompany
+            };
 
-                return Ok(dto);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return Ok(dto);
         }
 
+        [AllowAnonymous]
         [HttpGet]
         [Route("simple")]
         public async Task<IActionResult> GetSimple()
         {
             try
             {
-                // GetObrasSimple não filtra por empresa no service; restringimos no controller.
-                var empresaJwt = User.GetEmpresaId();
                 var result = await _obrasService.GetObrasSimple();
-                var filtered = result.Where(o => o.EmpresaId == empresaJwt).ToList();
-                return Ok(filtered);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -329,70 +200,43 @@ namespace ControlApi.Controllers
             }
         }
 
-        // ---------------------------------------------------------------------
-        // Operadores
-        // ---------------------------------------------------------------------
-
+        [AllowAnonymous]
         [HttpPost("{obraId}/operadores/{operadorId}")]
         public async Task<IActionResult> AddOperadorToObra(int obraId, int operadorId)
         {
             try
             {
-                var deny = AssertAdminOrGerente();
-                if (deny != null) return deny;
-
-                var (obra, denied) = await LoadObraAndAssertEmpresa(obraId);
-                if (obra == null) return denied!;
-
-                var opDenied = await AssertOperadorBelongsToEmpresa(operadorId);
-                if (opDenied != null) return opDenied;
-
                 var result = await _obrasService.AddOperadorToObra(obraId, operadorId);
                 if (result)
                     return Ok("Operador adicionado à obra com sucesso.");
                 else
                     return BadRequest("Falha ao adicionar operador à obra.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpDelete("{obraId}/operadores/{operadorId}")]
         public async Task<IActionResult> RemoveOperadorFromObra(int obraId, int operadorId)
         {
             try
             {
-                var deny = AssertAdminOrGerente();
-                if (deny != null) return deny;
-
-                var (obra, denied) = await LoadObraAndAssertEmpresa(obraId);
-                if (obra == null) return denied!;
-
-                var opDenied = await AssertOperadorBelongsToEmpresa(operadorId);
-                if (opDenied != null) return opDenied;
-
                 var result = await _obrasService.RemoveOperadorFromObra(obraId, operadorId);
                 if (result)
                     return Ok("Operador removido da obra com sucesso.");
                 else
                     return BadRequest("Falha ao remover operador da obra.");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("{obraId}/operadores")]
         public async Task<IActionResult> GetOperadoresByObraId(int obraId)
         {
@@ -400,15 +244,8 @@ namespace ControlApi.Controllers
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
 
-                var (obra, denied) = await LoadObraAndAssertEmpresa(obraId);
-                if (obra == null) return denied!;
-
                 var result = await _obrasService.GetOperadoresByObraId(obraId);
                 return Ok(result);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
             catch (Exception ex)
             {
@@ -416,6 +253,7 @@ namespace ControlApi.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("operador/{operadorId}")]
         public async Task<IActionResult> GetObrasByOperadorId(int operadorId)
         {
@@ -423,22 +261,8 @@ namespace ControlApi.Controllers
             {
                 if (operadorId <= 0) return BadRequest("operadorId inválido.");
 
-                // Operador deve pertencer à empresa do JWT.
-                var opDenied = await AssertOperadorBelongsToEmpresa(operadorId);
-                if (opDenied != null) return opDenied;
-
-                // Operador comum só pode listar as próprias obras.
-                if (!User.IsAdminOrGerente() && User.GetUserId() != operadorId)
-                {
-                    return StatusCode(StatusCodes.Status403Forbidden, "Você não pode listar obras de outro operador.");
-                }
-
                 var result = await _obrasService.GetObrasByOperadorId(operadorId);
                 return Ok(result);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
             catch (Exception ex)
             {
@@ -446,6 +270,7 @@ namespace ControlApi.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("{obraId}/with-operadores")]
         public async Task<IActionResult> GetObraWithOperadores(int obraId)
         {
@@ -453,45 +278,27 @@ namespace ControlApi.Controllers
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
 
-                var (obra, denied) = await LoadObraAndAssertEmpresa(obraId);
-                if (obra == null) return denied!;
-
                 var result = await _obrasService.GetObraWithOperadores(obraId);
                 if (result == null) return NotFound("Obra não encontrada.");
 
                 return Ok(result);
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
-        // ---------------------------------------------------------------------
-        // Cards
-        // ---------------------------------------------------------------------
-
-        /// <summary>
-        /// Lista cards de obras por empresa. O <c>empresaId</c> da URL é IGNORADO e
-        /// sempre substituído pelo do JWT — evita bypass via troca de parâmetro.
-        /// </summary>
+        [AllowAnonymous]
         [HttpGet("cards/empresa/{empresaId}")]
         public async Task<IActionResult> GetObrasCardsByEmpresaId(int empresaId)
         {
             try
             {
-                // Ignora o parâmetro de URL. Empresa vem sempre do JWT.
-                var empresaJwt = User.GetEmpresaId();
-                var result = await _obrasService.GetObrasCardsByEmpresaId(empresaJwt);
+                if (empresaId <= 0) return BadRequest("empresaId inválido.");
+
+                var result = await _obrasService.GetObrasCardsByEmpresaId(empresaId);
                 return Ok(result);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
             catch (Exception ex)
             {
@@ -499,6 +306,7 @@ namespace ControlApi.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("cards/operador/{operadorId}")]
         public async Task<IActionResult> GetObrasCardsByOperadorId(int operadorId)
         {
@@ -506,21 +314,278 @@ namespace ControlApi.Controllers
             {
                 if (operadorId <= 0) return BadRequest("operadorId inválido.");
 
-                var opDenied = await AssertOperadorBelongsToEmpresa(operadorId);
-                if (opDenied != null) return opDenied;
-
-                // Operador comum só vê os próprios cards.
-                if (!User.IsAdminOrGerente() && User.GetUserId() != operadorId)
-                {
-                    return StatusCode(StatusCodes.Status403Forbidden, "Você não pode listar cards de outro operador.");
-                }
-
                 var result = await _obrasService.GetObrasCardsByOperadorId(operadorId);
                 return Ok(result);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/mao-de-obra/{maoDeObraId}")]
+        public async Task<IActionResult> AddMaoDeObraToObra(int obraId, int maoDeObraId)
+        {
+            try
+            {
+                var result = await _obrasService.AddMaoDeObraToObra(obraId, maoDeObraId);
+                if (result)
+                    return Ok("Mão de obra adicionada à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar mão de obra à obra.");
             }
             catch (Exception ex)
             {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/mao-de-obra/{maoDeObraId}")]
+        public async Task<IActionResult> RemoveMaoDeObraFromObra(int obraId, int maoDeObraId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveMaoDeObraFromObra(obraId, maoDeObraId);
+                if (result)
+                    return Ok("Mão de obra removida da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover mão de obra da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/mao-de-obra")]
+        public async Task<IActionResult> GetMaoDeObraByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetMaoDeObraByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/equipamentos/{equipamentoId}")]
+        public async Task<IActionResult> AddEquipamentoToObra(int obraId, int equipamentoId)
+        {
+            try
+            {
+                var result = await _obrasService.AddEquipamentoToObra(obraId, equipamentoId);
+                if (result)
+                    return Ok("Equipamento adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar equipamento à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/equipamentos/{equipamentoId}")]
+        public async Task<IActionResult> RemoveEquipamentoFromObra(int obraId, int equipamentoId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveEquipamentoFromObra(obraId, equipamentoId);
+                if (result)
+                    return Ok("Equipamento removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover equipamento da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/equipamentos")]
+        public async Task<IActionResult> GetEquipamentosByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetEquipamentosByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/tipos-ocorrencia/{tipoOcorrenciaId}")]
+        public async Task<IActionResult> AddTipoOcorrenciaToObra(int obraId, int tipoOcorrenciaId)
+        {
+            try
+            {
+                var result = await _obrasService.AddTipoOcorrenciaToObra(obraId, tipoOcorrenciaId);
+                if (result)
+                    return Ok("Tipo de ocorrência adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar tipo de ocorrência à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/tipos-ocorrencia/{tipoOcorrenciaId}")]
+        public async Task<IActionResult> RemoveTipoOcorrenciaFromObra(int obraId, int tipoOcorrenciaId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveTipoOcorrenciaFromObra(obraId, tipoOcorrenciaId);
+                if (result)
+                    return Ok("Tipo de ocorrência removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover tipo de ocorrência da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/tipos-ocorrencia")]
+        public async Task<IActionResult> GetTiposOcorrenciaByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetTiposOcorrenciaByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/modelos-texto/{modeloTextoId}")]
+        public async Task<IActionResult> AddModeloTextoToObra(int obraId, int modeloTextoId)
+        {
+            try
+            {
+                var result = await _obrasService.AddModeloTextoToObra(obraId, modeloTextoId);
+                if (result)
+                    return Ok("Modelo de texto adicionado à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar modelo de texto à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/modelos-texto/{modeloTextoId}")]
+        public async Task<IActionResult> RemoveModeloTextoFromObra(int obraId, int modeloTextoId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveModeloTextoFromObra(obraId, modeloTextoId);
+                if (result)
+                    return Ok("Modelo de texto removido da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover modelo de texto da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/modelos-texto")]
+        public async Task<IActionResult> GetModelosTextoByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetModelosTextoByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("{obraId}/despesas/{despesaId}")]
+        public async Task<IActionResult> AddDespesaToObra(int obraId, int despesaId)
+        {
+            try
+            {
+                var result = await _obrasService.AddDespesaToObra(obraId, despesaId);
+                if (result)
+                    return Ok("Despesa adicionada à obra com sucesso.");
+                else
+                    return BadRequest("Falha ao adicionar despesa à obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpDelete("{obraId}/despesas/{despesaId}")]
+        public async Task<IActionResult> RemoveDespesaFromObra(int obraId, int despesaId)
+        {
+            try
+            {
+                var result = await _obrasService.RemoveDespesaFromObra(obraId, despesaId);
+                if (result)
+                    return Ok("Despesa removida da obra com sucesso.");
+                else
+                    return BadRequest("Falha ao remover despesa da obra.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{obraId}/despesas")]
+        public async Task<IActionResult> GetDespesasByObraId(int obraId)
+        {
+            try
+            {
+                if (obraId <= 0) return BadRequest("obraId inválido.");
+
+                var result = await _obrasService.GetDespesasByObraId(obraId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+}

@@ -13,11 +13,6 @@ namespace Core.DTO
         public int LimiteOperadores { get; set; }
         public bool Ativo { get; set; }
         public string? MPPreapprovalPlanId { get; set; }
-
-        // null = plano global da plataforma; quando preenchido, identifica a empresa dona.
-        // Necessário no DTO para os controllers fazerem validação de escopo sem ter de buscar
-        // o model novamente. Não é PII e o front pode ignorar este campo se não usar.
-        public int? EmpresaId { get; set; }
     }
 
     public class CreatePlanoRequest
