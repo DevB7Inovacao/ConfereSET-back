@@ -134,7 +134,6 @@ namespace API.Controllers
 		/// </summary>
 		/// <param name="userId"></param>
 		/// <returns></returns>
-		[AllowAnonymous]
 		[HttpGet("getbyuserid/{userId}")]
 		public async Task<IActionResult> GetUsersByUserId(int userId)
 		{
@@ -150,7 +149,6 @@ namespace API.Controllers
 		/// </summary>
 		/// <param name="user"></param>
 		/// <returns></returns>
-		[AllowAnonymous]
 		[HttpPut("{userId}")]
 		public async Task<IActionResult> UpdateUser(CreateUserRequest user, int userId)
 		{
@@ -168,7 +166,6 @@ namespace API.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpDelete("{userId}")]
 		public async Task<IActionResult> DeleteUser(int userId)
 		{
@@ -186,7 +183,6 @@ namespace API.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpGet("count")]
 		public async Task<IActionResult> Count([FromQuery] int empresaId)
 		{

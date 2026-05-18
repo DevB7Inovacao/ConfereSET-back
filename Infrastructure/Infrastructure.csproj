@@ -7,13 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="CsvHelper" Version="32.0.3" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="ImageSharpCommunity.Formats.Pdf" Version="0.2.0" />
     <PackageReference Include="itext7" Version="9.6.0" />
-    <PackageReference Include="iTextSharp" Version="5.5.13.4" />
-    <PackageReference Include="itextsharp.xmlworker" Version="5.5.13.4" />
-    <PackageReference Include="LiveCharts" Version="0.9.7" />
+    <!-- iTextSharp 5.x + xmlworker (EOL/CVE) e LiveCharts 0.9.7 (abandonado) removidos. -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15">
@@ -27,7 +26,8 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.Design" Version="1.1.0" />
+    <!-- Npgsql.EntityFrameworkCore.PostgreSQL.Design 1.1.0 removido (legado/redundante
+         com o pacote principal 9.0.4 acima). -->
     <PackageReference Include="PDFiumCore" Version="128.0.6569" />
     <PackageReference Include="PdfiumViewer" Version="2.13.0" />
     <PackageReference Include="PdfSharp" Version="6.1.0" />

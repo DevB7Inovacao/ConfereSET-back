@@ -23,7 +23,6 @@ namespace ControlApi.Controllers
             this._despesasService = despesasService;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateDespesa([FromBody] CreateDespesaRequest req)
@@ -54,7 +53,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getDespesasPaged")]
         public async Task<IActionResult> GetDespesasPaged([FromQuery] FiltersDespesasDTO filtersDTO)
@@ -66,7 +64,6 @@ namespace ControlApi.Controllers
                 return BadRequest();
         }
 
-        [AllowAnonymous]
         [HttpPut("{despesaId}")]
         public async Task<IActionResult> UpdateDespesa(int despesaId, [FromBody] UpdateDespesaRequest req)
         {
@@ -92,7 +89,6 @@ namespace ControlApi.Controllers
             return BadRequest("Falha ao atualizar despesa.");
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> DeleteDespesa(int id)
@@ -111,7 +107,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleDespesaStatus(int id)
@@ -130,7 +125,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{despesaId}")]
         public async Task<IActionResult> GetById(int despesaId)
         {
@@ -154,7 +148,6 @@ namespace ControlApi.Controllers
             return Ok(dto);
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("simple")]
         public async Task<IActionResult> GetSimple([FromQuery] int? obraId)
@@ -170,7 +163,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("relatorios/resumo")]
         public async Task<IActionResult> GetRelatorioResumo([FromQuery] FiltrosRelatorioDTO filtros)
@@ -186,7 +178,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("relatorios/detalhado")]
         public async Task<IActionResult> GetRelatorioDetalhado([FromQuery] FiltrosRelatorioDTO filtros)

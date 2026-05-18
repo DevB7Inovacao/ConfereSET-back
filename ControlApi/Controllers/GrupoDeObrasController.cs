@@ -21,7 +21,6 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateGrupoDeObrasRequest req)
@@ -47,7 +46,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersGrupoDeObrasDTO filtersDTO)
@@ -63,7 +61,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{groupId}")]
         public async Task<IActionResult> GetById(int groupId)
         {
@@ -83,7 +80,6 @@ namespace ControlApi.Controllers
             return Ok(dto);
         }
 
-        [AllowAnonymous]
         [HttpPut("{groupId}")]
         public async Task<IActionResult> Update(int groupId, [FromBody] UpdateGrupoDeObrasRequest req)
         {
@@ -103,7 +99,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -122,7 +117,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
@@ -141,7 +135,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{groupId}/obras/{obraId}")]
         public async Task<IActionResult> AddObraToGrupo(int groupId, int obraId)
         {
@@ -157,7 +150,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{groupId}/obras/{obraId}")]
         public async Task<IActionResult> RemoveObraFromGrupo(int groupId, int obraId)
         {
@@ -173,7 +165,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{groupId}/obras")]
         public async Task<IActionResult> GetObrasIdsByGrupo(int groupId)
         {

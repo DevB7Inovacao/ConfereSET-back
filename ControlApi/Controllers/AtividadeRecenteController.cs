@@ -5,6 +5,7 @@ using Services;
 
 namespace ControlApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class AtividadeRecenteController : ControllerBase
@@ -16,7 +17,6 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
-        [AllowAnonymous]
         [HttpGet("operador/{operadorId}")]
         public async Task<IActionResult> GetByOperador(int operadorId, [FromQuery] FiltersAtividadeRecenteDTO filters)
         {
@@ -32,7 +32,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("empresa/{empresaId}")]
         public async Task<IActionResult> GetByEmpresa(int empresaId, [FromQuery] FiltersAtividadeRecenteDTO filters)
         {

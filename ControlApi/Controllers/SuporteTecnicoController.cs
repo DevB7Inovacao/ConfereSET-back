@@ -21,7 +21,6 @@ namespace ControlApi.Controllers
             _supportTicketsService = supportTicketsService;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         [RequestSizeLimit(10 * 1024 * 1024)]
@@ -73,7 +72,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersSupportTicketsDTO filtersDTO)
@@ -89,7 +87,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateSupportTicketRequest req)
         {
@@ -111,7 +108,6 @@ namespace ControlApi.Controllers
             return BadRequest("Falha ao atualizar chamado.");
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -130,7 +126,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
@@ -149,7 +144,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -176,7 +170,6 @@ namespace ControlApi.Controllers
             return Ok(dto);
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("simple")]
         public async Task<IActionResult> GetSimple([FromQuery] int empresaId)
@@ -193,7 +186,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("download-attachment/{id}")]
         public async Task<IActionResult> DownloadAttachment(int id)
         {

@@ -17,7 +17,6 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
-        [AllowAnonymous]
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] CreateChecklistItemRequest req)
         {
@@ -32,7 +31,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("byChecklist/{checklistId}")]
         public async Task<IActionResult> GetByChecklist(int checklistId)
         {
@@ -47,7 +45,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -63,7 +60,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPut("update/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateChecklistItemRequest req)
         {
@@ -78,7 +74,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -93,7 +88,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
         {

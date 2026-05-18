@@ -24,7 +24,6 @@ namespace ControlApi.Controllers
 			this._empresasService = empresasService;
 		}
 
-		[AllowAnonymous]
 		[HttpPost]
 		[Route("create")]
 		public async Task<IActionResult> CreateEmpresa([FromBody] EmpresasDTO empresas)
@@ -45,7 +44,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpPut("{empresaId}")]
 		public async Task<IActionResult> UpdateById(int empresaId, [FromBody] UpdateEmpresaByIdRequest req)
 		{
@@ -66,7 +64,6 @@ namespace ControlApi.Controllers
 			return BadRequest("Falha ao atualizar empresa.");
 		}
 
-		[AllowAnonymous]
 		[HttpDelete]
 		[Route("delete/{id}")]
 		public async Task<IActionResult> DeleteEmpresa(int id)
@@ -85,7 +82,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpPost]
 		[Route("toggle-status/{id}")]
 		public async Task<IActionResult> ToggleEmpresaStatus(int id)
@@ -104,7 +100,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpGet]
 		[Route("getEmpresasPaged")]
 		public async Task<IActionResult> GetEmpresasPaged([FromQuery] FiltersDTO filtersDTO)
@@ -116,7 +111,6 @@ namespace ControlApi.Controllers
 				return BadRequest();
 		}
 
-		[AllowAnonymous]
 		[HttpGet("getById/{empresaId}")]
 		public async Task<IActionResult> GetById(int empresaId)
 		{

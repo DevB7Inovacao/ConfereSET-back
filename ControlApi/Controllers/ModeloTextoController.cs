@@ -19,7 +19,6 @@ namespace ControlApi.Controllers
       _relatorioService = relatorioService;
         }
 
-        [AllowAnonymous]
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] CreateModeloTextoRequest req)
         {
@@ -34,7 +33,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersModeloTextoDTO filters)
         {
@@ -49,7 +47,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -65,7 +62,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPut("update/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateModeloTextoRequest req)
         {
@@ -80,7 +76,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -96,7 +91,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
         {

@@ -16,15 +16,11 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="ImageSharpCommunity.Formats.Pdf" Version="0.2.0" />
     <PackageReference Include="itext7" Version="9.6.0" />
-    <PackageReference Include="iTextSharp" Version="5.5.13.4" />
-    <PackageReference Include="itextsharp.xmlworker" Version="5.5.13.4" />
-    <PackageReference Include="LiveCharts" Version="0.9.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.Design" Version="1.1.0" />
     <PackageReference Include="PDFium.Linux.x64" Version="1.0.0" />
     <PackageReference Include="PdfiumCore" Version="128.0.6569" />
     <PackageReference Include="PdfiumViewer" Version="2.13.0" />

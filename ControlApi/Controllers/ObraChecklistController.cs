@@ -17,7 +17,6 @@ namespace ControlApi.Controllers
 			_service = service;
 		}
 
-		[AllowAnonymous]
 		[HttpPost("add")]
 		public async Task<IActionResult> AddChecklistToObra([FromBody] AddChecklistToObraRequest req)
 		{
@@ -33,7 +32,6 @@ namespace ControlApi.Controllers
 		}
 
 
-		[AllowAnonymous]
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetById(int id)
 		{
@@ -48,7 +46,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpGet("byObra/{obraId}")]
 		public async Task<IActionResult> GetByObra(int obraId)
 		{
@@ -62,7 +59,6 @@ namespace ControlApi.Controllers
 				return BadRequest(ex.Message);
 			}
 		}
-		[AllowAnonymous]
 		[HttpGet("empresa/{empresaId}")]
 		public async Task<IActionResult> GetByObraEmpresa(int empresaId)
 		{
@@ -77,7 +73,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpPut("responder/{obraChecklistItemId}")]
 		public async Task<IActionResult> ResponderItem(int obraChecklistItemId, [FromBody] ResponderChecklistItemRequest req)
 		{
@@ -91,7 +86,6 @@ namespace ControlApi.Controllers
 				return BadRequest(ex.Message);
 			}
 		}
-		[AllowAnonymous]
 		[HttpPut("item/{obraChecklistItemId}/metadata")]
 		public async Task<IActionResult> UpdateItemMetadata(int obraChecklistItemId, [FromBody] ResponderChecklistItemRequest req)
 		{
@@ -107,7 +101,6 @@ namespace ControlApi.Controllers
 		}
 
 
-		[AllowAnonymous]
 		[HttpDelete("{obraChecklistId}")]
 		public async Task<IActionResult> RemoveChecklistFromObra(int obraChecklistId)
 		{
@@ -122,7 +115,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpPost("sincronizar/{checklistId}")]
 		public async Task<IActionResult> SincronizarChecklist(int checklistId)
 		{

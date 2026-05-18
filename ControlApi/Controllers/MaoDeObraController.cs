@@ -26,7 +26,6 @@ namespace ControlApi.Controllers
             _maoDeObraService = maoDeObraService;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateMaoDeObraRequest req)
@@ -56,7 +55,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersMaoDeObraDTO filtersDTO)
@@ -68,7 +66,6 @@ namespace ControlApi.Controllers
             return BadRequest();
         }
 
-        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateMaoDeObraRequest req)
         {
@@ -93,7 +90,6 @@ namespace ControlApi.Controllers
             return BadRequest("Falha ao atualizar mão de obra.");
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -110,7 +106,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
@@ -127,7 +122,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -147,7 +141,6 @@ namespace ControlApi.Controllers
             return Ok(dto);
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("simple")]
         public async Task<IActionResult> GetSimple()

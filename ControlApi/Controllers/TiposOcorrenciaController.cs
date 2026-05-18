@@ -22,7 +22,6 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateTipoOcorrenciaRequest req)
@@ -55,7 +54,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersTiposOcorrenciaDTO filtersDTO)
@@ -67,7 +65,6 @@ namespace ControlApi.Controllers
             return BadRequest();
         }
 
-        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTipoOcorrenciaRequest req)
         {
@@ -101,7 +98,6 @@ namespace ControlApi.Controllers
             return BadRequest("Falha ao atualizar tipo de ocorrência.");
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -118,7 +114,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleStatus(int id)
@@ -135,7 +130,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -157,7 +151,6 @@ namespace ControlApi.Controllers
             return Ok(dto);
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("simple")]
         public async Task<IActionResult> GetSimple()

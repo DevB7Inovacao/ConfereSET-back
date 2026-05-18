@@ -19,7 +19,6 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
-        [AllowAnonymous]
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] CreateOcorrenciaRequest req)
         {
@@ -37,7 +36,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersOcorrenciaDTO filters)
         {
@@ -52,7 +50,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -69,7 +66,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("obra/{obraId}")]
         public async Task<IActionResult> GetByObraId(int obraId)
         {
@@ -85,7 +81,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateOcorrenciaRequest req)
         {
@@ -103,7 +98,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPatch("{id}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOcorrenciaStatusRequest req)
         {
@@ -121,7 +115,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {

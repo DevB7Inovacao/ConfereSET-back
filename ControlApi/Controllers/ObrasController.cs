@@ -22,7 +22,6 @@ namespace ControlApi.Controllers
             this._obrasService = obrasService;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateObra([FromBody] CreateObraRequest obras)
@@ -64,7 +63,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getObrasPaged")]
         public async Task<IActionResult> GetObrasPaged([FromQuery] FiltersObrasDTO filtersDTO)
@@ -76,7 +74,6 @@ namespace ControlApi.Controllers
                 return BadRequest();
         }
 
-        [AllowAnonymous]
         [HttpPut("{obraId}")]
         public async Task<IActionResult> UpdateObra(int obraId, [FromBody] UpdateObraRequest req)
         {
@@ -111,7 +108,6 @@ namespace ControlApi.Controllers
             return BadRequest("Falha ao atualizar obra.");
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> DeleteObra(int id)
@@ -130,7 +126,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("toggle-status/{id}")]
         public async Task<IActionResult> ToggleObraStatus(int id)
@@ -149,7 +144,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("getById/{obraId}")]
         public async Task<IActionResult> GetById(int obraId)
         {
@@ -184,7 +178,6 @@ namespace ControlApi.Controllers
             return Ok(dto);
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("simple")]
         public async Task<IActionResult> GetSimple()
@@ -200,7 +193,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{obraId}/operadores/{operadorId}")]
         public async Task<IActionResult> AddOperadorToObra(int obraId, int operadorId)
         {
@@ -218,7 +210,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{obraId}/operadores/{operadorId}")]
         public async Task<IActionResult> RemoveOperadorFromObra(int obraId, int operadorId)
         {
@@ -236,7 +227,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/operadores")]
         public async Task<IActionResult> GetOperadoresByObraId(int obraId)
         {
@@ -253,7 +243,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("operador/{operadorId}")]
         public async Task<IActionResult> GetObrasByOperadorId(int operadorId)
         {
@@ -270,7 +259,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/with-operadores")]
         public async Task<IActionResult> GetObraWithOperadores(int obraId)
         {
@@ -289,7 +277,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("cards/empresa/{empresaId}")]
         public async Task<IActionResult> GetObrasCardsByEmpresaId(int empresaId)
         {
@@ -306,7 +293,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("cards/operador/{operadorId}")]
         public async Task<IActionResult> GetObrasCardsByOperadorId(int operadorId)
         {
@@ -323,7 +309,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{obraId}/mao-de-obra/{maoDeObraId}")]
         public async Task<IActionResult> AddMaoDeObraToObra(int obraId, int maoDeObraId)
         {
@@ -341,7 +326,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{obraId}/mao-de-obra/{maoDeObraId}")]
         public async Task<IActionResult> RemoveMaoDeObraFromObra(int obraId, int maoDeObraId)
         {
@@ -359,7 +343,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/mao-de-obra")]
         public async Task<IActionResult> GetMaoDeObraByObraId(int obraId)
         {
@@ -376,7 +359,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{obraId}/equipamentos/{equipamentoId}")]
         public async Task<IActionResult> AddEquipamentoToObra(int obraId, int equipamentoId)
         {
@@ -394,7 +376,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{obraId}/equipamentos/{equipamentoId}")]
         public async Task<IActionResult> RemoveEquipamentoFromObra(int obraId, int equipamentoId)
         {
@@ -412,7 +393,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/equipamentos")]
         public async Task<IActionResult> GetEquipamentosByObraId(int obraId)
         {
@@ -429,7 +409,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{obraId}/tipos-ocorrencia/{tipoOcorrenciaId}")]
         public async Task<IActionResult> AddTipoOcorrenciaToObra(int obraId, int tipoOcorrenciaId)
         {
@@ -447,7 +426,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{obraId}/tipos-ocorrencia/{tipoOcorrenciaId}")]
         public async Task<IActionResult> RemoveTipoOcorrenciaFromObra(int obraId, int tipoOcorrenciaId)
         {
@@ -465,7 +443,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/tipos-ocorrencia")]
         public async Task<IActionResult> GetTiposOcorrenciaByObraId(int obraId)
         {
@@ -482,7 +459,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{obraId}/modelos-texto/{modeloTextoId}")]
         public async Task<IActionResult> AddModeloTextoToObra(int obraId, int modeloTextoId)
         {
@@ -500,7 +476,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{obraId}/modelos-texto/{modeloTextoId}")]
         public async Task<IActionResult> RemoveModeloTextoFromObra(int obraId, int modeloTextoId)
         {
@@ -518,7 +493,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/modelos-texto")]
         public async Task<IActionResult> GetModelosTextoByObraId(int obraId)
         {
@@ -535,7 +509,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("{obraId}/despesas/{despesaId}")]
         public async Task<IActionResult> AddDespesaToObra(int obraId, int despesaId)
         {
@@ -553,7 +526,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpDelete("{obraId}/despesas/{despesaId}")]
         public async Task<IActionResult> RemoveDespesaFromObra(int obraId, int despesaId)
         {
@@ -571,7 +543,6 @@ namespace ControlApi.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpGet("{obraId}/despesas")]
         public async Task<IActionResult> GetDespesasByObraId(int obraId)
         {

@@ -25,7 +25,6 @@ namespace ControlApi.Controllers
 			return Ok(planos);
 		}
 
-		[AllowAnonymous]
 		[HttpGet("all")]
 		public async Task<IActionResult> GetAll()
 		{
@@ -34,7 +33,6 @@ namespace ControlApi.Controllers
 			return Ok(planos);
 		}
 
-		[AllowAnonymous]
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetById(int id)
 		{
@@ -60,7 +58,6 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
 		[HttpPut("{id}")]
 		public async Task<IActionResult> Update(int id, [FromBody] UpdatePlanoRequest req)
 		{
