@@ -17,34 +17,35 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Kestrel para aceitar arquivos grandes
+// -----------------------------------------------------------------------------
+// Kestrel + tamanhos de request (uploads de fotos/anexos do relatório).
+// -----------------------------------------------------------------------------
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-	// Aumentar limite de tamanho do corpo da requisi��o para 100MB
-	serverOptions.Limits.MaxRequestBodySize = 104857600; // 100 MB em bytes
-
-	// Opcional: Aumentar timeout para uploads grandes
+	// 100 MB — fotos de campo, anexos de suporte etc.
+	serverOptions.Limits.MaxRequestBodySize = 104857600;
 	serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
 	serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
 });
 
-// Configurar limites do servidor HTTP
 builder.Services.Configure<FormOptions>(options =>
 {
 	options.ValueLengthLimit = int.MaxValue;
-	options.MultipartBodyLengthLimit = 104857600; // 100 MB
-	options.MemoryBufferThreshold = 10485760; // 10 MB buffer threshold
+	options.MultipartBodyLengthLimit = 104857600;
+	options.MemoryBufferThreshold = 10485760;
 	options.MultipartBoundaryLengthLimit = int.MaxValue;
 	options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 
-// Configurar limites do Kestrel (alternativa via configura��o)
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-	options.Limits.MaxRequestBodySize = 104857600; // 100 MB
+	options.Limits.MaxRequestBodySize = 104857600;
 	options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
 });
 
+// -----------------------------------------------------------------------------
+// Logging
+// -----------------------------------------------------------------------------
 builder.Host.UseSerilog((context, loggerConfig) =>
 {
 	loggerConfig
@@ -56,6 +57,9 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 			.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
 });
 
+// -----------------------------------------------------------------------------
+// DI — services do domínio
+// -----------------------------------------------------------------------------
 builder.Services.AddDIServices(builder.Configuration);
 
 builder.Services.AddScoped<IUserService, UserService>();
@@ -77,7 +81,20 @@ builder.Services.AddScoped<IChecklistItemService, ChecklistItemService>();
 builder.Services.AddScoped<IAtividadeRecenteService, AtividadeRecenteService>();
 builder.Services.AddScoped<IPlanoService, PlanoService>();
 builder.Services.AddScoped<IAssinaturaService, AssinaturaService>();
+builder.Services.AddSingleton<IJWTManager, JWTManager>();
+builder.Services.AddScoped<IS3Service, S3Service>();
 
+builder.Services.AddAutoMapper(cfg => { }, typeof(EmpresasMappingProfile));
+
+// -----------------------------------------------------------------------------
+// Autenticação JWT
+//
+// Comportamento intencionalmente preservado: ValidateIssuer/ValidateAudience
+// permanecem desligados para não invalidar tokens em circulação. Quando o
+// operador da produção quiser endurecer, basta trocar para `true` aqui e
+// preencher Jwt:Issuer / Jwt:Audience no appsettings — o JWTManager já está
+// preparado para emitir essas claims quando configuradas.
+// -----------------------------------------------------------------------------
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		.AddJwtBearer(options =>
 		{
@@ -96,11 +113,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			};
 		});
 
-builder.Services.AddSingleton<IJWTManager, JWTManager>();
-builder.Services.AddControllers();
+// -----------------------------------------------------------------------------
+// Controllers + JSON options. UMA chamada só (antes estavam duplicadas — a
+// segunda sobrescrevia a primeira de forma silenciosa).
+// -----------------------------------------------------------------------------
+builder.Services.AddControllers()
+		.AddJsonOptions(options =>
+		{
+			options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+			options.JsonSerializerOptions.MaxDepth = 64;
+		});
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+	options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+	options.SerializerOptions.MaxDepth = 64;
+});
+
 builder.Services.AddEndpointsApiExplorer();
 
-// Configurar compress�o de resposta para otimizar transfer�ncia
+// -----------------------------------------------------------------------------
+// Compressão de resposta (Gzip/Brotli)
+// -----------------------------------------------------------------------------
 builder.Services.AddResponseCompression(options =>
 {
 	options.EnableForHttps = true;
@@ -108,6 +142,9 @@ builder.Services.AddResponseCompression(options =>
 	options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
 });
 
+// -----------------------------------------------------------------------------
+// Swagger
+// -----------------------------------------------------------------------------
 builder.Services.AddSwaggerGen(c =>
 {
 	c.SwaggerDoc("v1", new() { Title = "ConfereSET.Api", Version = "v1" });
@@ -134,6 +171,10 @@ builder.Services.AddSwaggerGen(c =>
 		});
 });
 
+// -----------------------------------------------------------------------------
+// CORS — comportamento intencionalmente mantido como antes para não quebrar
+// previews Vercel de outras branches/projetos em uso hoje.
+// -----------------------------------------------------------------------------
 const string CorsPolicyName = "Frontend";
 var allowedOrigins = new[]
 {
@@ -159,6 +200,10 @@ builder.Services.AddCors(options =>
 	);
 });
 
+// -----------------------------------------------------------------------------
+// ForwardedHeaders — comportamento intencionalmente mantido como antes para
+// não quebrar o setup atual atrás do Nginx em produção.
+// -----------------------------------------------------------------------------
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
 	options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -166,25 +211,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 	options.KnownProxies.Clear();
 });
 
-builder.Services.ConfigureHttpJsonOptions(options =>
-{
-	options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-	options.SerializerOptions.MaxDepth = 64;
-});
-
-builder.Services.AddControllers()
-		.AddJsonOptions(options =>
-		{
-			options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-			options.JsonSerializerOptions.MaxDepth = 64;
-		});
-//builder.Services.AddAWSService<IAmazonS3>();
-builder.Services.AddScoped<IS3Service, S3Service>();
-builder.Services.AddAutoMapper(cfg => { }, typeof(EmpresasMappingProfile));
-
 var app = builder.Build();
 
-// Aplicar compress�o de resposta
+// Compressão antes de qualquer middleware que produza payload.
 app.UseResponseCompression();
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -209,3 +238,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      

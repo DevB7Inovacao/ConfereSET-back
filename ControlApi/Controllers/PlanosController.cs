@@ -1,10 +1,15 @@
-﻿using Core.DTO;
+using Core.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services;
 
 namespace ControlApi.Controllers
 {
+	/// <summary>
+	/// Gestão de planos. Apenas a listagem de planos ativos é pública (vitrine de planos
+	/// para visitantes antes do cadastro). Todas as demais operações exigem autenticação
+	/// e — para escrita — papel admin/gerente da empresa do chamador.
+	/// </summary>
 	[Authorize]
 	[Route("api/[controller]")]
 	[ApiController]
@@ -17,6 +22,10 @@ namespace ControlApi.Controllers
 			_planoService = planoService;
 		}
 
+		/// <summary>
+		/// Lista pública de planos ativos — usada na vitrine /planos do front para usuários
+		/// não autenticados decidirem qual plano contratar.
+		/// </summary>
 		[AllowAnonymous]
 		[HttpGet]
 		public async Task<IActionResult> GetAtivos()
@@ -25,54 +34,26 @@ namespace ControlApi.Controllers
 			return Ok(planos);
 		}
 
-		[AllowAnonymous]
+		/// <summary>Lista os planos da empresa do JWT.</summary>
 		[HttpGet("all")]
 		public async Task<IActionResult> GetAll()
-		{
-			int empresaid = User.GetEmpresaId();
-			var planos = await _planoService.GetAll(empresaid);
-			return Ok(planos);
-		}
-
-		[AllowAnonymous]
-		[HttpGet("{id}")]
-		public async Task<IActionResult> GetById(int id)
-		{
-			var plano = await _planoService.GetById(id);
-			if (plano == null) return NotFound("Plano não encontrado.");
-			return Ok(plano);
-		}
-
-
-		[HttpPost]
-		public async Task<IActionResult> Create([FromBody] CreatePlanoRequest req)
 		{
 			try
 			{
 				int empresaid = User.GetEmpresaId();
-				req.EmpresaId = empresaid;
-				var plano = await _planoService.Create(req);
-				return Ok(plano);
+				var planos = await _planoService.GetAll(empresaid);
+				return Ok(planos);
 			}
-			catch (Exception ex)
+			catch (UnauthorizedAccessException ex)
 			{
-				return BadRequest(ex.Message);
+				return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
 			}
 		}
 
-		[AllowAnonymous]
-		[HttpPut("{id}")]
-		public async Task<IActionResult> Update(int id, [FromBody] UpdatePlanoRequest req)
+		/// <summary>Detalhe de plano. Bloqueia 403 se o plano pertencer a outra empresa.</summary>
+		[HttpGet("{id}")]
+		public async Task<IActionResult> GetById(int id)
 		{
 			try
 			{
-				var plano = await _planoService.Update(id, req);
-				return Ok(plano);
-			}
-			catch (Exception ex)
-			{
-				return BadRequest(ex.Message);
-			}
-		}
-	}
-}
+				var plano = await _planoService.G

@@ -56,7 +56,8 @@ namespace Infrastructure.Repositories
                 .Select(x => new ObraSimpleDTO
                 {
                     Id = x.Id,
-                    Name = x.Name
+                    Name = x.Name,
+                    EmpresaId = x.EmpresaId
                 })
                 .ToListAsync();
         }

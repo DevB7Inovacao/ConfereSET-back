@@ -1,4 +1,4 @@
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +12,18 @@ using System.Threading.Tasks;
 
 namespace ControlApi.Controllers
 {
+    /// <summary>
+    /// Catálogo de Equipamentos.
+    /// <para>
+    /// Regras de autorização:
+    /// <list type="bullet">
+    /// <item>Todos os endpoints exigem JWT válido (<c>[Authorize]</c>).</item>
+    /// <item>Operações de escrita exigem admin/gerente.</item>
+    /// <item>O modelo <see cref="Equipamentos"/> não possui <c>EmpresaId</c> no schema atual (catálogo global) —
+    /// portanto, não há validação de escopo por empresa pós-fetch; apenas role-gate.</item>
+    /// </list>
+    /// </para>
+    /// </summary>
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -26,13 +38,15 @@ namespace ControlApi.Controllers
             _equipamentosService = equipamentosService;
         }
 
-        [AllowAnonymous]
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateEquipamentoRequest req)
         {
             try
             {
+                if (!User.IsAdminOrGerente())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
+
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Nome)) return BadRequest("Nome é obrigatório.");
 
@@ -50,117 +64,86 @@ namespace ControlApi.Controllers
                 else
                     return BadRequest("Erro ao cadastrar equipamento.");
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
-        [AllowAnonymous]
         [HttpGet]
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersEquipamentosDTO filtersDTO)
         {
-            var result = await _equipamentosService.GetEquipamentosPaged(filtersDTO);
-            if (result != null)
-                return Ok(result);
+            try
+            {
+                _ = User.GetEmpresaId();
 
-            return BadRequest();
+                var result = await _equipamentosService.GetEquipamentosPaged(filtersDTO);
+                if (result != null)
+                    return Ok(result);
+
+                return BadRequest();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
-        [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateEquipamentoRequest req)
         {
-            if (id <= 0) return BadRequest("id inválido.");
-            if (req == null) return BadRequest("Payload inválido.");
+            try
+            {
+                if (!User.IsAdminOrGerente())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
 
-            var existing = await _equipamentosService.GetEquipamentoById(id);
-            if (existing == null) return NotFound("Equipamento não encontrado.");
+                if (id <= 0) return BadRequest("id inválido.");
+                if (req == null) return BadRequest("Payload inválido.");
 
-            if (req.Nome != null && !string.IsNullOrWhiteSpace(req.Nome))
-                existing.Nome = req.Nome.Trim();
+                var existing = await _equipamentosService.GetEquipamentoById(id);
+                if (existing == null) return NotFound("Equipamento não encontrado.");
 
-            if (req.Descricao != null)
-                existing.Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim();
+                if (req.Nome != null && !string.IsNullOrWhiteSpace(req.Nome))
+                    existing.Nome = req.Nome.Trim();
 
-            if (req.Status.HasValue)
-                existing.Status = req.Status.Value;
+                if (req.Descricao != null)
+                    existing.Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim();
 
-            var ok = await _equipamentosService.UpdateEquipamento(existing, id);
-            if (ok) return Ok(true);
+                if (req.Status.HasValue)
+                    existing.Status = req.Status.Value;
 
-            return BadRequest("Falha ao atualizar equipamento.");
+                var ok = await _equipamentosService.UpdateEquipamento(existing, id);
+                if (ok) return Ok(true);
+
+                return BadRequest("Falha ao atualizar equipamento.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
-        [AllowAnonymous]
         [HttpDelete]
         [Route("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             try
             {
+                if (!User.IsAdminOrGerente())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente podem realizar esta ação.");
+
                 var ok = await _equipamentosService.DeleteEquipamento(id);
-                if (ok) return Ok("Equipamento excluído com sucesso.");
-                return BadRequest("Falha ao excluir equipamento.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [AllowAnonymous]
-        [HttpPost]
-        [Route("toggle-status/{id}")]
-        public async Task<IActionResult> ToggleStatus(int id)
-        {
-            try
-            {
-                var ok = await _equipamentosService.ToggleEquipamentoStatus(id);
-                if (ok) return Ok("Status do equipamento alterado com sucesso.");
-                return BadRequest("Falha ao alterar o status do equipamento.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [AllowAnonymous]
-        [HttpGet("getById/{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            if (id <= 0) return BadRequest("id inválido.");
-
-            var item = await _equipamentosService.GetEquipamentoById(id);
-            if (item == null) return NotFound("Equipamento não encontrado.");
-
-            var dto = new EquipamentosDTO
-            {
-                Id = item.Id,
-                Nome = item.Nome,
-                Descricao = item.Descricao,
-                Status = item.Status
-            };
-
-            return Ok(dto);
-        }
-
-        [AllowAnonymous]
-        [HttpGet]
-        [Route("simple")]
-        public async Task<IActionResult> GetSimple()
-        {
-            try
-            {
-                var result = await _equipamentosService.GetEquipamentosSimple();
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-    }
-}
+          

@@ -22,15 +22,18 @@ namespace Services
 				if (empresas == null)
 					throw new ArgumentNullException(nameof(empresas));
 
-				var existingCNPJ = await _unitOfWork.Empresas.GetEmpresasByCNPJ(empresas.CNPJ);
-				if (existingCNPJ != null || empresas == null
-	||
-	!ValidarCNPJ(empresas.CNPJ)
-	)
-				{
-					return new Result { Success = false, Message = "CNPJ é inválido." };
+				if (string.IsNullOrWhiteSpace(empresas.CNPJ))
+					return new Result { Success = false, Message = "CNPJ é obrigatório." };
 
-				}
+				if (!ValidarCNPJ(empresas.CNPJ))
+					return new Result { Success = false, Message = "CNPJ inválido." };
+
+				var existingCNPJ = await _unitOfWork.Empresas.GetEmpresasByCNPJ(empresas.CNPJ);
+				if (existingCNPJ != null)
+					return new Result { Success = false, Message = "Já existe uma empresa cadastrada com este CNPJ." };
+
+				if (string.IsNullOrWhiteSpace(empresas.Name))
+					return new Result { Success = false, Message = "Nome da empresa é obrigatório." };
 
 				await _unitOfWork.Empresas.Add(empresas);
 

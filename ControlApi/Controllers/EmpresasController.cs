@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -8,6 +8,21 @@ using Services;
 
 namespace ControlApi.Controllers
 {
+	/// <summary>
+	/// Gestão de empresas.
+	/// <para>
+	/// Regras de autorização (validadas neste controller, não em filtros globais):
+	/// <list type="bullet">
+	/// <item><b>create</b>: público, parte do onboarding inicial (mesmo padrão de
+	/// <c>UsersController.Create</c>). A validação efetiva está em <c>EmpresasService.CreateEmpresa</c>.</item>
+	/// <item><b>getEmpresasPaged / getById / update</b>: usuário só vê/edita a própria empresa
+	/// (EmpresaId do JWT). Update exige <c>admin</c>.</item>
+	/// <item><b>delete / toggle-status</b>: operação destrutiva sobre a própria empresa, restrita a
+	/// <c>admin</c>. A id alvo deve coincidir com a empresa do JWT.</item>
+	/// </list>
+	/// </para>
+	/// Contratos de DTO e status codes mantidos iguais aos anteriores para não quebrar o front.
+	/// </summary>
 	[Authorize]
 	[Route("api/[controller]")]
 	[ApiController]
@@ -24,6 +39,11 @@ namespace ControlApi.Controllers
 			this._empresasService = empresasService;
 		}
 
+		/// <summary>
+		/// Cadastro inicial público (onboarding). Mantido <see cref="AllowAnonymousAttribute"/>
+		/// porque o usuário ainda não possui token neste momento — o fluxo equivalente está em
+		/// <c>UsersController.Create</c> quando não há <c>idEmpresa</c>.
+		/// </summary>
 		[AllowAnonymous]
 		[HttpPost]
 		[Route("create")]
@@ -45,104 +65,49 @@ namespace ControlApi.Controllers
 			}
 		}
 
-		[AllowAnonymous]
+		/// <summary>
+		/// Atualiza dados da empresa. Exige <c>admin</c> do JWT da mesma empresa; o
+		/// <c>empresaId</c> da URL precisa coincidir com o <c>EmpresaId</c> do token.
+		/// O <c>UserId</c>/<c>UserType</c> do payload são ignorados em favor do JWT.
+		/// </summary>
 		[HttpPut("{empresaId}")]
 		public async Task<IActionResult> UpdateById(int empresaId, [FromBody] UpdateEmpresaByIdRequest req)
 		{
-			if (empresaId <= 0) return BadRequest("empresaId inválido.");
-			if (req == null) return BadRequest("Payload inválido.");
-			if (req.UserId <= 0) return BadRequest("userId inválido.");
+			try
+			{
+				if (empresaId <= 0) return BadRequest("empresaId inválido.");
+				if (req == null) return BadRequest("Payload inválido.");
 
-			if (req.UserType != (int)TypeUser.admin) return Forbid("Apenas admin pode alterar dados da empresa.");
+				var empresaJwt = User.GetEmpresaId();
+				if (empresaJwt != empresaId)
+					return StatusCode(StatusCodes.Status403Forbidden, "Não é permitido alterar dados de outra empresa.");
 
-			var user = await _empresasService.GetUserById(req.UserId);
-			if (user == null) return Unauthorized("Usuário não encontrado.");
+				if (User.GetUserType() != TypeUser.admin)
+					return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin pode alterar dados da empresa.");
 
-			if (user.Type != (TypeUser)req.UserType) return Forbid("Tipo de usuário inconsistente.");
+				var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
+				if (result) return Ok(true);
 
-			var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
-			if (result) return Ok(true);
-
-			return BadRequest("Falha ao atualizar empresa.");
+				return BadRequest("Falha ao atualizar empresa.");
+			}
+			catch (UnauthorizedAccessException ex)
+			{
+				return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
 		}
 
-		[AllowAnonymous]
+		/// <summary>
+		/// Exclui a própria empresa. Operação altamente destrutiva — restrita a <c>admin</c>
+		/// do JWT da mesma empresa (o <c>id</c> da URL precisa coincidir com o token).
+		/// </summary>
 		[HttpDelete]
 		[Route("delete/{id}")]
 		public async Task<IActionResult> DeleteEmpresa(int id)
 		{
 			try
 			{
-				bool result = await _empresasService.DeleteEmpresa(id);
-				if (result)
-					return Ok("Empresa excluída com sucesso.");
-				else
-					return BadRequest("Falha ao excluir empresa.");
-			}
-			catch (Exception ex)
-			{
-				return BadRequest(ex.Message);
-			}
-		}
-
-		[AllowAnonymous]
-		[HttpPost]
-		[Route("toggle-status/{id}")]
-		public async Task<IActionResult> ToggleEmpresaStatus(int id)
-		{
-			try
-			{
-				bool result = await _empresasService.ToggleEmpresaStatus(id);
-				if (result)
-					return Ok("Status da empresa alterado com sucesso.");
-				else
-					return BadRequest("Falha ao alterar o status da empresa.");
-			}
-			catch (Exception ex)
-			{
-				return BadRequest(ex.Message);
-			}
-		}
-
-		[AllowAnonymous]
-		[HttpGet]
-		[Route("getEmpresasPaged")]
-		public async Task<IActionResult> GetEmpresasPaged([FromQuery] FiltersDTO filtersDTO)
-		{
-			var result = await _empresasService.GetEmpresasPaged(filtersDTO);
-			if (result != null)
-				return Ok(result);
-			else
-				return BadRequest();
-		}
-
-		[AllowAnonymous]
-		[HttpGet("getById/{empresaId}")]
-		public async Task<IActionResult> GetById(int empresaId)
-		{
-			if (empresaId <= 0) return BadRequest("empresaId inválido.");
-
-			var empresa = await _empresasService.GetEmpresaById(empresaId);
-			if (empresa == null) return NotFound("Empresa não encontrada.");
-
-			var dto = new EmpresasDTO
-			{
-				Id = empresa.Id,
-				Name = empresa.Name,
-				Status = empresa.Status,
-				CNPJ = empresa.CNPJ,
-
-				TradeName = empresa.TradeName,
-				AppName = empresa.AppName,
-				LogoBase64 = empresa.LogoBase64,
-				LogoContentType = empresa.LogoContentType,
-
-				ContactEmail = empresa.ContactEmail,
-				Phone = empresa.Phone,
-				Address = empresa.Address
-			};
-
-			return Ok(dto);
-		}
-	}
-}
+				if (id <= 0) return BadRequest("id inválid

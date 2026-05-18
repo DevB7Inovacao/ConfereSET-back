@@ -39,41 +39,72 @@ namespace Services
 				if (string.IsNullOrWhiteSpace(plano.MPPreapprovalPlanId))
 					throw new Exception("Plano não sincronizado com o Mercado Pago.");
 
+				if (string.IsNullOrWhiteSpace(req.PayerEmail))
+					throw new Exception("E-mail do pagador é obrigatório.");
+
+				// Bloqueia múltiplas assinaturas ativas concorrentes.
 				var existente = await _unitOfWork.Assinaturas.GetAssinaturaAtivaByEmpresaId(req.EmpresaId);
 				if (existente != null)
 					throw new Exception("Empresa já possui uma assinatura ativa.");
 
-				var mpResponsePlan = await _mpClient.GetPreapprovalPlan(plano.MPPreapprovalPlanId);
+				// Cancela rascunhos pendentes anteriores da mesma empresa sem MPSubscriptionId
+				// (poderia ter sido um checkout que o usuário abandonou).
+				var pendenteAntiga = await _unitOfWork.Assinaturas.GetPendingEmpresaSemMPId(req.EmpresaId);
+				if (pendenteAntiga != null)
+				{
+					pendenteAntiga.Status = StatusAssinatura.Cancelada;
+					pendenteAntiga.UltimoStatusMP = "abandoned";
+					_unitOfWork.Assinaturas.Update(pendenteAntiga);
+				}
 
-				var externalRef = Guid.NewGuid().ToString();
+				// External reference único — chave para casar o webhook com a assinatura correta.
+				var externalRef = Guid.NewGuid().ToString("N");
+
+				// Cria de fato um PREAPPROVAL no Mercado Pago, vinculado ao plano e à nossa empresa
+				// via external_reference. O init_point devolvido aqui é o link específico desta
+				// assinatura — diferente do init_point genérico do plano.
+				var mpPreapproval = await _mpClient.CreatePreapproval(new MPCreatePreapprovalRequest
+				{
+					PreapprovalPlanId = plano.MPPreapprovalPlanId!,
+					Reason = plano.Nome,
+					PayerEmail = req.PayerEmail,
+					ExternalReference = externalRef,
+					BackUrl = _backUrl,
+					Status = "pending",
+					AutoRecurring = new MPAutoRecurring
+					{
+						Frequency = (int)plano.Recorrencia,
+						FrequencyType = "months",
+						TransactionAmount = plano.Valor,
+						CurrencyId = "BRL"
+					}
+				});
 
 				var assinatura = new Assinatura
 				{
 					EmpresaId = req.EmpresaId,
 					PlanoId = req.PlanoId,
-					MPSubscriptionId= null,
+					// Já guardamos o MP id desde a criação — não dependemos de match por plano.
+					MPSubscriptionId = mpPreapproval.Id,
 					Status = StatusAssinatura.Pendente,
 					DataInicio = DateTime.UtcNow,
 					DataVencimento = DateTime.UtcNow.AddMonths((int)plano.Recorrencia),
 					ExternalReference = externalRef,
 					MPPayerEmail = req.PayerEmail,
-					UltimoStatusMP = mpResponsePlan.Status
+					UltimoStatusMP = mpPreapproval.Status
 				};
 
 				await _unitOfWork.Assinaturas.Add(assinatura);
 				_unitOfWork.Save();
 
-				var initPoint = mpResponsePlan.InitPoint;
-
 				return new CheckoutAssinaturaResponse
 				{
-					InitPoint = initPoint,
-					MPSubscriptionId = mpResponsePlan.Id
+					InitPoint = mpPreapproval.InitPoint,
+					MPSubscriptionId = mpPreapproval.Id
 				};
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-
 				throw;
 			}
 		}
@@ -174,9 +205,21 @@ namespace Services
 		{
 			var mpData = await _mpClient.GetPreapproval(mpSubscriptionId);
 
-			// ESTRATÉGIA: Buscar assinatura pendente pelo MPPreapprovalPlanId
-			// e que não tenha sido associada ainda
-			var assinatura = await _unitOfWork.Assinaturas.GetPendingByPlanIdAndNoMPId(mpData.PreapprovalPlanId);
+			// Estratégia de match (em ordem de robustez):
+			// 1) por MPSubscriptionId — funciona quando o IniciarCheckout já criou a assinatura
+			//    com o ID retornado pelo MP (caminho moderno).
+			// 2) por external_reference — caso o registro local tenha ficado sem MPSubscriptionId
+			//    por alguma razão (fluxo legado / corrida na criação).
+			//
+			// O fallback antigo "primeira pendente do plano" (GetPendingByPlanIdAndNoMPId) foi
+			// removido porque era frágil com múltiplos assinantes simultâneos.
+
+			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(mpSubscriptionId);
+
+			if (assinatura == null && !string.IsNullOrWhiteSpace(mpData.ExternalReference))
+			{
+				assinatura = await _unitOfWork.Assinaturas.GetByExternalReference(mpData.ExternalReference);
+			}
 
 			if (assinatura == null) return;
 
@@ -191,10 +234,31 @@ namespace Services
 
 			if (assinatura.Status == StatusAssinatura.Ativa && assinatura.Plano != null)
 				assinatura.DataVencimento = DateTime.UtcNow.AddMonths((int)assinatura.Plano.Recorrencia);
-			assinatura.MPSubscriptionId = mpSubscriptionId;
-			
+
+			// Garante que o MP id esteja salvo (idempotente).
+			if (string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
+				assinatura.MPSubscriptionId = mpSubscriptionId;
+
 			_unitOfWork.Assinaturas.Update(assinatura);
 			_unitOfWork.Save();
+
+			// Sincroniza status da empresa com a assinatura: ativar quando autorizada, suspender
+			// quando suspensa, manter como está nos demais casos. Não desativamos empresa por
+			// "Cancelada" porque o usuário pode estar contratando outro plano.
+			if (assinatura.Status == StatusAssinatura.Ativa || assinatura.Status == StatusAssinatura.Suspensa)
+			{
+				var empresa = await _unitOfWork.Empresas.GetEmpresaById(assinatura.EmpresaId);
+				if (empresa != null)
+				{
+					var novoStatus = assinatura.Status == StatusAssinatura.Ativa;
+					if (empresa.Status != novoStatus)
+					{
+						empresa.Status = novoStatus;
+						_unitOfWork.Empresas.Update(empresa);
+						_unitOfWork.Save();
+					}
+				}
+			}
 		}
 
 		public async Task ProcessarWebhookPagamento(string mpPaymentId)
