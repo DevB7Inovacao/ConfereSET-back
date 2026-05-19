@@ -125,6 +125,11 @@ namespace Infrastructure.Repositories
                 .FirstOrDefaultAsync(x => x.Id == comentarioId);
         }
 
+        public async Task AddSecao(RelatorioSecao secao)
+        {
+            await _dbContext.RelatorioSecoes.AddAsync(secao);
+        }
+
         public async Task AddComentario(RelatorioComentario comentario)
         {
             await _dbContext.RelatorioComentarios.AddAsync(comentario);
@@ -164,6 +169,7 @@ namespace Infrastructure.Repositories
         Task<RelatorioItemFoto?> GetFotoById(int fotoId);
         void DeleteFoto(RelatorioItemFoto foto);
         Task<RelatorioComentario?> GetComentarioById(int comentarioId);
+        Task AddSecao(RelatorioSecao secao);
         Task AddComentario(RelatorioComentario comentario);
         void UpdateComentario(RelatorioComentario comentario);
         void DeleteComentario(RelatorioComentario comentario);

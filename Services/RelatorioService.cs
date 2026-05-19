@@ -139,7 +139,32 @@ namespace Services
 		{
 			var relatorio = await _unitOfWork.Relatorios.GetById(id);
 			if (relatorio == null) return null;
+
+			// Lazy: garante a seção de Comentários para relatórios antigos criados sem ela.
+			// Sem isso, o operador não consegue comentar e o admin não tem onde ler.
+			await EnsureComentariosSection(relatorio);
+
 			return MapToDTO(relatorio);
+		}
+
+		private async Task EnsureComentariosSection(Relatorio relatorio)
+		{
+			if (relatorio.Secoes?.Any(s => s.TipoSecao == TipoSecao.Comentarios) == true)
+				return;
+
+			var ordemMax = relatorio.Secoes?.Max(s => (int?)s.Ordem) ?? -1;
+			var nova = new RelatorioSecao
+			{
+				RelatorioId = relatorio.Id,
+				DataSecao = "comentarios",
+				TipoSecao = TipoSecao.Comentarios,
+				Ordem = ordemMax + 1,
+				Itens = new List<RelatorioSecaoItem>()
+			};
+			await _unitOfWork.Relatorios.AddSecao(nova);
+			_unitOfWork.Save();
+			relatorio.Secoes ??= new List<RelatorioSecao>();
+			relatorio.Secoes.Add(nova);
 		}
 
 		public async Task<RelatorioPagedDTO> GetPaged(FiltersRelatorioDTO filters)
@@ -507,6 +532,20 @@ namespace Services
 
 				secoesMap[tipoSecao] = secao;
 				secoes.Add(secao);
+			}
+
+			// Garante que TODA relatório tenha uma seção de Comentários no final, mesmo que
+			// o modelo HTML não declare data-secao="comentarios". É o local oficial onde admin
+			// e gerente trocam observações sobre o relatório durante a aprovação.
+			if (!secoesMap.ContainsKey(TipoSecao.Comentarios))
+			{
+				secoes.Add(new RelatorioSecao
+				{
+					DataSecao = "comentarios",
+					TipoSecao = TipoSecao.Comentarios,
+					Ordem = ordem++,
+					Itens = new List<RelatorioSecaoItem>()
+				});
 			}
 
 			return secoes;
