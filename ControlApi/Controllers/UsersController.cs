@@ -17,12 +17,14 @@ namespace API.Controllers
 		private readonly IJWTManager _jWTManager;
 		private readonly IUserService userService;
 		private readonly IEmpresasService _empresaService;
+		private readonly IAssinaturaService _assinaturaService;
 
-		public UsersController(IJWTManager jWTManager, IUserService userService, IEmpresasService empresaService)
+		public UsersController(IJWTManager jWTManager, IUserService userService, IEmpresasService empresaService, IAssinaturaService assinaturaService)
 		{
 			this._jWTManager = jWTManager;
 			this.userService = userService;
 			this._empresaService = empresaService;
+			this._assinaturaService = assinaturaService;
 		}
 
 		[AllowAnonymous]
@@ -87,6 +89,15 @@ namespace API.Controllers
 					return BadRequest(result.Message);
 				}
 				hasEmpresa = result.Data as Empresas;
+
+				// Inicia trial automático de 7 dias assim que a empresa é criada.
+				// Falha aqui não impede o cadastro do usuário; o admin pode iniciar manualmente depois.
+				try
+				{
+					if (hasEmpresa != null && hasEmpresa.Id > 0)
+						await _assinaturaService.IniciarTrial(hasEmpresa.Id, 7);
+				}
+				catch { /* trial é best-effort no cadastro */ }
 			}
 
 			var user = new User()

@@ -357,6 +357,74 @@ namespace Services
 			_unitOfWork.Assinaturas.Update(assinatura);
 			return _unitOfWork.Save() > 0;
 		}
+
+		public async Task<Assinatura> IniciarTrial(int empresaId, int dias = 7)
+		{
+			var empresa = await _unitOfWork.Empresas.GetEmpresaById(empresaId)
+				?? throw new Exception("Empresa não encontrada.");
+
+			// Idempotente: se a empresa já tem qualquer assinatura ativa ou trial vigente,
+			// não cria outra (evita duplicidade após retry de cadastro).
+			var todas = await _unitOfWork.Assinaturas.GetAllPaged(1, 1, empresaId);
+			var existente = todas.FirstOrDefault();
+			if (existente != null &&
+				(existente.Status == StatusAssinatura.Ativa ||
+				 (existente.Status == StatusAssinatura.Trial && existente.DataVencimento >= DateTime.UtcNow)))
+				return existente;
+
+			var trial = new Assinatura
+			{
+				EmpresaId = empresaId,
+				PlanoId = 0,
+				Status = StatusAssinatura.Trial,
+				DataInicio = DateTime.UtcNow,
+				DataVencimento = DateTime.UtcNow.AddDays(dias),
+				UltimoStatusMP = "trial"
+			};
+			await _unitOfWork.Assinaturas.Add(trial);
+			_unitOfWork.Save();
+			return trial;
+		}
+
+		/// <summary>
+		/// Estado computado do acesso para a empresa, considerando assinatura ativa
+		/// e trial vigente (e expirando trial vencido em lazy fashion).
+		/// </summary>
+		public async Task<StatusAcessoAssinatura> GetStatusAcesso(int empresaId)
+		{
+			// Busca a mais recente da empresa (qualquer status), não só "ativa"
+			var todas = await _unitOfWork.Assinaturas.GetAllPaged(1, 1, empresaId);
+			var a = todas.FirstOrDefault();
+			if (a == null)
+				return new StatusAcessoAssinatura { Liberado = false, Estado = "sem_assinatura" };
+
+			// Expira trial vencido automaticamente
+			if (a.Status == StatusAssinatura.Trial && a.DataVencimento < DateTime.UtcNow)
+			{
+				a.Status = StatusAssinatura.Expirada;
+				_unitOfWork.Assinaturas.Update(a);
+				_unitOfWork.Save();
+			}
+
+			switch (a.Status)
+			{
+				case StatusAssinatura.Ativa:
+					return new StatusAcessoAssinatura { Liberado = true, Estado = "ativa", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento };
+				case StatusAssinatura.Trial:
+					var diasRestantes = Math.Max(0, (int)Math.Ceiling((a.DataVencimento - DateTime.UtcNow).TotalDays));
+					return new StatusAcessoAssinatura { Liberado = true, Estado = "trial", AssinaturaId = a.Id, DataVencimento = a.DataVencimento, DiasRestantes = diasRestantes };
+				case StatusAssinatura.Pendente:
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "pendente", AssinaturaId = a.Id };
+				case StatusAssinatura.Suspensa:
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "suspensa", AssinaturaId = a.Id };
+				case StatusAssinatura.Cancelada:
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "cancelada", AssinaturaId = a.Id };
+				case StatusAssinatura.Expirada:
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "expirada", AssinaturaId = a.Id };
+				default:
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "desconhecido" };
+			}
+		}
 	}
 
 	public interface IAssinaturaService
@@ -372,5 +440,7 @@ namespace Services
 		Task ProcessarWebhookPagamento(string mpPaymentId);
 		Task<CallBackAssinaturaResponse> CallBack(string preapproval_id);
 		Task<bool> AtualizarAssinatura(int assinaturaId, decimal? novoValor = null, string? cardToken = null);
+		Task<Assinatura> IniciarTrial(int empresaId, int dias = 7);
+		Task<StatusAcessoAssinatura> GetStatusAcesso(int empresaId);
 	}
 }

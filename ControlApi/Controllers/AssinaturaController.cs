@@ -140,6 +140,26 @@ namespace ControlApi.Controllers
 		}
 
 		/// <summary>Assinatura ativa da empresa. EmpresaId é forçado pelo JWT.</summary>
+		[HttpGet("empresa/{empresaId}/acesso")]
+		public async Task<IActionResult> GetStatusAcesso(int empresaId)
+		{
+			try
+			{
+				if (empresaId <= 0) return BadRequest("empresaId inválido.");
+				// Escopo: empresa do JWT precisa bater com a do path
+				var empresaJwt = User.GetEmpresaId();
+				if (empresaJwt > 0 && empresaJwt != empresaId)
+					return StatusCode(StatusCodes.Status403Forbidden, "Acesso negado.");
+
+				var status = await _assinaturaService.GetStatusAcesso(empresaId);
+				return Ok(status);
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
+
 		[HttpGet("empresa/{empresaId}")]
 		public async Task<IActionResult> GetByEmpresaId(int empresaId)
 		{
