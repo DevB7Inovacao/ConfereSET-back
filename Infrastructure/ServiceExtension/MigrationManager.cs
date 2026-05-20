@@ -1,12 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.ServiceExtension
 {
@@ -16,19 +11,55 @@ namespace Infrastructure.ServiceExtension
         {
             using (var scope = host.Services.CreateScope())
             {
+                var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("MigrationManager");
                 using (var appContext = scope.ServiceProvider.GetRequiredService<DbContextClass>())
                 {
                     try
                     {
+                        logger?.LogInformation("Aplicando migrations pendentes...");
                         appContext.Database.Migrate();
+                        logger?.LogInformation("Migrations aplicadas.");
                     }
                     catch (Exception ex)
                     {
-                        throw;
+                        logger?.LogError(ex, "Falha ao aplicar migrations.");
+                        // Não derruba a app — segue para o fallback de colunas críticas.
+                    }
+
+                    try
+                    {
+                        EnsureMultiTenantColumns(appContext, logger);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Falha no fallback de colunas multi-tenant.");
                     }
                 }
             }
             return host;
+        }
+
+        /// <summary>
+        /// Fallback defensivo: garante que as colunas EmpresaId existem nos catálogos compartilhados
+        /// mesmo se a migration EF não foi aplicada (ex.: snapshot dessincronizado, ambiente antigo).
+        /// Postgres ignora "ADD COLUMN IF NOT EXISTS" se a coluna já existir, então é seguro rodar várias vezes.
+        /// </summary>
+        private static void EnsureMultiTenantColumns(DbContextClass ctx, ILogger? logger)
+        {
+            var tabelas = new[] { "Despesas", "Equipamentos", "MaoDeObra", "TiposOcorrencia", "GrupoDeObras" };
+            foreach (var t in tabelas)
+            {
+                var sql = $"ALTER TABLE \"{t}\" ADD COLUMN IF NOT EXISTS \"EmpresaId\" integer NOT NULL DEFAULT 1;";
+                try
+                {
+                    ctx.Database.ExecuteSqlRaw(sql);
+                    logger?.LogInformation("Coluna EmpresaId garantida em {Tabela}.", t);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Falha ao garantir coluna EmpresaId em {Tabela}.", t);
+                }
+            }
         }
     }
 }
