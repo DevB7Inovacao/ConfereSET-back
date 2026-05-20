@@ -149,10 +149,11 @@ namespace API.Controllers
 		public async Task<IActionResult> GetUsersByUserId(int userId)
 		{
 			var user = await userService.GetUserById(userId);
-			if (user != null)
-				return Ok(user);
-			else
-				return BadRequest();
+			if (user == null) return NotFound("Usuário não encontrado.");
+			// Multi-tenant: só pode ler usuários da própria empresa.
+			var empresaIdJwt = User.GetEmpresaId();
+			if (user.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
+			return Ok(user);
 		}
 
 		/// <summary>
@@ -165,6 +166,10 @@ namespace API.Controllers
 		{
 			if (user != null)
 			{
+				// Multi-tenant: só atualiza usuários da própria empresa.
+				var __existing = await userService.GetUserById(userId);
+				var empresaIdJwt = User.GetEmpresaId();
+				if (__existing == null || __existing.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
 				var isUserCreated = await userService.UpdateUser(user, userId);
 				if (isUserCreated)
 					return Ok(isUserCreated);
@@ -182,6 +187,10 @@ namespace API.Controllers
 		{
 			try
 			{
+				// Multi-tenant: só deleta usuários da própria empresa.
+				var __existing = await userService.GetUserById(userId);
+				var empresaIdJwt = User.GetEmpresaId();
+				if (__existing == null || __existing.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
 				bool result = await userService.DeleteUser(userId);
 				if (result)
 					return Ok("Usuário excluído com sucesso.");
@@ -195,8 +204,10 @@ namespace API.Controllers
 		}
 
 		[HttpGet("count")]
-		public async Task<IActionResult> Count([FromQuery] int empresaId)
+		public async Task<IActionResult> Count()
 		{
+			// Multi-tenant: força a empresa do JWT, ignorando query string.
+			var empresaId = User.GetEmpresaId();
 			if (empresaId <= 0) return BadRequest("empresaId inválido.");
 
 			var total = await userService.CountUsersByEmpresaId(empresaId);

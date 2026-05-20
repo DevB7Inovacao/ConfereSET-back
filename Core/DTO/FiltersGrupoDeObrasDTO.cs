@@ -8,6 +8,7 @@ namespace Core.DTO
 {
     public class FiltersGrupoDeObrasDTO
     {
+        public int? EmpresaId { get; set; }
         public string? Name { get; set; }
         public int? Status { get; set; }
         public int pageNumber { get; set; }

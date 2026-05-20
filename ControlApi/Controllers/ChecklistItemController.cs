@@ -52,6 +52,7 @@ namespace ControlApi.Controllers
             {
                 var result = await _service.GetById(id);
                 if (result == null) return NotFound("Item não encontrado.");
+            if (result.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
                 return Ok(result);
             }
             catch (Exception ex)
@@ -65,6 +66,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
                 var ok = await _service.Update(id, req);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar.");
             }
@@ -79,6 +82,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
                 var ok = await _service.Delete(id);
                 return ok ? Ok(true) : BadRequest("Falha ao excluir.");
             }
@@ -93,6 +98,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
                 var ok = await _service.ToggleStatus(id);
                 return ok ? Ok(true) : BadRequest("Falha ao alternar status.");
             }

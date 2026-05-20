@@ -4,6 +4,7 @@ namespace Core.DTO
 {
     public class FiltersDespesasDTO
     {
+        public int? EmpresaId { get; set; }
         public string? Name { get; set; }
         public int? Status { get; set; }
         public int? ObraId { get; set; }

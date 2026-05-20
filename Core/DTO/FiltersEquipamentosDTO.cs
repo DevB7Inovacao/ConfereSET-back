@@ -8,6 +8,7 @@ namespace Core.DTO
 {
     public class FiltersEquipamentosDTO
     {
+        public int? EmpresaId { get; set; }
         public string? Search { get; set; }
         public int? Status { get; set; }
         public int pageNumber { get; set; }

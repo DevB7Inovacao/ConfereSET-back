@@ -23,6 +23,9 @@ namespace Infrastructure.Repositories
         {
             var query = _dbContext.Set<TiposOcorrencia>().AsQueryable();
 
+            if (filtersDTO.EmpresaId.HasValue && filtersDTO.EmpresaId.Value > 0)
+                query = query.Where(x => x.EmpresaId == filtersDTO.EmpresaId.Value);
+
             if (!string.IsNullOrWhiteSpace(filtersDTO.Search))
             {
                 var s = filtersDTO.Search.ToLower();

@@ -23,6 +23,9 @@ namespace Infrastructure.Repositories
         {
             var query = _dbContext.Set<Despesas>().AsQueryable();
 
+            if (filtersDTO.EmpresaId.HasValue && filtersDTO.EmpresaId.Value > 0)
+                query = query.Where(x => x.EmpresaId == filtersDTO.EmpresaId.Value);
+
             if (!string.IsNullOrEmpty(filtersDTO.Name))
                 query = query.Where(x => EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"));
 

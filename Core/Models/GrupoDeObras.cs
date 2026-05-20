@@ -8,6 +8,7 @@ namespace Core.Models
 {
     public class GrupoDeObras : BaseModel
     {
+        public int EmpresaId { get; set; }
         public required string Name { get; set; }
         public int Status { get; set; } = 0;
         public ICollection<RelacaoGrupoObras> Obras { get; set; } = new List<RelacaoGrupoObras>();

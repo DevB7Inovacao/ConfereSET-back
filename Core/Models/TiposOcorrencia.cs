@@ -5,6 +5,7 @@ namespace Core.Models
 {
     public class TiposOcorrencia : BaseModel
     {
+        public int EmpresaId { get; set; }
         public required string Nome { get; set; }
         public string? Descricao { get; set; }
         public int Gravidade { get; set; } = 1;

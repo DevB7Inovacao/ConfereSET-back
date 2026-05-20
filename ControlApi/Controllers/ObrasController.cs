@@ -82,6 +82,7 @@ namespace ControlApi.Controllers
 
             var existing = await _obrasService.GetObraById(obraId);
             if (existing == null) return NotFound("Obra não encontrada.");
+            if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
 
             if (!string.IsNullOrWhiteSpace(req.Name)) existing.Name = req.Name;
 
@@ -114,6 +115,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _obrasService.GetObraById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
                 bool result = await _obrasService.DeleteObra(id);
                 if (result)
                     return Ok("Obra excluída com sucesso.");
@@ -132,6 +135,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _obrasService.GetObraById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
                 bool result = await _obrasService.ToggleObraStatus(id);
                 if (result)
                     return Ok("Status da obra alterado com sucesso.");
@@ -151,6 +156,7 @@ namespace ControlApi.Controllers
 
             var obra = await _obrasService.GetObraById(obraId);
             if (obra == null) return NotFound("Obra não encontrada.");
+            if (obra.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
 
             var dto = new ObrasDTO
             {
@@ -184,7 +190,8 @@ namespace ControlApi.Controllers
         {
             try
             {
-                var result = await _obrasService.GetObrasSimple();
+                var empresaIdJwt = User.GetEmpresaId();
+                var result = await _obrasService.GetObrasSimple(empresaIdJwt);
                 return Ok(result);
             }
             catch (Exception ex)

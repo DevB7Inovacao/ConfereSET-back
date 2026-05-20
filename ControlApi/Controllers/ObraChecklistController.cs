@@ -51,7 +51,8 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
-				var result = await _service.GetByObra(obraId);
+				var empresaIdJwt = User.GetEmpresaId();
+				var result = await _service.GetByObra(obraId, empresaIdJwt);
 				return Ok(result);
 			}
 			catch (Exception ex)
@@ -64,7 +65,9 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
-				var result = await _service.GetByObraEmpresa(empresaId);
+				// Multi-tenant: força a empresa do JWT, ignorando o path param.
+				var empresaIdJwt = User.GetEmpresaId();
+				var result = await _service.GetByObraEmpresa(empresaIdJwt);
 				return Ok(result);
 			}
 			catch (Exception ex)

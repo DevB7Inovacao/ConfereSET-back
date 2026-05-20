@@ -2,6 +2,7 @@
 {
     public class FiltersTiposOcorrenciaDTO
     {
+        public int? EmpresaId { get; set; }
         public string? Search { get; set; }
         public int? Status { get; set; }
         public int? Gravidade { get; set; }

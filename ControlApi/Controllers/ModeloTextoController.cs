@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,6 +37,8 @@ namespace ControlApi.Controllers
         [HttpGet("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersModeloTextoDTO filters)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filters.EmpresaId = User.GetEmpresaId();
             try
             {
                 var result = await _service.GetPaged(filters);
@@ -54,6 +57,7 @@ namespace ControlApi.Controllers
             {
                 var model = await _service.GetById(id);
                 if (model == null) return NotFound("Modelo não encontrado.");
+            if (model.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 return Ok(model);
             }
             catch (Exception ex)
@@ -67,6 +71,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 var ok = await _service.Update(id, req);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar.");
             }
@@ -81,7 +87,8 @@ namespace ControlApi.Controllers
         {
             try
             {
-     
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 var ok = await _service.Delete(id);
                 return ok ? Ok(true) : BadRequest("Falha ao excluir.");
             }
@@ -96,6 +103,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 var ok = await _service.ToggleStatus(id);
                 return ok ? Ok(true) : BadRequest("Falha ao alternar status.");
             }

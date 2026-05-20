@@ -22,6 +22,9 @@ namespace Infrastructure.Repositories
                 .Include(x => x.Obras)
                 .AsQueryable();
 
+            if (filtersDTO.EmpresaId.HasValue && filtersDTO.EmpresaId.Value > 0)
+                q = q.Where(x => x.EmpresaId == filtersDTO.EmpresaId.Value);
+
             if (!string.IsNullOrEmpty(filtersDTO.Name))
                 q = q.Where(x => EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"));
 

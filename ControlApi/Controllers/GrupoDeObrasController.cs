@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -50,6 +51,8 @@ namespace ControlApi.Controllers
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersGrupoDeObrasDTO filtersDTO)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filtersDTO.EmpresaId = User.GetEmpresaId();
             try
             {
                 var result = await _service.GetGrupoPaged(filtersDTO);
@@ -68,6 +71,7 @@ namespace ControlApi.Controllers
 
             var grupo = await _service.GetGrupoById(groupId);
             if (grupo == null) return NotFound("Grupo não encontrado.");
+            if (grupo.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
 
             var dto = new GrupoDeObrasDTO
             {
@@ -88,6 +92,9 @@ namespace ControlApi.Controllers
                 if (groupId <= 0) return BadRequest("groupId inválido.");
                 if (req == null) return BadRequest("Payload inválido.");
 
+                var __g = await _service.GetGrupoById(groupId);
+                if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
+
                 var result = await _service.UpdateGrupo(groupId, req);
                 if (result) return Ok(true);
 
@@ -105,6 +112,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __g = await _service.GetGrupoById(id);
+                if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.DeleteGrupo(id);
                 if (result)
                     return Ok("Grupo excluído com sucesso.");
@@ -123,6 +132,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __g = await _service.GetGrupoById(id);
+                if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.ToggleGrupoStatus(id);
                 if (result)
                     return Ok("Status do grupo alterado com sucesso.");
@@ -140,6 +151,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __g = await _service.GetGrupoById(groupId);
+                if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.AddObraToGrupo(groupId, obraId);
                 if (result) return Ok(true);
                 return BadRequest("Falha ao adicionar obra ao grupo.");
@@ -155,6 +168,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __g = await _service.GetGrupoById(groupId);
+                if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.RemoveObraFromGrupo(groupId, obraId);
                 if (result) return Ok(true);
                 return BadRequest("Falha ao remover obra do grupo.");

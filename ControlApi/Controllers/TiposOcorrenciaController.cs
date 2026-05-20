@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -58,6 +59,8 @@ namespace ControlApi.Controllers
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersTiposOcorrenciaDTO filtersDTO)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filtersDTO.EmpresaId = User.GetEmpresaId();
             var result = await _service.GetPaged(filtersDTO);
             if (result != null)
                 return Ok(result);
@@ -73,6 +76,7 @@ namespace ControlApi.Controllers
 
             var existing = await _service.GetById(id);
             if (existing == null) return NotFound("Tipo de ocorrência não encontrado.");
+            if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Tipo de ocorrência não encontrado.");
 
             if (req.Nome != null && !string.IsNullOrWhiteSpace(req.Nome))
                 existing.Nome = req.Nome.Trim();
@@ -104,6 +108,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __e = await _service.GetById(id);
+                if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Tipo de ocorrência não encontrado.");
                 var ok = await _service.Delete(id);
                 if (ok) return Ok("Tipo de ocorrência excluído com sucesso.");
                 return BadRequest("Falha ao excluir tipo de ocorrência.");
@@ -120,6 +126,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __e = await _service.GetById(id);
+                if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Tipo de ocorrência não encontrado.");
                 var ok = await _service.ToggleStatus(id);
                 if (ok) return Ok("Status do tipo de ocorrência alterado com sucesso.");
                 return BadRequest("Falha ao alterar o status do tipo de ocorrência.");
@@ -137,6 +145,7 @@ namespace ControlApi.Controllers
 
             var item = await _service.GetById(id);
             if (item == null) return NotFound("Tipo de ocorrência não encontrado.");
+            if (item.EmpresaId != User.GetEmpresaId()) return NotFound("Tipo de ocorrência não encontrado.");
 
             var dto = new TiposOcorrenciaDTO
             {

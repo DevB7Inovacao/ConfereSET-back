@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -57,6 +58,8 @@ namespace ControlApi.Controllers
         [Route("getDespesasPaged")]
         public async Task<IActionResult> GetDespesasPaged([FromQuery] FiltersDespesasDTO filtersDTO)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filtersDTO.EmpresaId = User.GetEmpresaId();
             var result = await _despesasService.GetDespesasPaged(filtersDTO);
             if (result != null)
                 return Ok(result);
@@ -72,6 +75,7 @@ namespace ControlApi.Controllers
 
             var existing = await _despesasService.GetDespesaById(despesaId);
             if (existing == null) return NotFound("Despesa não encontrada.");
+            if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
 
             if (req.Name != null) existing.Name = string.IsNullOrWhiteSpace(req.Name) ? existing.Name : req.Name;
             if (req.Amount.HasValue) existing.Amount = req.Amount.Value;
@@ -95,6 +99,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _despesasService.GetDespesaById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
                 bool result = await _despesasService.DeleteDespesa(id);
                 if (result)
                     return Ok("Despesa excluída com sucesso.");
@@ -113,6 +119,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __scope = await _despesasService.GetDespesaById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
                 bool result = await _despesasService.ToggleDespesaStatus(id);
                 if (result)
                     return Ok("Status da despesa alterado com sucesso.");
@@ -132,6 +140,7 @@ namespace ControlApi.Controllers
 
             var despesa = await _despesasService.GetDespesaById(despesaId);
             if (despesa == null) return NotFound("Despesa não encontrada.");
+            if (despesa.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
 
             var dto = new DespesaDTO
             {

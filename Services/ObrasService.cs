@@ -129,6 +129,11 @@ namespace Services
             return await _unitOfWork.Obras.GetObrasSimple();
         }
 
+        public async Task<List<ObraSimpleDTO>> GetObrasSimple(int empresaId)
+        {
+            return await _unitOfWork.Obras.GetObrasSimple(empresaId);
+        }
+
         public async Task<bool> AddOperadorToObra(int obraId, int operadorId)
         {
             try
@@ -473,6 +478,7 @@ namespace Services
         Task<Obras> GetObraById(int id);
         Task<ObrasPagedDTO?> GetObrasPaged(FiltersObrasDTO filtersDTO);
         Task<List<ObraSimpleDTO>> GetObrasSimple();
+        Task<List<ObraSimpleDTO>> GetObrasSimple(int empresaId);
         Task<bool> AddOperadorToObra(int obraId, int operadorId);
         Task<bool> RemoveOperadorFromObra(int obraId, int operadorId);
         Task<List<ObraOperadorDTO>> GetOperadoresByObraId(int obraId);

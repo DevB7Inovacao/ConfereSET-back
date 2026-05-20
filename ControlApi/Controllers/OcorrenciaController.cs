@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Core.Enums;
 using Infrastructure.Authenticate;
@@ -39,6 +40,8 @@ namespace ControlApi.Controllers
         [HttpGet("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersOcorrenciaDTO filters)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filters.EmpresaId = User.GetEmpresaId();
             try
             {
                 var result = await _service.GetPaged(filters);

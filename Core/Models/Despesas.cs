@@ -10,6 +10,7 @@ namespace Core.Models
         public string? Category { get; set; }
         public string? Description { get; set; }
         public int ObraId { get; set; }
+        public int EmpresaId { get; set; }
         public int Status { get; set; } = 0;
     }
 }

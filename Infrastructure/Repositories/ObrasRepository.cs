@@ -62,6 +62,21 @@ namespace Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<ObraSimpleDTO>> GetObrasSimple(int empresaId)
+        {
+            return await _dbContext.Set<Obras>()
+                .AsNoTracking()
+                .Where(x => x.Status == 1 && x.EmpresaId == empresaId)
+                .Select(x => new ObraSimpleDTO
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    EmpresaId = x.EmpresaId
+                })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+        }
+
         public async Task<List<ObraCardDTO>> GetObrasCardsByEmpresaId(int empresaId)
         {
             var obras = await _dbContext.Set<Obras>()
@@ -170,6 +185,7 @@ namespace Infrastructure.Repositories
         Task<Obras?> GetObraById(int id);
         Task<PagedResult<Obras>> GetAllObrasPaged(FiltersObrasDTO filtersDTO);
         Task<List<ObraSimpleDTO>> GetObrasSimple();
+        Task<List<ObraSimpleDTO>> GetObrasSimple(int empresaId);
         Task<List<ObraCardDTO>> GetObrasCardsByEmpresaId(int empresaId);
         Task<List<ObraCardDTO>> GetObrasCardsByOperadorId(int operadorId);
     }

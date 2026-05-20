@@ -65,6 +65,15 @@ namespace Services
 			return list.Select(MapToDTO).ToList();
 		}
 
+		public async Task<List<ObraChecklistDTO>> GetByObra(int obraId, int empresaIdJwt)
+		{
+			// Multi-tenant: confere se a obra pertence à empresa do JWT antes de devolver.
+			var obra = await _unitOfWork.Obras.GetObraById(obraId);
+			if (obra == null || obra.EmpresaId != empresaIdJwt) return new List<ObraChecklistDTO>();
+			var list = await _unitOfWork.ObraChecklists.GetByObra(obraId);
+			return list.Select(MapToDTO).ToList();
+		}
+
 		public async Task<bool> ResponderItem(int obraChecklistItemId, ResponderChecklistItemRequest req)
 		{
 			var item = await _unitOfWork.ObraChecklistItems.GetById(obraChecklistItemId);
@@ -196,6 +205,7 @@ namespace Services
 		Task<ObraChecklistDTO> AddChecklistToObra(AddChecklistToObraRequest req);
 		Task<ObraChecklistDTO> GetById(int id);
 		Task<List<ObraChecklistDTO>> GetByObra(int obraId);
+		Task<List<ObraChecklistDTO>> GetByObra(int obraId, int empresaIdJwt);
 		Task<bool> ResponderItem(int obraChecklistItemId, ResponderChecklistItemRequest req);
 		Task<bool> RemoveChecklistFromObra(int obraChecklistId);
 		Task<bool> SincronizarChecklist(int checklistId);

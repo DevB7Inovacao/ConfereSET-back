@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -59,6 +60,8 @@ namespace ControlApi.Controllers
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersMaoDeObraDTO filtersDTO)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filtersDTO.EmpresaId = User.GetEmpresaId();
             var result = await _maoDeObraService.GetMaoDeObraPaged(filtersDTO);
             if (result != null)
                 return Ok(result);
@@ -74,6 +77,7 @@ namespace ControlApi.Controllers
 
             var existing = await _maoDeObraService.GetMaoDeObraById(id);
             if (existing == null) return NotFound("Mão de obra não encontrada.");
+            if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Mão de obra não encontrado.");
 
             if (req.Funcao != null && !string.IsNullOrWhiteSpace(req.Funcao))
                 existing.Funcao = req.Funcao.Trim();
@@ -96,6 +100,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __e = await _maoDeObraService.GetMaoDeObraById(id);
+                if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Mão de obra não encontrado.");
                 var ok = await _maoDeObraService.DeleteMaoDeObra(id);
                 if (ok) return Ok("Mão de obra excluída com sucesso.");
                 return BadRequest("Falha ao excluir mão de obra.");
@@ -112,6 +118,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __e = await _maoDeObraService.GetMaoDeObraById(id);
+                if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Mão de obra não encontrado.");
                 var ok = await _maoDeObraService.ToggleMaoDeObraStatus(id);
                 if (ok) return Ok("Status da mão de obra alterado com sucesso.");
                 return BadRequest("Falha ao alterar o status da mão de obra.");
@@ -129,6 +137,7 @@ namespace ControlApi.Controllers
 
             var item = await _maoDeObraService.GetMaoDeObraById(id);
             if (item == null) return NotFound("Mão de obra não encontrada.");
+            if (item.EmpresaId != User.GetEmpresaId()) return NotFound("Mão de obra não encontrado.");
 
             var dto = new MaoDeObraDTO
             {

@@ -1,3 +1,4 @@
+using ControlApi;
 ﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -59,6 +60,8 @@ namespace ControlApi.Controllers
         [Route("getPaged")]
         public async Task<IActionResult> GetPaged([FromQuery] FiltersEquipamentosDTO filtersDTO)
         {
+            // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+            filtersDTO.EmpresaId = User.GetEmpresaId();
             var result = await _equipamentosService.GetEquipamentosPaged(filtersDTO);
             if (result != null)
                 return Ok(result);
@@ -74,6 +77,7 @@ namespace ControlApi.Controllers
 
             var existing = await _equipamentosService.GetEquipamentoById(id);
             if (existing == null) return NotFound("Equipamento não encontrado.");
+            if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Equipamento não encontrado.");
 
             if (req.Nome != null && !string.IsNullOrWhiteSpace(req.Nome))
                 existing.Nome = req.Nome.Trim();
@@ -96,6 +100,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __e = await _equipamentosService.GetEquipamentoById(id);
+                if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Equipamento não encontrado.");
                 var ok = await _equipamentosService.DeleteEquipamento(id);
                 if (ok) return Ok("Equipamento excluído com sucesso.");
                 return BadRequest("Falha ao excluir equipamento.");
@@ -112,6 +118,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __e = await _equipamentosService.GetEquipamentoById(id);
+                if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Equipamento não encontrado.");
                 var ok = await _equipamentosService.ToggleEquipamentoStatus(id);
                 if (ok) return Ok("Status do equipamento alterado com sucesso.");
                 return BadRequest("Falha ao alterar o status do equipamento.");
@@ -129,6 +137,7 @@ namespace ControlApi.Controllers
 
             var item = await _equipamentosService.GetEquipamentoById(id);
             if (item == null) return NotFound("Equipamento não encontrado.");
+            if (item.EmpresaId != User.GetEmpresaId()) return NotFound("Equipamento não encontrado.");
 
             var dto = new EquipamentosDTO
             {
