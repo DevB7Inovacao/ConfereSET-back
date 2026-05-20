@@ -35,7 +35,9 @@ namespace API.Controllers
 			TokenJWT? token = null;
 			var user = await userService.GetUserByEmail(userDTO.Email);
 
-			if (user != null && Encrypt.EncryptPassword(userDTO.Password) == user.Password)
+			// Verifica a senha aceitando BCrypt (atual) e AES (legado). Faz upgrade transparente
+			// se o usuário ainda tem hash AES no banco.
+			if (user != null && await userService.VerifyPasswordAndUpgrade(user, userDTO.Password))
 			{
 				try
 				{
@@ -43,10 +45,8 @@ namespace API.Controllers
 				}
 				catch (Exception ex)
 				{
-
 					throw;
 				}
-
 			}
 
 
