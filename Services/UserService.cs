@@ -18,7 +18,9 @@ namespace Services
         {
             if (user != null)
             {
-                user.Password = Encrypt.HashPassword(user.Password);
+                user.Password = Encrypt.HashPassword((user.Password ?? "").Trim());
+                user.Email = (user.Email ?? "").Trim();
+                user.Name = (user.Name ?? "").Trim();
                 await _unitOfWork.Users.Add(user);
 
                 var result = _unitOfWork.Save();
@@ -141,10 +143,11 @@ namespace Services
                 var user = await _unitOfWork.Users.GetById(userId);
                 if (user != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(userParam.Password))
-                        user.Password = Encrypt.HashPassword(userParam.Password);
-                    user.Email = userParam.Email;
-                    user.Name = userParam.Name;
+                    var senhaTrim = (userParam.Password ?? "").Trim();
+                    if (!string.IsNullOrWhiteSpace(senhaTrim))
+                        user.Password = Encrypt.HashPassword(senhaTrim);
+                    user.Email = (userParam.Email ?? "").Trim();
+                    user.Name = (userParam.Name ?? "").Trim();
                     user.Status = userParam.Status;
                     user.Type = userParam.Type;
 

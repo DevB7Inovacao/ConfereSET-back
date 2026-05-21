@@ -76,12 +76,17 @@ namespace Infrastructure.Security
 			try
 			{
 				var legacy = LegacyAesEncrypt(plainText);
-				return (string.Equals(legacy, stored, StringComparison.Ordinal), true);
+				if (string.Equals(legacy, stored, StringComparison.Ordinal))
+					return (true, true);
 			}
-			catch
-			{
-				return (false, false);
-			}
+			catch { /* segue para o último fallback */ }
+
+			// Último fallback: senha armazenada em texto puro (legado muito antigo / imports).
+			// Se bate, autentica e sinaliza upgrade pra regravar como BCrypt.
+			if (string.Equals(plainText, stored, StringComparison.Ordinal))
+				return (true, true);
+
+			return (false, false);
 		}
 
 		// ---------------------------------------------------------------------

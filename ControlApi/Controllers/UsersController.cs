@@ -33,11 +33,13 @@ namespace API.Controllers
 		public async Task<IActionResult> Authenticate(UserAuthenticateRequest userDTO)
 		{
 			TokenJWT? token = null;
-			var user = await userService.GetUserByEmail(userDTO.Email);
+			var email = (userDTO.Email ?? "").Trim();
+			var senha = userDTO.Password ?? "";
+			var user = await userService.GetUserByEmail(email);
 
 			// Verifica a senha aceitando BCrypt (atual) e AES (legado). Faz upgrade transparente
 			// se o usuário ainda tem hash AES no banco.
-			if (user != null && await userService.VerifyPasswordAndUpgrade(user, userDTO.Password))
+			if (user != null && await userService.VerifyPasswordAndUpgrade(user, senha))
 			{
 				try
 				{
