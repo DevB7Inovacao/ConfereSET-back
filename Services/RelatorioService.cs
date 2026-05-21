@@ -404,12 +404,20 @@ namespace Services
 
 			var saved = await _unitOfWork.Relatorios.GetComentarioById(comentario.Id);
 
-			await _atividadeService.Registrar(
-					req.AutorId,
-					TipoAtividade.ComentarioAdicionado,
-					$"Você adicionou um comentário em um relatório.",
-					secao.RelatorioId,
-					secaoId);
+			// Best-effort: registrar atividade não pode derrubar o comentário se a FK falhar.
+			// Passamos o ObraId real do relatório (e não o RelatorioId, que era o bug anterior).
+			try
+			{
+				var relatorioDoComentario = await _unitOfWork.Relatorios.GetById(secao.RelatorioId);
+				var obraIdReal = relatorioDoComentario?.ObraId;
+				await _atividadeService.Registrar(
+						req.AutorId,
+						TipoAtividade.ComentarioAdicionado,
+						$"Você adicionou um comentário em um relatório.",
+						obraIdReal,
+						secaoId);
+			}
+			catch { /* atividade é best-effort */ }
 
 			return MapComentarioToDTO(saved!);
 		}
