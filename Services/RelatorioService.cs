@@ -376,8 +376,13 @@ namespace Services
 		{
 			var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
 			if (secao == null) throw new Exception("Seção não encontrada.");
-			if (secao.TipoSecao != TipoSecao.Comentarios)
-				throw new Exception("Esta seção não é do tipo Comentários.");
+
+			if (req.AutorId <= 0) throw new Exception("Autor inválido (token sem UserId).");
+			if (string.IsNullOrWhiteSpace(req.Texto)) throw new Exception("Texto do comentário é obrigatório.");
+
+			// Confere se o autor existe antes de tentar salvar (FK Users.Id).
+			var autor = await _unitOfWork.Users.GetUserSafeById(req.AutorId);
+			if (autor == null) throw new Exception($"Usuário autor (id={req.AutorId}) não encontrado.");
 
 			var comentario = new RelatorioComentario
 			{
@@ -386,8 +391,16 @@ namespace Services
 				Texto = req.Texto.Trim()
 			};
 
-			await _unitOfWork.Relatorios.AddComentario(comentario);
-			_unitOfWork.Save();
+			try
+			{
+				await _unitOfWork.Relatorios.AddComentario(comentario);
+				_unitOfWork.Save();
+			}
+			catch (Exception ex)
+			{
+				var inner = ex.InnerException?.Message ?? ex.Message;
+				throw new Exception($"Erro ao salvar comentário: {inner}", ex);
+			}
 
 			var saved = await _unitOfWork.Relatorios.GetComentarioById(comentario.Id);
 
