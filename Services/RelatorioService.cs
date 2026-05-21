@@ -374,52 +374,60 @@ namespace Services
 
 		public async Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req)
 		{
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
-			if (secao == null) throw new Exception("Seção não encontrada.");
-
-			if (req.AutorId <= 0) throw new Exception("Autor inválido (token sem UserId).");
-			if (string.IsNullOrWhiteSpace(req.Texto)) throw new Exception("Texto do comentário é obrigatório.");
-
-			// Confere se o autor existe antes de tentar salvar (FK Users.Id).
-			var autor = await _unitOfWork.Users.GetUserSafeById(req.AutorId);
-			if (autor == null) throw new Exception($"Usuário autor (id={req.AutorId}) não encontrado.");
-
-			var comentario = new RelatorioComentario
-			{
-				RelatorioSecaoId = secaoId,
-				AutorId = req.AutorId,
-				Texto = req.Texto.Trim()
-			};
-
+			// [v10] Comentário defensivo com diagnóstico completo
 			try
 			{
-				await _unitOfWork.Relatorios.AddComentario(comentario);
-				_unitOfWork.Save();
+				if (secaoId <= 0) throw new Exception("secaoId inválido.");
+				if (req == null) throw new Exception("Payload inválido.");
+				if (req.AutorId <= 0) throw new Exception("Autor inválido (token sem UserId). Faça login novamente.");
+				if (string.IsNullOrWhiteSpace(req.Texto)) throw new Exception("Texto do comentário é obrigatório.");
+
+				var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
+				if (secao == null) throw new Exception($"Seção {secaoId} não encontrada.");
+
+				var autor = await _unitOfWork.Users.GetUserSafeById(req.AutorId);
+				if (autor == null) throw new Exception($"Usuário autor (id={req.AutorId}) não encontrado.");
+
+				var comentario = new RelatorioComentario
+				{
+					RelatorioSecaoId = secaoId,
+					AutorId = req.AutorId,
+					Texto = req.Texto.Trim()
+				};
+
+				try
+				{
+					await _unitOfWork.Relatorios.AddComentario(comentario);
+					_unitOfWork.Save();
+				}
+				catch (Exception saveEx)
+				{
+					var inner = saveEx.InnerException?.Message ?? saveEx.Message;
+					throw new Exception($"[v10] Falha ao gravar comentário: {inner}");
+				}
+
+				var saved = await _unitOfWork.Relatorios.GetComentarioById(comentario.Id);
+
+				try
+				{
+					var relatorioDoComentario = await _unitOfWork.Relatorios.GetById(secao.RelatorioId);
+					var obraIdReal = relatorioDoComentario?.ObraId;
+					await _atividadeService.Registrar(
+							req.AutorId,
+							TipoAtividade.ComentarioAdicionado,
+							"Você adicionou um comentário em um relatório.",
+							obraIdReal,
+							secaoId);
+				}
+				catch { /* atividade é best-effort */ }
+
+				return MapComentarioToDTO(saved!);
 			}
 			catch (Exception ex)
 			{
-				var inner = ex.InnerException?.Message ?? ex.Message;
-				throw new Exception($"Erro ao salvar comentário: {inner}", ex);
+				var prefix = ex.Message.StartsWith("[v10]") ? "" : "[v10] ";
+				throw new Exception(prefix + ex.Message, ex);
 			}
-
-			var saved = await _unitOfWork.Relatorios.GetComentarioById(comentario.Id);
-
-			// Best-effort: registrar atividade não pode derrubar o comentário se a FK falhar.
-			// Passamos o ObraId real do relatório (e não o RelatorioId, que era o bug anterior).
-			try
-			{
-				var relatorioDoComentario = await _unitOfWork.Relatorios.GetById(secao.RelatorioId);
-				var obraIdReal = relatorioDoComentario?.ObraId;
-				await _atividadeService.Registrar(
-						req.AutorId,
-						TipoAtividade.ComentarioAdicionado,
-						$"Você adicionou um comentário em um relatório.",
-						obraIdReal,
-						secaoId);
-			}
-			catch { /* atividade é best-effort */ }
-
-			return MapComentarioToDTO(saved!);
 		}
 
 		public async Task<bool> UpdateComentario(int comentarioId, UpdateComentarioRequest req)
