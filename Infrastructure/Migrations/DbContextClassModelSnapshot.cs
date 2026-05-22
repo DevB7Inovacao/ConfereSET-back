@@ -1714,4 +1714,9 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Core.Models.RelatorioSecaoItem", b =>
                 {
-                
+                    b.Navigation("Fotos");
+                });
+#pragma warning restore 612, 618
+        }
+    }
+}

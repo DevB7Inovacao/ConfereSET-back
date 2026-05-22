@@ -64,4 +64,31 @@ namespace Infrastructure.ServiceExtension
             }
             catch (Exception ex)
             {
-                logger?.LogWarning(e
+                logger?.LogWarning(ex, "Falha ao garantir coluna Titulo em RelatorioSecao.");
+            }
+        }
+
+        /// <summary>
+        /// Fallback defensivo: garante que as colunas EmpresaId existem nos catálogos compartilhados
+        /// mesmo se a migration EF não foi aplicada (ex.: snapshot dessincronizado, ambiente antigo).
+        /// Postgres ignora "ADD COLUMN IF NOT EXISTS" se a coluna já existir, então é seguro rodar várias vezes.
+        /// </summary>
+        private static void EnsureMultiTenantColumns(DbContextClass ctx, ILogger? logger)
+        {
+            var tabelas = new[] { "Despesas", "Equipamentos", "MaoDeObra", "TiposOcorrencia", "GrupoDeObras" };
+            foreach (var t in tabelas)
+            {
+                var sql = $"ALTER TABLE \"{t}\" ADD COLUMN IF NOT EXISTS \"EmpresaId\" integer NOT NULL DEFAULT 1;";
+                try
+                {
+                    ctx.Database.ExecuteSqlRaw(sql);
+                    logger?.LogInformation("Coluna EmpresaId garantida em {Tabela}.", t);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Falha ao garantir coluna EmpresaId em {Tabela}.", t);
+                }
+            }
+        }
+    }
+}

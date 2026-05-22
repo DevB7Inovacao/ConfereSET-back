@@ -744,4 +744,74 @@ namespace Services
 				{
 					var existentesPorId = relatorio.Secoes.ToDictionary(s => s.Id);
 
-					foreach
+					foreach (var sReq in req.Secoes)
+					{
+						if (sReq.Id.HasValue && sReq.Id.Value > 0 && existentesPorId.TryGetValue(sReq.Id.Value, out var existente))
+						{
+							// UPDATE
+							existente.Titulo = sReq.Titulo;
+							existente.Ordem = sReq.Ordem;
+							existente.ConteudoJson = sReq.ConteudoJson;
+							existente.TipoOcorrenciaId = sReq.TipoOcorrenciaId;
+							if (!string.IsNullOrWhiteSpace(sReq.DataSecao))
+								existente.DataSecao = sReq.DataSecao;
+							existente.UpdatedDate = DateTime.UtcNow;
+						}
+						else
+						{
+							// CREATE
+							var nova = new RelatorioSecao
+							{
+								RelatorioId = relatorio.Id,
+								DataSecao = string.IsNullOrWhiteSpace(sReq.DataSecao)
+									? sReq.TipoSecao.ToString().ToLower()
+									: sReq.DataSecao,
+								TipoSecao = sReq.TipoSecao,
+								Ordem = sReq.Ordem,
+								Titulo = sReq.Titulo,
+								ConteudoJson = sReq.ConteudoJson,
+								TipoOcorrenciaId = sReq.TipoOcorrenciaId,
+							};
+							await _unitOfWork.Relatorios.AddSecao(nova);
+						}
+					}
+				}
+
+				_unitOfWork.Save();
+				return true;
+			}
+			catch (Exception ex)
+			{
+				// Log via console — em produção o middleware já captura.
+				System.Console.Error.WriteLine($"[RelatorioService.UpdateV2] erro: {ex.Message}");
+				return false;
+			}
+		}
+	}
+
+	public interface IRelatorioService
+	{
+		Task<Relatorio> Create(CreateRelatorioRequest req);
+		Task<Relatorio> Create(CreateRelatorioRequest req, int criadoPorUserIdJwt, int empresaIdJwt);
+		Task<RelatorioDTO?> GetById(int id);
+		Task<RelatorioDTO?> GetByIdScoped(int id, int empresaIdJwt);
+		Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt);
+		Task<RelatorioDTO?> GetRelatorioByFotoId(int fotoId, int empresaIdJwt);
+		Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt);
+		Task<(RelatorioDTO? relatorio, int? autorComentarioId)> GetRelatorioAndAutorByComentarioId(int comentarioId, int empresaIdJwt);
+		Task<RelatorioPagedDTO> GetPaged(FiltersRelatorioDTO filters);
+		Task<bool> UpdateStatus(int id, UpdateRelatorioStatusRequest req);
+		Task<bool> Delete(int id);
+		Task<bool> UpdateItem(int itemId, UpdateRelatorioSecaoItemRequest req);
+		Task<bool> AddFotoToItem(int itemId, AddFotoToItemRequest req);
+		Task<bool> DeleteFoto(int fotoId);
+		Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req);
+		Task<bool> UpdateComentario(int comentarioId, UpdateComentarioRequest req);
+		Task<bool> DeleteComentario(int comentarioId);
+		Task<bool> AddMultipleFotosToItem(int itemId, List<AddFotoToItemRequest> fotos);
+		Task<bool> DeleteMultipleFotos(List<int> fotoIds);
+		Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot);
+		// [v2] Bulk update — título + seções num único PUT
+		Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req);
+	}
+}

@@ -130,4 +130,7 @@ namespace Core.DTO
 		public int? EmpresaId { get; set; }
 		public int? CriadoPorUserId { get; set; }
 		public StatusRelatorio? Status { get; set; }
-		publ
+		public int PageNumber { get; set; } = 1;
+		public int PageSize { get; set; } = 10;
+	}
+}

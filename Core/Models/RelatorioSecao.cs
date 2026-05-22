@@ -14,4 +14,8 @@ namespace Core.Models
         // Quando null/vazio, a UI usa o label padrão do TipoSecao.
         public string? Titulo { get; set; }
         public Relatorio? Relatorio { get; set; }
-    
+        public TiposOcorrencia? TipoOcorrencia { get; set; }
+        public List<RelatorioSecaoItem> Itens { get; set; } = new();
+        public List<RelatorioComentario> Comentarios { get; set; } = new();
+    }
+}
