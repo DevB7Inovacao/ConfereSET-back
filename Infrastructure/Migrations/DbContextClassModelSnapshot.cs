@@ -1118,6 +1118,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("TipoSecao")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Titulo")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -1711,9 +1714,4 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Core.Models.RelatorioSecaoItem", b =>
                 {
-                    b.Navigation("Fotos");
-                });
-#pragma warning restore 612, 618
-        }
-    }
-}
+                

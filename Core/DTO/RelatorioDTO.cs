@@ -43,6 +43,8 @@ namespace Core.DTO
 		public string? ConteudoJson { get; set; }
 		public int? TipoOcorrenciaId { get; set; }
 		public string? TipoOcorrenciaNome { get; set; }
+		// [v2] Título customizável por seção.
+		public string? Titulo { get; set; }
 		public List<RelatorioSecaoItemDTO> Itens { get; set; } = new();
 		public List<RelatorioComentarioDTO> Comentarios { get; set; } = new();
 	}
@@ -128,7 +130,4 @@ namespace Core.DTO
 		public int? EmpresaId { get; set; }
 		public int? CriadoPorUserId { get; set; }
 		public StatusRelatorio? Status { get; set; }
-		public int PageNumber { get; set; } = 1;
-		public int PageSize { get; set; } = 10;
-	}
-}
+		publ

@@ -34,32 +34,34 @@ namespace Infrastructure.ServiceExtension
                     {
                         logger?.LogError(ex, "Falha no fallback de colunas multi-tenant.");
                     }
+
+                    // [v2] Garante coluna Titulo em RelatorioSecao mesmo se a migration EF
+                    // ainda não foi aplicada (ambientes antigos, snapshot dessincronizado).
+                    try
+                    {
+                        EnsureRelatorioV2Columns(appContext, logger);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Falha no fallback de colunas Relatórios v2.");
+                    }
                 }
             }
             return host;
         }
 
         /// <summary>
-        /// Fallback defensivo: garante que as colunas EmpresaId existem nos catálogos compartilhados
-        /// mesmo se a migration EF não foi aplicada (ex.: snapshot dessincronizado, ambiente antigo).
-        /// Postgres ignora "ADD COLUMN IF NOT EXISTS" se a coluna já existir, então é seguro rodar várias vezes.
+        /// [v2] Fallback aditivo para a refatoração de Relatórios.
+        /// Adiciona Titulo em RelatorioSecao se ainda não existir.
         /// </summary>
-        private static void EnsureMultiTenantColumns(DbContextClass ctx, ILogger? logger)
+        private static void EnsureRelatorioV2Columns(DbContextClass ctx, ILogger? logger)
         {
-            var tabelas = new[] { "Despesas", "Equipamentos", "MaoDeObra", "TiposOcorrencia", "GrupoDeObras" };
-            foreach (var t in tabelas)
+            var sql = "ALTER TABLE \"RelatorioSecao\" ADD COLUMN IF NOT EXISTS \"Titulo\" text NULL;";
+            try
             {
-                var sql = $"ALTER TABLE \"{t}\" ADD COLUMN IF NOT EXISTS \"EmpresaId\" integer NOT NULL DEFAULT 1;";
-                try
-                {
-                    ctx.Database.ExecuteSqlRaw(sql);
-                    logger?.LogInformation("Coluna EmpresaId garantida em {Tabela}.", t);
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogWarning(ex, "Falha ao garantir coluna EmpresaId em {Tabela}.", t);
-                }
+                ctx.Database.ExecuteSqlRaw(sql);
+                logger?.LogInformation("Coluna Titulo garantida em RelatorioSecao.");
             }
-        }
-    }
-}
+            catch (Exception ex)
+            {
+                logger?.LogWarning(e

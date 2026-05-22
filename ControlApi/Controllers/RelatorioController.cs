@@ -527,5 +527,5 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
-    }
-}
+
+      

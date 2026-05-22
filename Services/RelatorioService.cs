@@ -668,6 +668,8 @@ namespace Services
 				ConteudoJson = s.ConteudoJson,
 				TipoOcorrenciaId = s.TipoOcorrenciaId,
 				TipoOcorrenciaNome = s.TipoOcorrencia?.Nome,
+				// [v2] título por seção
+				Titulo = s.Titulo,
 				Itens = s.Itens?.Select(i => new RelatorioSecaoItemDTO
 				{
 					Id = i.Id,
@@ -710,29 +712,36 @@ namespace Services
 				return false;
 			}
 		}
-	}
 
-	public interface IRelatorioService
-	{
-		Task<Relatorio> Create(CreateRelatorioRequest req);
-		Task<Relatorio> Create(CreateRelatorioRequest req, int criadoPorUserIdJwt, int empresaIdJwt);
-		Task<RelatorioDTO?> GetById(int id);
-		Task<RelatorioDTO?> GetByIdScoped(int id, int empresaIdJwt);
-		Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt);
-		Task<RelatorioDTO?> GetRelatorioByFotoId(int fotoId, int empresaIdJwt);
-		Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt);
-		Task<(RelatorioDTO? relatorio, int? autorComentarioId)> GetRelatorioAndAutorByComentarioId(int comentarioId, int empresaIdJwt);
-		Task<RelatorioPagedDTO> GetPaged(FiltersRelatorioDTO filters);
-		Task<bool> UpdateStatus(int id, UpdateRelatorioStatusRequest req);
-		Task<bool> Delete(int id);
-		Task<bool> UpdateItem(int itemId, UpdateRelatorioSecaoItemRequest req);
-		Task<bool> AddFotoToItem(int itemId, AddFotoToItemRequest req);
-		Task<bool> DeleteFoto(int fotoId);
-		Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req);
-		Task<bool> UpdateComentario(int comentarioId, UpdateComentarioRequest req);
-		Task<bool> DeleteComentario(int comentarioId);
-		Task<bool> AddMultipleFotosToItem(int itemId, List<AddFotoToItemRequest> fotos);
-		Task<bool> DeleteMultipleFotos(List<int> fotoIds);
-		Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot);
-	}
-}
+		// =====================================================================
+		// [v2] Bulk update — Big Bang Relatórios
+		// =====================================================================
+		// Atualiza título do relatório + metadados das seções (Titulo, Ordem,
+		// ConteudoJson, TipoOcorrenciaId) numa única transação. Seções com Id
+		// existente são atualizadas; sem Id são criadas. Seções existentes no
+		// banco que não vierem no payload são MANTIDAS (sem delete implícito).
+		// Para deletar use o endpoint granular existente (delete/{id}) ou
+		// adicione um marcador "deleted: true" no payload futuramente.
+		public async Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req)
+		{
+			try
+			{
+				if (id <= 0 || req == null) return false;
+
+				var relatorio = await _unitOfWork.Relatorios.GetById(id);
+				if (relatorio == null) return false;
+
+				// 1) Título do relatório (só atualiza se vier preenchido — null/empty mantém o atual)
+				if (!string.IsNullOrWhiteSpace(req.Titulo))
+				{
+					relatorio.Titulo = req.Titulo.Trim();
+				}
+				relatorio.UpdatedDate = DateTime.UtcNow;
+				_unitOfWork.Relatorios.Update(relatorio);
+
+				// 2) Seções: update por Id, ou create se Id=null/0
+				if (req.Secoes != null)
+				{
+					var existentesPorId = relatorio.Secoes.ToDictionary(s => s.Id);
+
+					foreach
