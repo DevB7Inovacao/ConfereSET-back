@@ -45,9 +45,39 @@ namespace Infrastructure.ServiceExtension
                     {
                         logger?.LogError(ex, "Falha no fallback de colunas Relatórios v2.");
                     }
+
+                    // [v11] Self-heal de senhas com whitespace nas pontas. Idempotente.
+                    try
+                    {
+                        TrimUserPasswords(appContext, logger);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Falha no trim de senhas de usuários.");
+                    }
                 }
             }
             return host;
+        }
+
+        /// <summary>
+        /// [v11] Remove whitespace nas pontas das senhas armazenadas.
+        /// BCrypt hashes nunca têm whitespace, então é seguro. Resolve o caso
+        /// de senhas que ficaram com espaço acidental por bug de UI antigo.
+        /// </summary>
+        private static void TrimUserPasswords(DbContextClass ctx, ILogger? logger)
+        {
+            var sql = "UPDATE \"User\" SET \"Password\" = TRIM(\"Password\") WHERE \"Password\" IS NOT NULL AND \"Password\" <> TRIM(\"Password\");";
+            try
+            {
+                var affected = ctx.Database.ExecuteSqlRaw(sql);
+                if (affected > 0)
+                    logger?.LogInformation("Trim aplicado em {Affected} senhas de usuário.", affected);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Falha ao aplicar trim em senhas.");
+            }
         }
 
         /// <summary>
