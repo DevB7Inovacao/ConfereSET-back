@@ -86,15 +86,15 @@ namespace Infrastructure.ServiceExtension
         /// </summary>
         private static void EnsureRelatorioV2Columns(DbContextClass ctx, ILogger? logger)
         {
-            var sql = "ALTER TABLE \"RelatorioSecao\" ADD COLUMN IF NOT EXISTS \"Titulo\" text NULL;";
+            var sql = "ALTER TABLE \"RelatorioSecoes\" ADD COLUMN IF NOT EXISTS \"Titulo\" text NULL;";
             try
             {
                 ctx.Database.ExecuteSqlRaw(sql);
-                logger?.LogInformation("Coluna Titulo garantida em RelatorioSecao.");
+                logger?.LogInformation("Coluna Titulo garantida em RelatorioSecoes.");
             }
             catch (Exception ex)
             {
-                logger?.LogWarning(ex, "Falha ao garantir coluna Titulo em RelatorioSecao.");
+                logger?.LogWarning(ex, "Falha ao garantir coluna Titulo em RelatorioSecoes.");
             }
         }
 

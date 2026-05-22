@@ -11,14 +11,14 @@ namespace Infrastructure.Migrations
         {
             migrationBuilder.AddColumn<string>(
                 name: "Titulo",
-                table: "RelatorioSecao",
+                table: "RelatorioSecoes",
                 type: "text",
                 nullable: true);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(name: "Titulo", table: "RelatorioSecao");
+            migrationBuilder.DropColumn(name: "Titulo", table: "RelatorioSecoes");
         }
     }
 }
