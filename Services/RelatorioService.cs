@@ -92,6 +92,9 @@ namespace Services
 			var relatorio = await _unitOfWork.Relatorios.GetById(id);
 			if (relatorio == null) return null;
 			if (relatorio.Obra?.EmpresaId != empresaIdJwt) return null;
+			// [v12] Lazy: garante seção Comentários + item raiz em Fotos
+			await EnsureComentariosSection(relatorio);
+			await EnsureFotosItemRaiz(relatorio);
 			return MapToDTO(relatorio);
 		}
 
@@ -144,7 +147,35 @@ namespace Services
 			// Sem isso, o operador não consegue comentar e o admin não tem onde ler.
 			await EnsureComentariosSection(relatorio);
 
+			// [v12] Lazy: garante item raiz em cada seção de Fotos pra o upload funcionar.
+			await EnsureFotosItemRaiz(relatorio);
+
 			return MapToDTO(relatorio);
+		}
+
+		// [v12] Garante que cada seção de Fotos tem ao menos 1 item raiz pra ancorar
+		// as imagens. Necessário pra relatórios antigos criados antes do fix de UpdateV2.
+		private async Task EnsureFotosItemRaiz(Relatorio relatorio)
+		{
+			if (relatorio.Secoes == null) return;
+			var changed = false;
+			foreach (var s in relatorio.Secoes.Where(s => s.TipoSecao == TipoSecao.Fotos))
+			{
+				if (s.Itens == null || s.Itens.Count == 0)
+				{
+					var itemRaiz = new RelatorioSecaoItem
+					{
+						RelatorioSecaoId = s.Id,
+						Nome = "Fotos",
+						Descricao = null,
+					};
+					await _unitOfWork.Relatorios.AddItem(itemRaiz);
+					s.Itens ??= new List<RelatorioSecaoItem>();
+					s.Itens.Add(itemRaiz);
+					changed = true;
+				}
+			}
+			if (changed) _unitOfWork.Save();
 		}
 
 		private async Task EnsureComentariosSection(Relatorio relatorio)
@@ -773,6 +804,22 @@ namespace Services
 								TipoOcorrenciaId = sReq.TipoOcorrenciaId,
 							};
 							await _unitOfWork.Relatorios.AddSecao(nova);
+
+							// [v12] Seções de Fotos precisam de um item raiz pra ancorar
+							// as fotos. Sem isso, secao.itens[0] fica vazio e o operador
+							// não consegue fazer upload.
+							if (sReq.TipoSecao == TipoSecao.Fotos)
+							{
+								// Salva primeiro pra ter o ID da seção
+								_unitOfWork.Save();
+								var itemRaiz = new RelatorioSecaoItem
+								{
+									RelatorioSecaoId = nova.Id,
+									Nome = "Fotos",
+									Descricao = null,
+								};
+								await _unitOfWork.Relatorios.AddItem(itemRaiz);
+							}
 						}
 					}
 				}
