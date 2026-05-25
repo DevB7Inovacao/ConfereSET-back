@@ -537,6 +537,33 @@ namespace ControlApi.Controllers
         /// Seções com Id são atualizadas; sem Id são criadas.
         /// Mantém compat com endpoints granulares antigos (não os substitui).
         /// </summary>
+        /// <summary>
+        /// [v12] Garante que uma seção de Fotos tem um item raiz pra ancorar imagens.
+        /// Retorna o itemId. Se já existe item, devolve o existente.
+        /// </summary>
+        [HttpPost("secao/{secaoId}/ensure-foto-item")]
+        public async Task<IActionResult> EnsureFotoItem(int secaoId)
+        {
+            try
+            {
+                if (secaoId <= 0) return BadRequest("secaoId inválido.");
+                var (allowed, denied) = await AssertWriteBySecaoId(secaoId);
+                if (!allowed) return denied!;
+
+                var itemId = await _service.EnsureFotoItemRaiz(secaoId);
+                if (itemId == null) return BadRequest("Não foi possível criar/localizar item raiz.");
+                return Ok(new { itemId });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPut("v2/{id}")]
         public async Task<IActionResult> UpdateV2(int id, [FromBody] UpdateRelatorioV2Request req)
         {

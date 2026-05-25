@@ -153,6 +153,28 @@ namespace Services
 			return MapToDTO(relatorio);
 		}
 
+		// [v12] Endpoint explícito: garante item raiz de UMA seção específica e devolve o ID.
+		// Usado pelo front imediatamente antes do upload pra ter certeza que o item existe.
+		public async Task<int?> EnsureFotoItemRaiz(int secaoId)
+		{
+			var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
+			if (secao == null) return null;
+			if (secao.TipoSecao != TipoSecao.Fotos) return null;
+
+			if (secao.Itens != null && secao.Itens.Count > 0)
+				return secao.Itens[0].Id;
+
+			var item = new RelatorioSecaoItem
+			{
+				RelatorioSecaoId = secaoId,
+				Nome = "Fotos",
+				Descricao = null,
+			};
+			await _unitOfWork.Relatorios.AddItem(item);
+			_unitOfWork.Save();
+			return item.Id;
+		}
+
 		// [v12] Garante que cada seção de Fotos tem ao menos 1 item raiz pra ancorar
 		// as imagens. Necessário pra relatórios antigos criados antes do fix de UpdateV2.
 		private async Task EnsureFotosItemRaiz(Relatorio relatorio)
@@ -860,5 +882,7 @@ namespace Services
 		Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot);
 		// [v2] Bulk update — título + seções num único PUT
 		Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req);
+		// [v12] Garante item raiz numa seção de Fotos e devolve o ID
+		Task<int?> EnsureFotoItemRaiz(int secaoId);
 	}
 }
