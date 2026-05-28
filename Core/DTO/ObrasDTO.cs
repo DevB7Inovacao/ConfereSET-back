@@ -33,6 +33,6 @@ namespace Core.DTO
     public class ObrasPagedDTO
     {
         public int PageCount { get; set; }
-        public IList<ObrasDTO> Result { get; set; }
+        public IList<ObrasDTO> ?Result { get; set; }
     }
 }
