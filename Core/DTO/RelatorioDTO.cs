@@ -43,6 +43,8 @@ namespace Core.DTO
 		public string? ConteudoJson { get; set; }
 		public int? TipoOcorrenciaId { get; set; }
 		public string? TipoOcorrenciaNome { get; set; }
+		// [v2] Título customizável por seção.
+		public string? Titulo { get; set; }
 		public List<RelatorioSecaoItemDTO> Itens { get; set; } = new();
 		public List<RelatorioComentarioDTO> Comentarios { get; set; } = new();
 	}

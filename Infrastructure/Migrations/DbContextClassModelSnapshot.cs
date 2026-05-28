@@ -1118,6 +1118,9 @@ namespace Infrastructure.Migrations
                     b.Property<int>("TipoSecao")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Titulo")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
 

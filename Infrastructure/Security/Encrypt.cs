@@ -58,33 +58,47 @@ namespace Infrastructure.Security
 			if (string.IsNullOrEmpty(plainText) || string.IsNullOrEmpty(stored))
 				return (false, false);
 
+			// [v11] Testa em 2 variantes — exato + trimado.
+			// Isso cobre o caso clássico: usuário foi gravado com senha trimada (Create/Update
+			// fazem trim), mas ele agora digita com whitespace na ponta (autofill, copy/paste).
+			var candidates = plainText.Trim() != plainText
+				? new[] { plainText, plainText.Trim() }
+				: new[] { plainText };
+
 			if (IsBCrypt(stored))
 			{
-				try
+				foreach (var candidate in candidates)
 				{
-					return (BCryptNet.Verify(plainText, stored), false);
+					try
+					{
+						if (BCryptNet.Verify(candidate, stored)) return (true, false);
+					}
+					catch { /* tenta a próxima variante */ }
 				}
-				catch
-				{
-					return (false, false);
-				}
+				return (false, false);
 			}
 
 			// Caminho legado: o hash atual foi gerado por EncryptPassword (AES). Comparamos o
 			// resultado da cifragem AES do plain com o que está gravado. Se bate, autenticamos e
 			// sinalizamos upgrade — o caller deve regravar como BCrypt.
-			try
+			foreach (var candidate in candidates)
 			{
-				var legacy = LegacyAesEncrypt(plainText);
-				if (string.Equals(legacy, stored, StringComparison.Ordinal))
-					return (true, true);
+				try
+				{
+					var legacy = LegacyAesEncrypt(candidate);
+					if (string.Equals(legacy, stored, StringComparison.Ordinal))
+						return (true, true);
+				}
+				catch { /* tenta a próxima variante */ }
 			}
-			catch { /* segue para o último fallback */ }
 
 			// Último fallback: senha armazenada em texto puro (legado muito antigo / imports).
 			// Se bate, autentica e sinaliza upgrade pra regravar como BCrypt.
-			if (string.Equals(plainText, stored, StringComparison.Ordinal))
-				return (true, true);
+			foreach (var candidate in candidates)
+			{
+				if (string.Equals(candidate, stored, StringComparison.Ordinal))
+					return (true, true);
+			}
 
 			return (false, false);
 		}

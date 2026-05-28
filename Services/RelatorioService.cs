@@ -92,6 +92,9 @@ namespace Services
 			var relatorio = await _unitOfWork.Relatorios.GetById(id);
 			if (relatorio == null) return null;
 			if (relatorio.Obra?.EmpresaId != empresaIdJwt) return null;
+			// [v12] Lazy: garante seção Comentários + item raiz em Fotos
+			await EnsureComentariosSection(relatorio);
+			await EnsureFotosItemRaiz(relatorio);
 			return MapToDTO(relatorio);
 		}
 
@@ -144,7 +147,57 @@ namespace Services
 			// Sem isso, o operador não consegue comentar e o admin não tem onde ler.
 			await EnsureComentariosSection(relatorio);
 
+			// [v12] Lazy: garante item raiz em cada seção de Fotos pra o upload funcionar.
+			await EnsureFotosItemRaiz(relatorio);
+
 			return MapToDTO(relatorio);
+		}
+
+		// [v12] Endpoint explícito: garante item raiz de UMA seção específica e devolve o ID.
+		// Usado pelo front imediatamente antes do upload pra ter certeza que o item existe.
+		public async Task<int?> EnsureFotoItemRaiz(int secaoId)
+		{
+			var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
+			if (secao == null) return null;
+			if (secao.TipoSecao != TipoSecao.Fotos) return null;
+
+			if (secao.Itens != null && secao.Itens.Count > 0)
+				return secao.Itens[0].Id;
+
+			var item = new RelatorioSecaoItem
+			{
+				RelatorioSecaoId = secaoId,
+				Nome = "Fotos",
+				Descricao = null,
+			};
+			await _unitOfWork.Relatorios.AddItem(item);
+			_unitOfWork.Save();
+			return item.Id;
+		}
+
+		// [v12] Garante que cada seção de Fotos tem ao menos 1 item raiz pra ancorar
+		// as imagens. Necessário pra relatórios antigos criados antes do fix de UpdateV2.
+		private async Task EnsureFotosItemRaiz(Relatorio relatorio)
+		{
+			if (relatorio.Secoes == null) return;
+			var changed = false;
+			foreach (var s in relatorio.Secoes.Where(s => s.TipoSecao == TipoSecao.Fotos))
+			{
+				if (s.Itens == null || s.Itens.Count == 0)
+				{
+					var itemRaiz = new RelatorioSecaoItem
+					{
+						RelatorioSecaoId = s.Id,
+						Nome = "Fotos",
+						Descricao = null,
+					};
+					await _unitOfWork.Relatorios.AddItem(itemRaiz);
+					s.Itens ??= new List<RelatorioSecaoItem>();
+					s.Itens.Add(itemRaiz);
+					changed = true;
+				}
+			}
+			if (changed) _unitOfWork.Save();
 		}
 
 		private async Task EnsureComentariosSection(Relatorio relatorio)
@@ -668,6 +721,8 @@ namespace Services
 				ConteudoJson = s.ConteudoJson,
 				TipoOcorrenciaId = s.TipoOcorrenciaId,
 				TipoOcorrenciaNome = s.TipoOcorrencia?.Nome,
+				// [v2] título por seção
+				Titulo = s.Titulo,
 				Itens = s.Itens?.Select(i => new RelatorioSecaoItemDTO
 				{
 					Id = i.Id,
@@ -710,6 +765,97 @@ namespace Services
 				return false;
 			}
 		}
+
+		// =====================================================================
+		// [v2] Bulk update — Big Bang Relatórios
+		// =====================================================================
+		// Atualiza título do relatório + metadados das seções (Titulo, Ordem,
+		// ConteudoJson, TipoOcorrenciaId) numa única transação. Seções com Id
+		// existente são atualizadas; sem Id são criadas. Seções existentes no
+		// banco que não vierem no payload são MANTIDAS (sem delete implícito).
+		// Para deletar use o endpoint granular existente (delete/{id}) ou
+		// adicione um marcador "deleted: true" no payload futuramente.
+		public async Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req)
+		{
+			try
+			{
+				if (id <= 0 || req == null) return false;
+
+				var relatorio = await _unitOfWork.Relatorios.GetById(id);
+				if (relatorio == null) return false;
+
+				// 1) Título do relatório (só atualiza se vier preenchido — null/empty mantém o atual)
+				if (!string.IsNullOrWhiteSpace(req.Titulo))
+				{
+					relatorio.Titulo = req.Titulo.Trim();
+				}
+				relatorio.UpdatedDate = DateTime.UtcNow;
+				_unitOfWork.Relatorios.Update(relatorio);
+
+				// 2) Seções: update por Id, ou create se Id=null/0
+				if (req.Secoes != null)
+				{
+					var existentesPorId = relatorio.Secoes.ToDictionary(s => s.Id);
+
+					foreach (var sReq in req.Secoes)
+					{
+						if (sReq.Id.HasValue && sReq.Id.Value > 0 && existentesPorId.TryGetValue(sReq.Id.Value, out var existente))
+						{
+							// UPDATE
+							existente.Titulo = sReq.Titulo;
+							existente.Ordem = sReq.Ordem;
+							existente.ConteudoJson = sReq.ConteudoJson;
+							existente.TipoOcorrenciaId = sReq.TipoOcorrenciaId;
+							if (!string.IsNullOrWhiteSpace(sReq.DataSecao))
+								existente.DataSecao = sReq.DataSecao;
+							existente.UpdatedDate = DateTime.UtcNow;
+						}
+						else
+						{
+							// CREATE
+							var nova = new RelatorioSecao
+							{
+								RelatorioId = relatorio.Id,
+								DataSecao = string.IsNullOrWhiteSpace(sReq.DataSecao)
+									? sReq.TipoSecao.ToString().ToLower()
+									: sReq.DataSecao,
+								TipoSecao = sReq.TipoSecao,
+								Ordem = sReq.Ordem,
+								Titulo = sReq.Titulo,
+								ConteudoJson = sReq.ConteudoJson,
+								TipoOcorrenciaId = sReq.TipoOcorrenciaId,
+							};
+							await _unitOfWork.Relatorios.AddSecao(nova);
+
+							// [v12] Seções de Fotos precisam de um item raiz pra ancorar
+							// as fotos. Sem isso, secao.itens[0] fica vazio e o operador
+							// não consegue fazer upload.
+							if (sReq.TipoSecao == TipoSecao.Fotos)
+							{
+								// Salva primeiro pra ter o ID da seção
+								_unitOfWork.Save();
+								var itemRaiz = new RelatorioSecaoItem
+								{
+									RelatorioSecaoId = nova.Id,
+									Nome = "Fotos",
+									Descricao = null,
+								};
+								await _unitOfWork.Relatorios.AddItem(itemRaiz);
+							}
+						}
+					}
+				}
+
+				_unitOfWork.Save();
+				return true;
+			}
+			catch (Exception ex)
+			{
+				// Log via console — em produção o middleware já captura.
+				System.Console.Error.WriteLine($"[RelatorioService.UpdateV2] erro: {ex.Message}");
+				return false;
+			}
+		}
 	}
 
 	public interface IRelatorioService
@@ -734,5 +880,9 @@ namespace Services
 		Task<bool> AddMultipleFotosToItem(int itemId, List<AddFotoToItemRequest> fotos);
 		Task<bool> DeleteMultipleFotos(List<int> fotoIds);
 		Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot);
+		// [v2] Bulk update — título + seções num único PUT
+		Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req);
+		// [v12] Garante item raiz numa seção de Fotos e devolve o ID
+		Task<int?> EnsureFotoItemRaiz(int secaoId);
 	}
 }

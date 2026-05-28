@@ -34,7 +34,9 @@ namespace API.Controllers
 		{
 			TokenJWT? token = null;
 			var email = (userDTO.Email ?? "").Trim();
-			var senha = userDTO.Password ?? "";
+			// [v11] Senha trimada igual ao CreateUser/UpdateUser para evitar mismatch
+			// quando o usuário (ou autofill do navegador) injeta whitespace na ponta.
+			var senha = (userDTO.Password ?? "").Trim();
 			var user = await userService.GetUserByEmail(email);
 
 			// Verifica a senha aceitando BCrypt (atual) e AES (legado). Faz upgrade transparente
