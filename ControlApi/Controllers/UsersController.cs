@@ -58,6 +58,13 @@ namespace API.Controllers
 				return Unauthorized(new { message = "Usuário não localizado!" });
 			if (token == null)
 				return Unauthorized(new { message = "Senha inválida!" });
+
+			// Bloqueio de acesso para contas/empresas desativadas. Mensagens claras para o usuário.
+			if (user.Status == 0)
+				return Unauthorized(new { message = "Usuário desativado. Contate o administrador da sua empresa." });
+			if (user.Empresa != null && user.Empresa.Status == false)
+				return Unauthorized(new { message = "Empresa desativada. Entre em contato com o suporte." });
+
 			var empresaId = user.Empresa?.Id ?? 0;
 
 			return Ok(new
@@ -104,13 +111,19 @@ namespace API.Controllers
 				catch { /* trial é best-effort no cadastro */ }
 			}
 
+			// Regra de papéis: existe apenas UM admin (o dono da plataforma), definido manualmente.
+			// O cadastro público (sem IdEmpresa) cria o responsável da empresa como GERENTE — nunca
+			// admin. Quando o admin adiciona usuários a uma empresa existente, o tipo informado é
+			// respeitado (gerente/operador/leitura). Isso evita criar múltiplos "donos".
+			var tipoUsuario = (userdata.IdEmpresa == null) ? TypeUser.gerente : userdata.Type;
+
 			var user = new User()
 			{
 				Name = userdata.Name,
 				Password = userdata.Password,
 				Email = userdata.Email,
 				Status = userdata.Status,
-				Type = userdata.Type,
+				Type = tipoUsuario,
 				Empresa =  hasEmpresa
 			};
 			var isUserCreated = await userService.CreateUser(user);

@@ -71,5 +71,28 @@ namespace ControlApi.Controllers
 				return BadRequest(ex.Message);
 			}
 		}
+
+		/// <summary>
+		/// Exclui um plano. Se houver empresas usando-o, ele é desativado em vez de excluído.
+		/// </summary>
+		[HttpDelete("{id}")]
+		public async Task<IActionResult> Delete(int id)
+		{
+			try
+			{
+				if (id <= 0) return BadRequest("id inválido.");
+				var result = await _planoService.Delete(id);
+				return Ok(new
+				{
+					deleted = result.Excluido,
+					disabled = result.Desativado,
+					message = result.Mensagem
+				});
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
 	}
 }

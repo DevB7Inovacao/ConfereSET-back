@@ -113,6 +113,65 @@ namespace Services
             return plano == null ? null : MapToDTO(plano);
         }
 
+        /// <summary>
+        /// Exclui um plano. Se houver QUALQUER assinatura vinculada a ele, não é possível
+        /// excluir (FK) — nesse caso o plano é apenas DESATIVADO (Ativo=false), saindo da
+        /// listagem pública mas preservando o histórico das assinaturas.
+        /// </summary>
+        public async Task<PlanoDeleteResult> Delete(int id)
+        {
+            var plano = await _unitOfWork.Planos.GetPlanoById(id)
+                ?? throw new Exception("Plano não encontrado.");
+
+            var emUso = await _unitOfWork.Assinaturas.CountByPlanoId(id);
+
+            if (emUso > 0)
+            {
+                // Há empresas usando o plano → desativa em vez de excluir.
+                plano.Ativo = false;
+
+                if (!string.IsNullOrWhiteSpace(plano.MPPreapprovalPlanId))
+                {
+                    try
+                    {
+                        await _mpClient.UpdatePreapprovalPlan(plano.MPPreapprovalPlanId, new MPUpdatePreapprovalPlanRequest
+                        {
+                            Reason = plano.Nome,
+                            AutoRecurring = new MPAutoRecurring
+                            {
+                                Frequency = (int)plano.Recorrencia,
+                                FrequencyType = "months",
+                                TransactionAmount = plano.Valor,
+                                CurrencyId = "BRL"
+                            },
+                            Status = "inactive"
+                        });
+                    }
+                    catch { /* sincronização com o MP é best-effort */ }
+                }
+
+                _unitOfWork.Planos.Update(plano);
+                _unitOfWork.Save();
+
+                return new PlanoDeleteResult
+                {
+                    Excluido = false,
+                    Desativado = true,
+                    Mensagem = $"O plano está em uso por {emUso} assinatura(s); foi desativado em vez de excluído."
+                };
+            }
+
+            _unitOfWork.Planos.Delete(plano);
+            _unitOfWork.Save();
+
+            return new PlanoDeleteResult
+            {
+                Excluido = true,
+                Desativado = false,
+                Mensagem = "Plano excluído com sucesso."
+            };
+        }
+
         private static PlanoDTO MapToDTO(Plano p) => new()
         {
             Id = p.Id,
@@ -128,6 +187,13 @@ namespace Services
         };
     }
 
+    public class PlanoDeleteResult
+    {
+        public bool Excluido { get; set; }
+        public bool Desativado { get; set; }
+        public string Mensagem { get; set; } = string.Empty;
+    }
+
     public interface IPlanoService
     {
         Task<PlanoDTO> Create(CreatePlanoRequest req);
@@ -135,5 +201,6 @@ namespace Services
         Task<List<PlanoDTO>> GetAll(int empresaid);
         Task<List<PlanoDTO>> GetAtivos();
         Task<PlanoDTO?> GetById(int id);
+        Task<PlanoDeleteResult> Delete(int id);
     }
 }

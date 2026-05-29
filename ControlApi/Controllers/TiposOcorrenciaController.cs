@@ -68,6 +68,7 @@ namespace ControlApi.Controllers
             return BadRequest();
         }
 
+    [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTipoOcorrenciaRequest req)
         {

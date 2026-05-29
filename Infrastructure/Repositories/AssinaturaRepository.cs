@@ -34,20 +34,34 @@ namespace Infrastructure.Repositories
 
 		public async Task<List<Assinatura>> GetAllPaged(int page, int pageSize, int empresaId)
 		{
-			return await _dbContext.Set<Assinatura>()
+			// empresaId <= 0 → sem filtro de empresa (visão do dono da plataforma).
+			var query = _dbContext.Set<Assinatura>()
 					.AsNoTracking()
 					.Include(x => x.Empresa)
 					.Include(x => x.Plano)
-					.Where(x => x.EmpresaId == empresaId)
+					.AsQueryable();
+
+			if (empresaId > 0)
+				query = query.Where(x => x.EmpresaId == empresaId);
+
+			return await query
 					.OrderByDescending(x => x.CreatedDate)
 					.Skip((page - 1) * pageSize)
 					.Take(pageSize)
 					.ToListAsync();
 		}
 
-		public async Task<int> CountAll()
+		public async Task<int> CountAll(int empresaId = 0)
 		{
-			return await _dbContext.Set<Assinatura>().CountAsync();
+			var query = _dbContext.Set<Assinatura>().AsQueryable();
+			if (empresaId > 0)
+				query = query.Where(x => x.EmpresaId == empresaId);
+			return await query.CountAsync();
+		}
+
+		public async Task<int> CountByPlanoId(int planoId)
+		{
+			return await _dbContext.Set<Assinatura>().CountAsync(x => x.PlanoId == planoId);
 		}
 		public async Task<Assinatura?> GetByExternalReference(string externaReference)
 		{
@@ -83,7 +97,8 @@ namespace Infrastructure.Repositories
 		Task<Assinatura?> GetAssinaturaAtivaByEmpresaId(int empresaId);
 		Task<Assinatura?> GetByMPSubscriptionId(string mpSubscriptionId);
 		Task<List<Assinatura>> GetAllPaged(int page, int pageSize, int empresaId);
-		Task<int> CountAll();
+		Task<int> CountAll(int empresaId = 0);
+		Task<int> CountByPlanoId(int planoId);
 		Task<Assinatura?> GetByExternalReference(string externaReference);
 		Task<Assinatura?> GetPendingByPlanIdAndNoMPId(string preapprovalPlanId);
 		Task<Assinatura?> GetPendingEmpresaSemMPId(int empresaId);

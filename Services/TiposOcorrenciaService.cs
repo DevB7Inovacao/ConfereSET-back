@@ -112,8 +112,12 @@ namespace Services
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
-            }
+				return new TiposOcorrenciaPagedDTO
+				{
+					Result = null,
+					PageCount = 0
+				};
+			}
         }
 
         public async Task<List<TipoOcorrenciaSimpleDTO>> GetSimple()

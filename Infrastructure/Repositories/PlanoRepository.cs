@@ -29,6 +29,14 @@ namespace Infrastructure.Repositories
                 .OrderBy(x => x.Valor)
                 .ToListAsync();
         }
+
+        // Plano interno do período de teste: oculto (Ativo=false), sem empresa (EmpresaId=null)
+        // e gratuito (Valor=0). Combinação que nenhum plano real usa.
+        public async Task<Plano?> GetPlanoTrial()
+        {
+            return await _dbContext.Set<Plano>()
+                .FirstOrDefaultAsync(x => x.EmpresaId == null && x.Valor == 0 && x.Ativo == false);
+        }
     }
 
     public interface IPlanoRepository : IGenericRepository<Plano>
@@ -36,5 +44,6 @@ namespace Infrastructure.Repositories
         Task<Plano?> GetPlanoById(int id);
         Task<List<Plano>> GetAllAtivos();
         Task<List<Plano>> GetAll(int empresaid);
+        Task<Plano?> GetPlanoTrial();
     }
 }
