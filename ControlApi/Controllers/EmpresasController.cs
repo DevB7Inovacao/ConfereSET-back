@@ -51,12 +51,15 @@ namespace ControlApi.Controllers
 			if (req == null) return BadRequest("Payload inválido.");
 			if (req.UserId <= 0) return BadRequest("userId inválido.");
 
-			if (req.UserType != (int)TypeUser.admin) return Forbid("Apenas admin pode alterar dados da empresa.");
-
-			var user = await _empresasService.GetUserById(req.UserId);
-			if (user == null) return Unauthorized("Usuário não encontrado.");
-
-			if (user.Type != (TypeUser)req.UserType) return Forbid("Tipo de usuário inconsistente.");
+				// Permissão baseada no token (o corpo é falsificável):
+				// - admin (dono da plataforma) altera qualquer empresa;
+				// - gerente altera apenas a própria empresa.
+				var tipo = User.GetUserType();
+				var empresaJwt = User.GetEmpresaId();
+				var isOwner = tipo == TypeUser.admin;
+				var isGerenteDaPropria = tipo == TypeUser.gerente && empresaJwt == empresaId;
+				if (!isOwner && !isGerenteDaPropria)
+					return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para alterar esta empresa.");
 
 			var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
 			if (result) return Ok(true);
