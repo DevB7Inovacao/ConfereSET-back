@@ -49,17 +49,17 @@ namespace ControlApi.Controllers
 		{
 			if (empresaId <= 0) return BadRequest("empresaId inválido.");
 			if (req == null) return BadRequest("Payload inválido.");
-			if (req.UserId <= 0) return BadRequest("userId inválido.");
 
-				// Permissão baseada no token (o corpo é falsificável):
-				// - admin (dono da plataforma) altera qualquer empresa;
-				// - gerente altera apenas a própria empresa.
-				var tipo = User.GetUserType();
-				var empresaJwt = User.GetEmpresaId();
-				var isOwner = tipo == TypeUser.admin;
-				var isGerenteDaPropria = tipo == TypeUser.gerente && empresaJwt == empresaId;
-				if (!isOwner && !isGerenteDaPropria)
-					return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para alterar esta empresa.");
+			// Permissão pelo token: admin altera qualquer empresa; gerente só a própria.
+			var tipo = User.GetUserType();
+			var empresaJwt = User.GetEmpresaId();
+			var isOwner = tipo == TypeUser.admin;
+			var isGerenteDaPropria = tipo == TypeUser.gerente && empresaJwt == empresaId;
+			if (!isOwner && !isGerenteDaPropria)
+				return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para alterar esta empresa.");
+
+			// Só o dono ativa/desativa empresa; gerente nunca altera status.
+			if (!isOwner) req.Empresa.Status = null;
 
 			var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
 			if (result) return Ok(true);
@@ -136,7 +136,8 @@ namespace ControlApi.Controllers
 
 				ContactEmail = empresa.ContactEmail,
 				Phone = empresa.Phone,
-				Address = empresa.Address
+				Address = empresa.Address,
+				PrimaryColor = empresa.PrimaryColor
 			};
 
 			return Ok(dto);

@@ -110,6 +110,7 @@ namespace Services
 			empresa.ContactEmail = empresasParam.ContactEmail ?? empresa.ContactEmail;
 			empresa.Phone = empresasParam.Phone ?? empresa.Phone;
 			empresa.Address = empresasParam.Address ?? empresa.Address;
+			empresa.PrimaryColor = empresasParam.PrimaryColor ?? empresa.PrimaryColor;
 
 			_unitOfWork.Empresas.Update(empresa);
 			var result = _unitOfWork.Save();
