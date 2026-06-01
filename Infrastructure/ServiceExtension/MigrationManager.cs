@@ -28,7 +28,7 @@ namespace Infrastructure.ServiceExtension
 
                     try
                     {
-                        EnsureMultiTenantColumns(appContext, logger);
+                        //EnsureMultiTenantColumns(appContext, logger);
                     }
                     catch (Exception ex)
                     {
@@ -39,7 +39,7 @@ namespace Infrastructure.ServiceExtension
                     // ainda não foi aplicada (ambientes antigos, snapshot dessincronizado).
                     try
                     {
-                        EnsureRelatorioV2Columns(appContext, logger);
+                        //EnsureRelatorioV2Columns(appContext, logger);
                     }
                     catch (Exception ex)
                     {
@@ -49,7 +49,7 @@ namespace Infrastructure.ServiceExtension
                     // [v11] Self-heal de senhas com whitespace nas pontas. Idempotente.
                     try
                     {
-                        TrimUserPasswords(appContext, logger);
+                        //TrimUserPasswords(appContext, logger);
                     }
                     catch (Exception ex)
                     {
