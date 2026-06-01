@@ -174,9 +174,26 @@ namespace Services
 
 		public async Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId)
 		{
+			// empresaId <= 0 → dono da plataforma vê todas as empresas.
 			var items = await _unitOfWork.Assinaturas.GetAllPaged(page, pageSize, empresaId);
-			var total = await _unitOfWork.Assinaturas.CountAll();
+			var total = await _unitOfWork.Assinaturas.CountAll(empresaId);
 			return (items.Select(MapToDTO).ToList(), total);
+		}
+
+		public async Task<bool> Excluir(int id)
+		{
+			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaById(id)
+					?? throw new Exception("Assinatura não encontrada.");
+
+			// Tenta cancelar no Mercado Pago, mas não impede a exclusão local se falhar.
+			if (!string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
+			{
+				try { await _mpClient.CancelPreapproval(assinatura.MPSubscriptionId); } catch { /* best-effort */ }
+			}
+
+			// Pagamentos vinculados saem em cascata (DeleteBehavior.Cascade).
+			_unitOfWork.Assinaturas.Delete(assinatura);
+			return _unitOfWork.Save() > 0;
 		}
 
 		public async Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId)
@@ -372,10 +389,17 @@ namespace Services
 				 (existente.Status == StatusAssinatura.Trial && existente.DataVencimento >= DateTime.UtcNow)))
 				return existente;
 
+			// [fix-500] Antes usávamos PlanoId = 0, mas a FK Assinatura→Plano é obrigatória e
+			// não existe Plano com Id 0 → o INSERT do trial estourava (FK violation) e, pior,
+			// deixava a entidade quebrada rastreada no DbContext, fazendo o Save() seguinte
+			// (criação do usuário) falhar com 500. Agora o trial aponta para um Plano interno
+			// (oculto: Ativo=false, EmpresaId=null) criado sob demanda.
+			var planoTrialId = await GetOrCreateTrialPlanoId();
+
 			var trial = new Assinatura
 			{
 				EmpresaId = empresaId,
-				PlanoId = 0,
+				PlanoId = planoTrialId,
 				Status = StatusAssinatura.Trial,
 				DataInicio = DateTime.UtcNow,
 				DataVencimento = DateTime.UtcNow.AddDays(dias),
@@ -384,6 +408,34 @@ namespace Services
 			await _unitOfWork.Assinaturas.Add(trial);
 			_unitOfWork.Save();
 			return trial;
+		}
+
+		/// <summary>
+		/// Garante a existência de um Plano interno usado apenas pelo período de teste (trial).
+		/// É oculto dos clientes: <c>Ativo=false</c> (não aparece em /api/planos) e
+		/// <c>EmpresaId=null</c> (não aparece em /api/planos/all de nenhuma empresa).
+		/// Resolve a FK obrigatória Assinatura→Plano sem precisar de migração de schema.
+		/// </summary>
+		private async Task<int> GetOrCreateTrialPlanoId()
+		{
+			var existente = await _unitOfWork.Planos.GetPlanoTrial();
+			if (existente != null) return existente.Id;
+
+			var plano = new Plano
+			{
+				Nome = "Trial Gratuito (interno)",
+				Descricao = "Plano interno do período de teste. Não exibido aos clientes.",
+				Valor = 0,
+				Recorrencia = RecorrenciaPlano.Mensal,
+				LimiteGestores = 2,
+				LimiteOperadores = 5,
+				Ativo = false,
+				EmpresaId = null,
+				MPPreapprovalPlanId = null
+			};
+			await _unitOfWork.Planos.Add(plano);
+			_unitOfWork.Save();
+			return plano.Id;
 		}
 
 		/// <summary>
@@ -434,6 +486,7 @@ namespace Services
 		Task<AssinaturaDTO?> GetByEmpresaId(int empresaId);
 		Task<AssinaturaDTO?> GetById(int id);
 		Task<bool> Cancelar(int id);
+		Task<bool> Excluir(int id);
 		Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId);
 		Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId);
 		Task ProcessarWebhookAssinatura(string mpSubscriptionId);

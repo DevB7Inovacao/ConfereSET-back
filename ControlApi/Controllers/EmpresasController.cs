@@ -49,14 +49,17 @@ namespace ControlApi.Controllers
 		{
 			if (empresaId <= 0) return BadRequest("empresaId inválido.");
 			if (req == null) return BadRequest("Payload inválido.");
-			if (req.UserId <= 0) return BadRequest("userId inválido.");
 
-			if (req.UserType != (int)TypeUser.admin) return Forbid("Apenas admin pode alterar dados da empresa.");
+			// Permissão pelo token: admin altera qualquer empresa; gerente só a própria.
+			var tipo = User.GetUserType();
+			var empresaJwt = User.GetEmpresaId();
+			var isOwner = tipo == TypeUser.admin;
+			var isGerenteDaPropria = tipo == TypeUser.gerente && empresaJwt == empresaId;
+			if (!isOwner && !isGerenteDaPropria)
+				return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para alterar esta empresa.");
 
-			var user = await _empresasService.GetUserById(req.UserId);
-			if (user == null) return Unauthorized("Usuário não encontrado.");
-
-			if (user.Type != (TypeUser)req.UserType) return Forbid("Tipo de usuário inconsistente.");
+			// Só o dono ativa/desativa empresa; gerente nunca altera status.
+			if (!isOwner) req.Empresa.Status = null;
 
 			var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
 			if (result) return Ok(true);
@@ -133,7 +136,8 @@ namespace ControlApi.Controllers
 
 				ContactEmail = empresa.ContactEmail,
 				Phone = empresa.Phone,
-				Address = empresa.Address
+				Address = empresa.Address,
+				PrimaryColor = empresa.PrimaryColor
 			};
 
 			return Ok(dto);

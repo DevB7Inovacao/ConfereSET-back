@@ -229,9 +229,37 @@ namespace ControlApi.Controllers
 		[HttpGet("all")]
 		public async Task<IActionResult> GetAllPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
 		{
-			int empresaId = User.GetEmpresaId();
+			// O dono da plataforma (único admin) enxerga as assinaturas de TODAS as empresas.
+			// Demais usuários (gerentes) veem apenas as da própria empresa.
+			int empresaId = User.GetUserType() == Core.Models.TypeUser.admin ? 0 : User.GetEmpresaId();
 			var (items, total) = await _assinaturaService.GetAllPaged(page, pageSize, empresaId);
 			return Ok(new { items, total });
+		}
+
+		/// <summary>
+		/// Exclui definitivamente uma assinatura (e seus pagamentos). Operação restrita ao
+		/// dono da plataforma (admin). Para clientes, o correto é "cancelar".
+		/// </summary>
+		[HttpDelete("{id}")]
+		public async Task<IActionResult> Excluir(int id)
+		{
+			try
+			{
+				if (id <= 0) return BadRequest("id inválido.");
+				if (User.GetUserType() != Core.Models.TypeUser.admin)
+					return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador pode excluir assinaturas.");
+
+				var ok = await _assinaturaService.Excluir(id);
+				return ok ? Ok(true) : BadRequest("Falha ao excluir assinatura.");
+			}
+			catch (UnauthorizedAccessException ex)
+			{
+				return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
 		}
 
 		[HttpGet("empresa/{empresaId}/limites")]
