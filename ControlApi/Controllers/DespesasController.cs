@@ -38,6 +38,7 @@ namespace ControlApi.Controllers
                     Category = req.Category,
                     Description = req.Description,
                     ObraId = req.ObraId,
+                    EmpresaId = User.GetEmpresaId(),
                     Status = 1
                 };
 
@@ -163,7 +164,7 @@ namespace ControlApi.Controllers
         {
             try
             {
-                var result = await _despesasService.GetDespesasSimple(obraId);
+                var result = await _despesasService.GetDespesasSimple(obraId, User.GetEmpresaId());
                 return Ok(result);
             }
             catch (Exception ex)
@@ -178,6 +179,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+                filtros.EmpresaId = User.GetEmpresaId();
                 var relatorio = await _despesasService.GetRelatorioResumo(filtros);
                 return Ok(relatorio);
             }
@@ -193,6 +196,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
+                filtros.EmpresaId = User.GetEmpresaId();
                 var relatorio = await _despesasService.GetRelatorioDetalhado(filtros);
                 return Ok(relatorio);
             }
