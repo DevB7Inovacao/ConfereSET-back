@@ -27,9 +27,9 @@ namespace ControlApi.Controllers
             {
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Titulo)) return BadRequest("Título é obrigatório.");
-                req.EmpresaId = User.GetEmpresaId();
+                var empresaId = User.GetEmpresaId();
 
-                var result = await _service.Create(req);
+                var result = await _service.Create(req, empresaId);
                 return Ok(result.Id);
             }
             catch (Exception ex)
@@ -60,7 +60,8 @@ namespace ControlApi.Controllers
             try
             {
                 if (id <= 0) return BadRequest("id inválido.");
-                var result = await _service.GetById(id);
+                var empresaId = User.GetEmpresaId();
+                var result = await _service.GetById(id, empresaId);
                 if (result == null) return NotFound("Ocorrência não encontrada.");
                 return Ok(result);
             }
@@ -76,7 +77,8 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                var result = await _service.GetByObraId(obraId);
+                var empresaId = User.GetEmpresaId();
+                var result = await _service.GetByObraId(obraId, empresaId);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -93,7 +95,8 @@ namespace ControlApi.Controllers
                 if (id <= 0) return BadRequest("id inválido.");
                 if (req == null) return BadRequest("Payload inválido.");
 
-                var ok = await _service.Update(id, req);
+                var empresaId = User.GetEmpresaId();
+                var ok = await _service.Update(id, req, empresaId);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar ocorrência.");
             }
             catch (Exception ex)
@@ -110,7 +113,8 @@ namespace ControlApi.Controllers
                 if (id <= 0) return BadRequest("id inválido.");
                 if (req == null) return BadRequest("Payload inválido.");
 
-                var ok = await _service.UpdateStatus(id, req.Status);
+                var empresaId = User.GetEmpresaId();
+                var ok = await _service.UpdateStatus(id, req.Status, empresaId);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar status.");
             }
             catch (Exception ex)
@@ -125,7 +129,8 @@ namespace ControlApi.Controllers
             try
             {
                 if (id <= 0) return BadRequest("id inválido.");
-                var ok = await _service.Delete(id);
+                var empresaId = User.GetEmpresaId();
+                var ok = await _service.Delete(id, empresaId);
                 return ok ? Ok("Ocorrência excluída com sucesso.") : BadRequest("Falha ao excluir ocorrência.");
             }
             catch (Exception ex)

@@ -1,4 +1,4 @@
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Enums;
 using Core.Models;
 using Infrastructure.Repositories;
@@ -16,13 +16,13 @@ namespace Services
             _atividadeService = atividadeService;
         }
 
-        public async Task<Ocorrencia> Create(CreateOcorrenciaRequest req)
+        public async Task<Ocorrencia> Create(CreateOcorrenciaRequest req, int empresaId)
         {
             var obra = await _unitOfWork.Obras.GetObraById(req.ObraId);
-            if (obra == null) throw new Exception("Obra não encontrada.");
+            if (obra == null || obra.EmpresaId != empresaId) throw new Exception("Obra não encontrada para a empresa logada.");
 
             var tipoOcorrencia = await _unitOfWork.TiposOcorrencia.GetTipoById(req.TipoOcorrenciaId);
-            if (tipoOcorrencia == null) throw new Exception("Tipo de ocorrência não encontrado.");
+            if (tipoOcorrencia == null || tipoOcorrencia.EmpresaId != empresaId) throw new Exception("Tipo de ocorrência não encontrado para a empresa logada.");
 
             var ocorrencia = new Ocorrencia
             {
@@ -50,10 +50,10 @@ namespace Services
             return ocorrencia;
         }
 
-        public async Task<OcorrenciaDTO?> GetById(int id)
+        public async Task<OcorrenciaDTO?> GetById(int id, int empresaId)
         {
             var ocorrencia = await _unitOfWork.Ocorrencias.GetOcorrenciaById(id);
-            if (ocorrencia == null) return null;
+            if (ocorrencia == null || ocorrencia.Obra?.EmpresaId != empresaId) return null;
             return MapToDTO(ocorrencia);
         }
 
@@ -67,20 +67,23 @@ namespace Services
             };
         }
 
-        public async Task<List<OcorrenciaDTO>> GetByObraId(int obraId)
+        public async Task<List<OcorrenciaDTO>> GetByObraId(int obraId, int empresaId)
         {
+            var obra = await _unitOfWork.Obras.GetObraById(obraId);
+            if (obra == null || obra.EmpresaId != empresaId) return new List<OcorrenciaDTO>();
+
             return await _unitOfWork.Ocorrencias.GetByObraId(obraId);
         }
 
-        public async Task<bool> Update(int id, UpdateOcorrenciaRequest req)
+        public async Task<bool> Update(int id, UpdateOcorrenciaRequest req, int empresaId)
         {
             var ocorrencia = await _unitOfWork.Ocorrencias.GetOcorrenciaById(id);
-            if (ocorrencia == null) throw new Exception("Ocorrência não encontrada.");
+            if (ocorrencia == null || ocorrencia.Obra?.EmpresaId != empresaId) throw new Exception("Ocorrência não encontrada para a empresa logada.");
 
             if (req.TipoOcorrenciaId.HasValue)
             {
                 var tipo = await _unitOfWork.TiposOcorrencia.GetTipoById(req.TipoOcorrenciaId.Value);
-                if (tipo == null) throw new Exception("Tipo de ocorrência não encontrado.");
+                if (tipo == null || tipo.EmpresaId != empresaId) throw new Exception("Tipo de ocorrência não encontrado para a empresa logada.");
                 ocorrencia.TipoOcorrenciaId = req.TipoOcorrenciaId.Value;
             }
 
@@ -103,20 +106,20 @@ namespace Services
             return _unitOfWork.Save() > 0;
         }
 
-        public async Task<bool> UpdateStatus(int id, StatusOcorrencia status)
+        public async Task<bool> UpdateStatus(int id, StatusOcorrencia status, int empresaId)
         {
             var ocorrencia = await _unitOfWork.Ocorrencias.GetOcorrenciaById(id);
-            if (ocorrencia == null) throw new Exception("Ocorrência não encontrada.");
+            if (ocorrencia == null || ocorrencia.Obra?.EmpresaId != empresaId) throw new Exception("Ocorrência não encontrada para a empresa logada.");
 
             ocorrencia.Status = status;
             _unitOfWork.Ocorrencias.Update(ocorrencia);
             return _unitOfWork.Save() > 0;
         }
 
-        public async Task<bool> Delete(int id)
+        public async Task<bool> Delete(int id, int empresaId)
         {
             var ocorrencia = await _unitOfWork.Ocorrencias.GetOcorrenciaById(id);
-            if (ocorrencia == null) throw new Exception("Ocorrência não encontrada.");
+            if (ocorrencia == null || ocorrencia.Obra?.EmpresaId != empresaId) throw new Exception("Ocorrência não encontrada para a empresa logada.");
 
             _unitOfWork.Ocorrencias.Delete(ocorrencia);
             return _unitOfWork.Save() > 0;
@@ -143,12 +146,12 @@ namespace Services
 
     public interface IOcorrenciaService
     {
-        Task<Ocorrencia> Create(CreateOcorrenciaRequest req);
-        Task<OcorrenciaDTO?> GetById(int id);
+        Task<Ocorrencia> Create(CreateOcorrenciaRequest req, int empresaId);
+        Task<OcorrenciaDTO?> GetById(int id, int empresaId);
         Task<OcorrenciaPagedDTO> GetPaged(FiltersOcorrenciaDTO filters);
-        Task<List<OcorrenciaDTO>> GetByObraId(int obraId);
-        Task<bool> Update(int id, UpdateOcorrenciaRequest req);
-        Task<bool> UpdateStatus(int id, StatusOcorrencia status);
-        Task<bool> Delete(int id);
+        Task<List<OcorrenciaDTO>> GetByObraId(int obraId, int empresaId);
+        Task<bool> Update(int id, UpdateOcorrenciaRequest req, int empresaId);
+        Task<bool> UpdateStatus(int id, StatusOcorrencia status, int empresaId);
+        Task<bool> Delete(int id, int empresaId);
     }
 }
