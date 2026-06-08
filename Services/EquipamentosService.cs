@@ -117,9 +117,9 @@ namespace Services
             }
         }
 
-        public async Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple()
+        public async Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple(int empresaId)
         {
-            return await _unitOfWork.Equipamentos.GetEquipamentosSimple();
+            return await _unitOfWork.Equipamentos.GetEquipamentosSimple(empresaId);
         }
     }
 
@@ -131,6 +131,6 @@ namespace Services
         Task<bool> ToggleEquipamentoStatus(int id);
         Task<Equipamentos> GetEquipamentoById(int id);
         Task<EquipamentosPagedDTO?> GetEquipamentosPaged(FiltersEquipamentosDTO filtersDTO);
-        Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple();
+        Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple(int empresaId);
     }
 }

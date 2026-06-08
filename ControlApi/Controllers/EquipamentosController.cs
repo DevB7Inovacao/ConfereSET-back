@@ -34,7 +34,8 @@ namespace ControlApi.Controllers
 				{
 					Nome = req.Nome.Trim(),
 					Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim(),
-					Status = 1
+					Status = 1,
+					EmpresaId = User.GetEmpresaId()
 				};
 
 				var result = await _equipamentosService.CreateEquipamento(item);
@@ -150,7 +151,7 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
-				var result = await _equipamentosService.GetEquipamentosSimple();
+				var result = await _equipamentosService.GetEquipamentosSimple(User.GetEmpresaId());
 				return Ok(result);
 			}
 			catch (Exception ex)

@@ -1,3 +1,4 @@
+using ControlApi;
 using ControlApi.Middleware;
 using Core.Mapping;
 using Infrastructure.Authenticate;
@@ -236,5 +237,66 @@ app.MigrateDatabase();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Bloqueio operacional por assinatura/trial.
+// Mantém login, cadastro, planos, checkout, empresa, suporte e callbacks liberados para que
+// a empresa consiga regularizar o pagamento mesmo após o fim do free trial.
+app.Use(async (context, next) =>
+{
+	var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+
+	if (!path.StartsWith("/api") || context.User?.Identity?.IsAuthenticated != true)
+	{
+		await next();
+		return;
+	}
+
+	var allowedWithoutActiveSubscription = new[]
+	{
+		"/api/users/authenticate",
+		"/api/assinatura",
+		"/api/planos",
+		"/api/empresas",
+		"/api/suportetecnico",
+		"/api/health",
+		"/api/mercadopagowebhook"
+	}.Any(prefix => path.StartsWith(prefix));
+
+	// Admin/master da plataforma continua liberado para gestão global.
+	if (context.User.GetUserType() == Core.Models.TypeUser.admin || allowedWithoutActiveSubscription)
+	{
+		await next();
+		return;
+	}
+
+	try
+	{
+		var empresaId = context.User.GetEmpresaId();
+		var assinaturaService = context.RequestServices.GetRequiredService<IAssinaturaService>();
+		var acesso = await assinaturaService.GetStatusAcesso(empresaId);
+
+		if (acesso.Liberado)
+		{
+			await next();
+			return;
+		}
+
+		context.Response.StatusCode = StatusCodes.Status402PaymentRequired;
+		await context.Response.WriteAsJsonAsync(new
+		{
+			message = acesso.Estado == "expirada"
+				? "Seu free trial de 15 dias terminou. Contrate um plano para continuar usando o sistema."
+				: "Sua empresa não possui assinatura ativa ou trial vigente. Contrate um plano para continuar usando o sistema.",
+			estado = acesso.Estado,
+			dataVencimento = acesso.DataVencimento
+		});
+	}
+	catch
+	{
+		// Em caso de falha inesperada na verificação, não derruba a API inteira.
+		await next();
+	}
+});
+
 app.MapControllers();
 app.Run();

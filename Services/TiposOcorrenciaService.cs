@@ -120,9 +120,9 @@ namespace Services
 			}
         }
 
-        public async Task<List<TipoOcorrenciaSimpleDTO>> GetSimple()
+        public async Task<List<TipoOcorrenciaSimpleDTO>> GetSimple(int empresaId)
         {
-            return await _unitOfWork.TiposOcorrencia.GetSimple();
+            return await _unitOfWork.TiposOcorrencia.GetSimple(empresaId);
         }
     }
 
@@ -134,6 +134,6 @@ namespace Services
         Task<bool> ToggleStatus(int id);
         Task<TiposOcorrencia> GetById(int id);
         Task<TiposOcorrenciaPagedDTO?> GetPaged(FiltersTiposOcorrenciaDTO filtersDTO);
-        Task<List<TipoOcorrenciaSimpleDTO>> GetSimple();
+        Task<List<TipoOcorrenciaSimpleDTO>> GetSimple(int empresaId);
     }
 }

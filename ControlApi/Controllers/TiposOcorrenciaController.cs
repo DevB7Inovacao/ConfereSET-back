@@ -1,5 +1,5 @@
 using ControlApi;
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -39,7 +39,8 @@ namespace ControlApi.Controllers
                     Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim(),
                     Gravidade = req.Gravidade,
                     Requisitos = req.Requisitos,
-                    Status = 1
+                    Status = 1,
+                    EmpresaId = User.GetEmpresaId()
                 };
 
                 var result = await _service.Create(item);
@@ -68,7 +69,6 @@ namespace ControlApi.Controllers
             return BadRequest();
         }
 
-    [AllowAnonymous]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTipoOcorrenciaRequest req)
         {
@@ -167,7 +167,7 @@ namespace ControlApi.Controllers
         {
             try
             {
-                var result = await _service.GetSimple();
+                var result = await _service.GetSimple(User.GetEmpresaId());
                 return Ok(result);
             }
             catch (Exception ex)

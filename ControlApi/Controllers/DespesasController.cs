@@ -1,5 +1,5 @@
 using ControlApi;
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;

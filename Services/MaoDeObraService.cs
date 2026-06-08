@@ -115,9 +115,9 @@ namespace Services
             }
         }
 
-        public async Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple()
+        public async Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple(int empresaId)
         {
-            return await _unitOfWork.MaoDeObra.GetMaoDeObraSimple();
+            return await _unitOfWork.MaoDeObra.GetMaoDeObraSimple(empresaId);
         }
     }
 
@@ -129,6 +129,6 @@ namespace Services
         Task<bool> ToggleMaoDeObraStatus(int id);
         Task<MaoDeObra> GetMaoDeObraById(int id);
         Task<MaoDeObraPagedDTO?> GetMaoDeObraPaged(FiltersMaoDeObraDTO filtersDTO);
-        Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple();
+        Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple(int empresaId);
     }
 }

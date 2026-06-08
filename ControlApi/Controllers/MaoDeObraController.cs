@@ -1,5 +1,5 @@
 using ControlApi;
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -40,7 +40,8 @@ namespace ControlApi.Controllers
                 {
                     Funcao = req.Funcao.Trim(),
                     Descricao = string.IsNullOrWhiteSpace(req.Descricao) ? null : req.Descricao.Trim(),
-                    Status = 1
+                    Status = 1,
+                    EmpresaId = User.GetEmpresaId()
                 };
 
                 var result = await _maoDeObraService.CreateMaoDeObra(item);
@@ -156,7 +157,7 @@ namespace ControlApi.Controllers
         {
             try
             {
-                var result = await _maoDeObraService.GetMaoDeObraSimple();
+                var result = await _maoDeObraService.GetMaoDeObraSimple(User.GetEmpresaId());
                 return Ok(result);
             }
             catch (Exception ex)

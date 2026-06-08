@@ -1,5 +1,5 @@
 using ControlApi;
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Enums;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -27,6 +27,7 @@ namespace ControlApi.Controllers
             {
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Titulo)) return BadRequest("Título é obrigatório.");
+                req.EmpresaId = User.GetEmpresaId();
 
                 var result = await _service.Create(req);
                 return Ok(result.Id);

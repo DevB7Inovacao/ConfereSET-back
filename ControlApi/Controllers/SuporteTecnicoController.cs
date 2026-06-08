@@ -28,6 +28,7 @@ namespace ControlApi.Controllers
         {
             try
             {
+                req.EmpresaId = User.GetEmpresaId();
                 if (req.EmpresaId <= 0) return BadRequest("EmpresaId inválido.");
                 if (string.IsNullOrWhiteSpace(req.Title)) return BadRequest("Título é obrigatório.");
                 if (string.IsNullOrWhiteSpace(req.Description)) return BadRequest("Descrição é obrigatória.");
