@@ -22,6 +22,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                if (req == null) return BadRequest("Payload inválido.");
+                req.EmpresaId = User.GetEmpresaId();
                 var result = await _service.Create(req);
                 return Ok(result);
             }

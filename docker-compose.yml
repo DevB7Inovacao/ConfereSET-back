@@ -4,9 +4,9 @@ services:
     container_name: confereset_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456789
-      POSTGRES_DB: ConfereSET
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456789}
+      POSTGRES_DB: ${POSTGRES_DB:-ConfereSET}
     ports:
       - "5432:5432"
     volumes:
@@ -21,12 +21,19 @@ services:
     depends_on:
       - db
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: host=db;user id=postgres;password=123456789;database=ConfereSET;Pooling=false;Timeout=300;CommandTimeout=300;
-      Jwt__Key: your_secret_key_here_your_secret_key_here
-      Jwt__Issuer: your_issuer
-      Jwt__Audience: your_issuer
+      ConnectionStrings__DefaultConnection: host=db;user id=${POSTGRES_USER:-postgres};password=${POSTGRES_PASSWORD:-123456789};database=${POSTGRES_DB:-ConfereSET};Pooling=false;Timeout=300;CommandTimeout=300;
+      Jwt__Key: ${JWT_KEY:-CHANGE_ME_USE_A_STRONG_32_PLUS_CHAR_SECRET}
+      Jwt__Issuer: ${JWT_ISSUER:-ConfereSET}
+      Jwt__Audience: ${JWT_AUDIENCE:-ConfereSET}
+      MercadoPago__AccessToken: ${MERCADOPAGO_ACCESS_TOKEN:-CHANGE_ME}
+      MercadoPago__BackUrl: ${MERCADOPAGO_BACK_URL:-https://confere-set-front.vercel.app/assinatura/callback}
+      AWS__Region: ${AWS_REGION:-sa-east-1}
+      AWS__AccessKey: ${AWS_ACCESS_KEY:-CHANGE_ME}
+      AWS__SecretKey: ${AWS_SECRET_KEY:-CHANGE_ME}
+      AWS__BucketName: ${AWS_BUCKET_NAME:-CHANGE_ME}
+      AWS__BucketFolder: ${AWS_BUCKET_FOLDER:-relatorios/fotos}
     ports:
       - "8080:8080"
 

@@ -47,9 +47,10 @@ namespace Infrastructure.Repositories
             return await query.GetPagedAsync<Equipamentos>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
-        public async Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple()
+        public async Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple(int empresaId)
         {
             return await _dbContext.Set<Equipamentos>()
+                .Where(x => x.EmpresaId == empresaId && x.Status == 1)
                 .OrderBy(x => x.Nome)
                 .Select(x => new EquipamentoSimpleDTO
                 {
@@ -65,6 +66,6 @@ namespace Infrastructure.Repositories
     {
         Task<Equipamentos> GetEquipamentoById(int id);
         Task<PagedResult<Equipamentos>> GetAllEquipamentosPaged(FiltersEquipamentosDTO filtersDTO);
-        Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple();
+        Task<List<EquipamentoSimpleDTO>> GetEquipamentosSimple(int empresaId);
     }
 }

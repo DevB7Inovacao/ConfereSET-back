@@ -31,6 +31,8 @@ namespace Core.DTO
 		public string? EmpresaNome { get; set; }
 		public string? EmpresaTelefone { get; set; }
 		public string? EmpresaEmail { get; set; }
+		public string? EmpresaLogoBase64 { get; set; }
+		public string? EmpresaLogoContentType { get; set; }
 	}
 
 	public class RelatorioSecaoDTO

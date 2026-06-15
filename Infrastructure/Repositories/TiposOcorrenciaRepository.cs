@@ -50,9 +50,10 @@ namespace Infrastructure.Repositories
             return await query.GetPagedAsync<TiposOcorrencia>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
-        public async Task<List<TipoOcorrenciaSimpleDTO>> GetSimple()
+        public async Task<List<TipoOcorrenciaSimpleDTO>> GetSimple(int empresaId)
         {
             return await _dbContext.Set<TiposOcorrencia>()
+                .Where(x => x.EmpresaId == empresaId && x.Status == 1)
                 .OrderBy(x => x.Nome)
                 .Select(x => new TipoOcorrenciaSimpleDTO
                 {
@@ -68,6 +69,6 @@ namespace Infrastructure.Repositories
     {
         Task<TiposOcorrencia> GetTipoById(int id);
         Task<PagedResult<TiposOcorrencia>> GetAllPaged(FiltersTiposOcorrenciaDTO filtersDTO);
-        Task<List<TipoOcorrenciaSimpleDTO>> GetSimple();
+        Task<List<TipoOcorrenciaSimpleDTO>> GetSimple(int empresaId);
     }
 }

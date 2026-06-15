@@ -49,9 +49,12 @@ namespace Infrastructure.Repositories
             return await query.GetPagedAsync<Despesas>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
-        public async Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId)
+        public async Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId)
         {
             var query = _dbContext.Set<Despesas>().AsQueryable();
+
+            if (empresaId > 0)
+                query = query.Where(x => x.EmpresaId == empresaId);
 
             if (obraId.HasValue && obraId.Value > 0)
                 query = query.Where(x => x.ObraId == obraId.Value);
@@ -73,6 +76,10 @@ namespace Infrastructure.Repositories
         public async Task<List<Despesas>> GetDespesasParaRelatorio(FiltrosRelatorioDTO filtros)
         {
             var query = _dbContext.Set<Despesas>().AsQueryable();
+
+            // Multi-tenant: nunca cruza empresas.
+            if (filtros.EmpresaId.HasValue && filtros.EmpresaId.Value > 0)
+                query = query.Where(x => x.EmpresaId == filtros.EmpresaId.Value);
 
             if (filtros.ObraId.HasValue && filtros.ObraId.Value > 0)
                 query = query.Where(x => x.ObraId == filtros.ObraId.Value);
@@ -100,7 +107,7 @@ namespace Infrastructure.Repositories
     {
         public Task<Despesas> GetDespesaById(int id);
         public Task<PagedResult<Despesas>> GetAllDespesasPaged(FiltersDespesasDTO filtersDTO);
-        public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId);
+        public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId);
         public Task<List<Despesas>> GetDespesasParaRelatorio(FiltrosRelatorioDTO filtros);
     }
 }

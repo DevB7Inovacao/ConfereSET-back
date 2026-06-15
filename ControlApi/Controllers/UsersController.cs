@@ -1,4 +1,4 @@
-﻿using ControlApi;
+using ControlApi;
 using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -25,6 +25,44 @@ namespace API.Controllers
 			this.userService = userService;
 			this._empresaService = empresaService;
 			this._assinaturaService = assinaturaService;
+		}
+
+		private static bool IsPerfilAdministradorEmpresa(TypeUser type) =>
+			type == TypeUser.gerente || type == TypeUser.admin;
+
+		private static bool IsPerfilOperador(TypeUser type) =>
+			type == TypeUser.operador;
+
+		private async Task<IActionResult?> ValidarLimiteUsuariosPlano(
+			int empresaId,
+			TypeUser novoTipo,
+			TypeUser? tipoAtual = null)
+		{
+			var limites = await _assinaturaService.VerificarLimites(empresaId);
+			if (!limites.AssinaturaAtiva)
+				return BadRequest("Sua empresa não possui assinatura ou trial ativo. Adquira um plano para gerenciar usuários.");
+
+			if (IsPerfilAdministradorEmpresa(novoTipo))
+			{
+				var administradoresUsados = limites.GestoresUtilizados;
+				if (tipoAtual.HasValue && IsPerfilAdministradorEmpresa(tipoAtual.Value))
+					administradoresUsados = Math.Max(0, administradoresUsados - 1);
+
+				if (administradoresUsados >= limites.LimiteGestores)
+					return BadRequest($"Limite de administradores atingido para o plano atual ({limites.LimiteGestores}).");
+			}
+
+			if (IsPerfilOperador(novoTipo))
+			{
+				var operadoresUsados = limites.OperadoresUtilizados;
+				if (tipoAtual.HasValue && IsPerfilOperador(tipoAtual.Value))
+					operadoresUsados = Math.Max(0, operadoresUsados - 1);
+
+				if (operadoresUsados >= limites.LimiteOperadores)
+					return BadRequest($"Limite de operadores atingido para o plano atual ({limites.LimiteOperadores}).");
+			}
+
+			return null;
 		}
 
 		[AllowAnonymous]
@@ -83,9 +121,13 @@ namespace API.Controllers
 		[Route("create")]
 		public async Task<IActionResult> Create(CreateUserRequest userdata)
 		{
-			var hasEmpresa = (userdata.IdEmpresa != null) ? await _empresaService.GetEmpresaById((int)userdata.IdEmpresa) : null;
+			var criandoNovaEmpresa = userdata.IdEmpresa == null;
+			var hasEmpresa = !criandoNovaEmpresa ? await _empresaService.GetEmpresaById((int)userdata.IdEmpresa!) : null;
 
-			if (hasEmpresa == null)
+			if (!criandoNovaEmpresa && hasEmpresa == null)
+				return BadRequest("Empresa não encontrada.");
+
+			if (criandoNovaEmpresa)
 			{
 				var empresa = new Empresas()
 				{
@@ -101,21 +143,32 @@ namespace API.Controllers
 				}
 				hasEmpresa = result.Data as Empresas;
 
-				// Inicia trial automático de 7 dias assim que a empresa é criada.
+				// Inicia trial automático de 15 dias assim que a empresa é criada.
 				// Falha aqui não impede o cadastro do usuário; o admin pode iniciar manualmente depois.
 				try
 				{
 					if (hasEmpresa != null && hasEmpresa.Id > 0)
-						await _assinaturaService.IniciarTrial(hasEmpresa.Id, 7);
+						await _assinaturaService.IniciarTrial(hasEmpresa.Id, 15);
 				}
 				catch { /* trial é best-effort no cadastro */ }
 			}
 
-			// Regra de papéis: existe apenas UM admin (o dono da plataforma), definido manualmente.
-			// O cadastro público (sem IdEmpresa) cria o responsável da empresa como GERENTE — nunca
-			// admin. Quando o admin adiciona usuários a uma empresa existente, o tipo informado é
-			// respeitado (gerente/operador/leitura). Isso evita criar múltiplos "donos".
-			var tipoUsuario = (userdata.IdEmpresa == null) ? TypeUser.gerente : userdata.Type;
+			// Cadastro público cria o responsável da empresa como GERENTE (administrador da empresa).
+			// O perfil TypeUser.admin é reservado ao dono/master da plataforma.
+			var tipoUsuario = criandoNovaEmpresa ? TypeUser.gerente : userdata.Type;
+
+			if (!criandoNovaEmpresa)
+			{
+				if (User?.Identity?.IsAuthenticated != true)
+					return Unauthorized(new { message = "Faça login para criar usuários em uma empresa existente." });
+
+				var tipoLogado = User.GetUserType();
+				if (tipoUsuario == TypeUser.admin && tipoLogado != TypeUser.admin)
+					return BadRequest("O perfil Admin é reservado ao master da plataforma. Para a empresa, use Administrador/Gerente.");
+
+				var limiteInvalido = await ValidarLimiteUsuariosPlano(hasEmpresa!.Id, tipoUsuario);
+				if (limiteInvalido != null) return limiteInvalido;
+			}
 
 			var user = new User()
 			{
@@ -150,7 +203,7 @@ namespace API.Controllers
 		[HttpGet("getUsers")]
 		public async Task<IActionResult> GetUsers([FromQuery] FiltersDTO filtersDTO)
 		{
-		
+			filtersDTO.EmpresaId = User.GetEmpresaId();
 			var result = await userService.GetUsers(filtersDTO);
 
 			return Ok(result);
@@ -187,6 +240,14 @@ namespace API.Controllers
 				var __existing = await userService.GetUserById(userId);
 				var empresaIdJwt = User.GetEmpresaId();
 				if (__existing == null || __existing.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
+
+				var tipoLogado = User.GetUserType();
+				if (user.Type == TypeUser.admin && tipoLogado != TypeUser.admin)
+					return BadRequest("O perfil Admin é reservado ao master da plataforma. Para a empresa, use Administrador/Gerente.");
+
+				var limiteInvalido = await ValidarLimiteUsuariosPlano(empresaIdJwt, user.Type, __existing.Type);
+				if (limiteInvalido != null) return limiteInvalido;
+
 				var isUserCreated = await userService.UpdateUser(user, userId);
 				if (isUserCreated)
 					return Ok(isUserCreated);

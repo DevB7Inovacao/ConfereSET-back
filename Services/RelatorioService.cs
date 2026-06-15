@@ -745,7 +745,9 @@ namespace Services
 
 			EmpresaNome = r.Obra?.Empresa?.Name,
 			EmpresaTelefone = r.Obra?.Empresa?.Phone,
-			EmpresaEmail = r.Obra?.Empresa?.ContactEmail
+			EmpresaEmail = r.Obra?.Empresa?.ContactEmail,
+			EmpresaLogoBase64 = r.Obra?.Empresa?.LogoBase64,
+			EmpresaLogoContentType = r.Obra?.Empresa?.LogoContentType
 		};
 		public async Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot)
 		{

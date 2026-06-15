@@ -1,5 +1,5 @@
 using ControlApi;
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -31,7 +31,8 @@ namespace ControlApi.Controllers
                 var grupo = new GrupoDeObras
                 {
                     Name = req.Name,
-                    Status = 1
+                    Status = 1,
+                    EmpresaId = User.GetEmpresaId()
                 };
 
                 var result = await _service.CreateGrupo(grupo);

@@ -1,4 +1,4 @@
-﻿using Core.DTO;
+using Core.DTO;
 using Core.Enums;
 using Core.Models;
 using Infrastructure.MercadoPago;
@@ -13,8 +13,10 @@ namespace Services
 		private readonly IMercadoPagoClient _mpClient;
 		private readonly string _backUrl;
 
+		private const int TipoAdmin = (int)TypeUser.admin;
 		private const int TipoGestor = (int)TypeUser.gerente;
 		private const int TipoOperador = (int)TypeUser.operador;
+		private const int TrialDiasPadrao = 15;
 
 		public AssinaturaService(IUnitOfWork unitOfWork, IMercadoPagoClient mpClient, IConfiguration configuration)
 		{
@@ -146,7 +148,7 @@ namespace Services
 
 		public async Task<AssinaturaDTO?> GetByEmpresaId(int empresaId)
 		{
-			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaAtivaByEmpresaId(empresaId);
+			var assinatura = await GetAssinaturaAtualParaAcesso(empresaId);
 			return assinatura == null ? null : MapToDTO(assinatura);
 		}
 
@@ -198,12 +200,16 @@ namespace Services
 
 		public async Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId)
 		{
-			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaAtivaByEmpresaId(empresaId);
+			var assinatura = await GetAssinaturaAtualParaAcesso(empresaId);
 
-			if (assinatura?.Plano == null)
+			if (assinatura?.Plano == null || !AssinaturaLiberaAcesso(assinatura))
 				return new LimitesAssinaturaDTO { AssinaturaAtiva = false };
 
-			var totalGestores = await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoGestor);
+			// Para o plano, "gestores" significa administradores da empresa.
+			// Contamos gerente e também registros legados criados como admin para não permitir burlar o limite.
+			var totalGestores =
+				await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoGestor) +
+				await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoAdmin);
 			var totalOperadores = await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoOperador);
 
 			return new LimitesAssinaturaDTO
@@ -375,18 +381,17 @@ namespace Services
 			return _unitOfWork.Save() > 0;
 		}
 
-		public async Task<Assinatura> IniciarTrial(int empresaId, int dias = 7)
+		public async Task<Assinatura> IniciarTrial(int empresaId, int dias = TrialDiasPadrao)
 		{
 			var empresa = await _unitOfWork.Empresas.GetEmpresaById(empresaId)
 				?? throw new Exception("Empresa não encontrada.");
 
 			// Idempotente: se a empresa já tem qualquer assinatura ativa ou trial vigente,
 			// não cria outra (evita duplicidade após retry de cadastro).
-			var todas = await _unitOfWork.Assinaturas.GetAllPaged(1, 1, empresaId);
-			var existente = todas.FirstOrDefault();
-			if (existente != null &&
-				(existente.Status == StatusAssinatura.Ativa ||
-				 (existente.Status == StatusAssinatura.Trial && existente.DataVencimento >= DateTime.UtcNow)))
+			var todas = await _unitOfWork.Assinaturas.GetAllPaged(1, 50, empresaId);
+			var existente = todas.FirstOrDefault(a => a.Status == StatusAssinatura.Ativa)
+				?? todas.FirstOrDefault(a => a.Status == StatusAssinatura.Trial && a.DataVencimento >= DateTime.UtcNow);
+			if (existente != null)
 				return existente;
 
 			// [fix-500] Antes usávamos PlanoId = 0, mas a FK Assinatura→Plano é obrigatória e
@@ -402,7 +407,7 @@ namespace Services
 				PlanoId = planoTrialId,
 				Status = StatusAssinatura.Trial,
 				DataInicio = DateTime.UtcNow,
-				DataVencimento = DateTime.UtcNow.AddDays(dias),
+				DataVencimento = DateTime.UtcNow.AddDays(dias <= 0 ? TrialDiasPadrao : dias),
 				UltimoStatusMP = "trial"
 			};
 			await _unitOfWork.Assinaturas.Add(trial);
@@ -444,19 +449,9 @@ namespace Services
 		/// </summary>
 		public async Task<StatusAcessoAssinatura> GetStatusAcesso(int empresaId)
 		{
-			// Busca a mais recente da empresa (qualquer status), não só "ativa"
-			var todas = await _unitOfWork.Assinaturas.GetAllPaged(1, 1, empresaId);
-			var a = todas.FirstOrDefault();
+			var a = await GetAssinaturaAtualParaAcesso(empresaId);
 			if (a == null)
 				return new StatusAcessoAssinatura { Liberado = false, Estado = "sem_assinatura" };
-
-			// Expira trial vencido automaticamente
-			if (a.Status == StatusAssinatura.Trial && a.DataVencimento < DateTime.UtcNow)
-			{
-				a.Status = StatusAssinatura.Expirada;
-				_unitOfWork.Assinaturas.Update(a);
-				_unitOfWork.Save();
-			}
 
 			switch (a.Status)
 			{
@@ -464,18 +459,48 @@ namespace Services
 					return new StatusAcessoAssinatura { Liberado = true, Estado = "ativa", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento };
 				case StatusAssinatura.Trial:
 					var diasRestantes = Math.Max(0, (int)Math.Ceiling((a.DataVencimento - DateTime.UtcNow).TotalDays));
-					return new StatusAcessoAssinatura { Liberado = true, Estado = "trial", AssinaturaId = a.Id, DataVencimento = a.DataVencimento, DiasRestantes = diasRestantes };
+					return new StatusAcessoAssinatura { Liberado = true, Estado = "trial", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento, DiasRestantes = diasRestantes };
 				case StatusAssinatura.Pendente:
-					return new StatusAcessoAssinatura { Liberado = false, Estado = "pendente", AssinaturaId = a.Id };
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "pendente", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento };
 				case StatusAssinatura.Suspensa:
-					return new StatusAcessoAssinatura { Liberado = false, Estado = "suspensa", AssinaturaId = a.Id };
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "suspensa", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento };
 				case StatusAssinatura.Cancelada:
-					return new StatusAcessoAssinatura { Liberado = false, Estado = "cancelada", AssinaturaId = a.Id };
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "cancelada", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento };
 				case StatusAssinatura.Expirada:
-					return new StatusAcessoAssinatura { Liberado = false, Estado = "expirada", AssinaturaId = a.Id };
+					return new StatusAcessoAssinatura { Liberado = false, Estado = "expirada", AssinaturaId = a.Id, PlanoId = a.PlanoId, DataVencimento = a.DataVencimento, DiasRestantes = 0 };
 				default:
 					return new StatusAcessoAssinatura { Liberado = false, Estado = "desconhecido" };
 			}
+		}
+
+		private static bool AssinaturaLiberaAcesso(Assinatura assinatura)
+		{
+			return assinatura.Status == StatusAssinatura.Ativa ||
+				(assinatura.Status == StatusAssinatura.Trial && assinatura.DataVencimento >= DateTime.UtcNow);
+		}
+
+		private async Task<Assinatura?> GetAssinaturaAtualParaAcesso(int empresaId)
+		{
+			var assinaturas = await _unitOfWork.Assinaturas.GetAllPaged(1, 50, empresaId);
+			if (!assinaturas.Any()) return null;
+
+			var alterou = false;
+			foreach (var trialVencido in assinaturas.Where(a => a.Status == StatusAssinatura.Trial && a.DataVencimento < DateTime.UtcNow))
+			{
+				var tracked = await _unitOfWork.Assinaturas.GetAssinaturaById(trialVencido.Id);
+				if (tracked == null || tracked.Status != StatusAssinatura.Trial) continue;
+
+				tracked.Status = StatusAssinatura.Expirada;
+				tracked.UltimoStatusMP = "trial_expired";
+				_unitOfWork.Assinaturas.Update(tracked);
+				trialVencido.Status = StatusAssinatura.Expirada;
+				alterou = true;
+			}
+			if (alterou) _unitOfWork.Save();
+
+			return assinaturas.FirstOrDefault(a => a.Status == StatusAssinatura.Ativa)
+				?? assinaturas.FirstOrDefault(a => a.Status == StatusAssinatura.Trial && a.DataVencimento >= DateTime.UtcNow)
+				?? assinaturas.FirstOrDefault();
 		}
 	}
 
@@ -493,7 +518,7 @@ namespace Services
 		Task ProcessarWebhookPagamento(string mpPaymentId);
 		Task<CallBackAssinaturaResponse> CallBack(string preapproval_id);
 		Task<bool> AtualizarAssinatura(int assinaturaId, decimal? novoValor = null, string? cardToken = null);
-		Task<Assinatura> IniciarTrial(int empresaId, int dias = 7);
+		Task<Assinatura> IniciarTrial(int empresaId, int dias = 15);
 		Task<StatusAcessoAssinatura> GetStatusAcesso(int empresaId);
 	}
 }

@@ -110,9 +110,9 @@ namespace Services
 			}
 		}
 
-		public async Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId)
+		public async Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId)
 		{
-			var list = await _unitOfWork.Despesas.GetDespesasSimple(obraId);
+			var list = await _unitOfWork.Despesas.GetDespesasSimple(obraId, empresaId);
 			return list;
 		}
 
@@ -222,7 +222,7 @@ namespace Services
 		public Task<bool> ToggleDespesaStatus(int despesaId);
 		public Task<Despesas> GetDespesaById(int id);
 		public Task<DespesasPagedDTO?> GetDespesasPaged(FiltersDespesasDTO filtersDTO);
-		public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId);
+		public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId);
 		public Task<RelatorioResumoDTO> GetRelatorioResumo(FiltrosRelatorioDTO filtros);
 		public Task<RelatorioDetalhadoDTO> GetRelatorioDetalhado(FiltrosRelatorioDTO filtros);
 	}

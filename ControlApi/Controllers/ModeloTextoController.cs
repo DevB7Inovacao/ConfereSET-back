@@ -1,5 +1,5 @@
 using ControlApi;
-﻿using Core.DTO;
+using Core.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services;
@@ -25,6 +25,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                if (req == null) return BadRequest("Payload inválido.");
+                req.EmpresaId = User.GetEmpresaId();
                 var created = await _service.Create(req);
                 return Ok(created.Id);
             }

@@ -44,7 +44,7 @@ namespace ControlApi.Controllers
                     ClientEmail = obras.ClientEmail,
                     ClientPhone = obras.ClientPhone,
                     ClientDocument = obras.ClientDocument,
-                    EmpresaId = obras.EmpresaId,
+                    EmpresaId = User.GetEmpresaId(),
                     StartDate = obras.StartDate,
                     ProgressPercentage = 0,
                     NameCompany=obras.NameCompany
@@ -67,6 +67,7 @@ namespace ControlApi.Controllers
         [Route("getObrasPaged")]
         public async Task<IActionResult> GetObrasPaged([FromQuery] FiltersObrasDTO filtersDTO)
         {
+            filtersDTO.EmpresaId = User.GetEmpresaId();
             var result = await _obrasService.GetObrasPaged(filtersDTO);
             if (result != null)
                 return Ok(result);

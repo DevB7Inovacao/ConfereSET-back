@@ -47,9 +47,10 @@ namespace Infrastructure.Repositories
             return await query.GetPagedAsync<MaoDeObra>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
-        public async Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple()
+        public async Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple(int empresaId)
         {
             return await _dbContext.Set<MaoDeObra>()
+                .Where(x => x.EmpresaId == empresaId && x.Status == 1)
                 .OrderBy(x => x.Funcao)
                 .Select(x => new MaoDeObraSimpleDTO
                 {
@@ -65,6 +66,6 @@ namespace Infrastructure.Repositories
     {
         Task<MaoDeObra> GetMaoDeObraById(int id);
         Task<PagedResult<MaoDeObra>> GetAllMaoDeObraPaged(FiltersMaoDeObraDTO filtersDTO);
-        Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple();
+        Task<List<MaoDeObraSimpleDTO>> GetMaoDeObraSimple(int empresaId);
     }
 }

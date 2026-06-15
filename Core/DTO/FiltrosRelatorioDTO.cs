@@ -4,6 +4,7 @@ namespace Core.DTO
 {
     public class FiltrosRelatorioDTO
     {
+        public int? EmpresaId { get; set; }
         public int? ObraId { get; set; }
         public DateTime? DataInicio { get; set; }
         public DateTime? DataFim { get; set; }
