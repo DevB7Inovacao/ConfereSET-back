@@ -27,87 +27,202 @@ namespace Services
 
 		public async Task<CheckoutAssinaturaResponse> IniciarCheckout(CreateAssinaturaRequest req)
 		{
+			_ = await _unitOfWork.Empresas.GetEmpresaById(req.EmpresaId)
+					?? throw new Exception("Empresa não encontrada.");
+
+			var plano = await _unitOfWork.Planos.GetPlanoById(req.PlanoId)
+					?? throw new Exception("Plano não encontrado.");
+
+			if (!plano.Ativo)
+				throw new Exception("Este plano não está mais disponível. Escolha outro plano.");
+			if (plano.Valor <= 0)
+				throw new Exception("Plano gratuito/vitalício não é contratado pelo checkout.");
+
+			var email = (req.PayerEmail ?? "").Trim().ToLowerInvariant();
+			if (!System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+				throw new Exception("Informe um e-mail válido para o pagamento.");
+
+			// Já está neste plano? (troca para OUTRO plano é permitida: a antiga é cancelada quando
+			// a nova for autorizada — ver SincronizarAssinatura.)
+			var ativa = await _unitOfWork.Assinaturas.GetAssinaturaAtivaByEmpresaId(req.EmpresaId);
+			if (ativa != null && ativa.PlanoId == plano.Id && ativa.Plano?.Valor > 0)
+				throw new Exception("Sua empresa já está neste plano.");
+
+			// Checkouts anteriores que ficaram pendentes (abandonados): cancela aqui e no MP para
+			// não haver duas cobranças se a pessoa pagar o link antigo depois.
+			foreach (var pendente in await _unitOfWork.Assinaturas.GetByEmpresaAndStatus(req.EmpresaId, StatusAssinatura.Pendente))
+			{
+				if (!string.IsNullOrWhiteSpace(pendente.MPSubscriptionId))
+				{
+					try { await _mpClient.CancelPreapproval(pendente.MPSubscriptionId); } catch { /* best-effort */ }
+				}
+				pendente.Status = StatusAssinatura.Cancelada;
+				pendente.UltimoStatusMP = "abandoned";
+				_unitOfWork.Assinaturas.Update(pendente);
+			}
+
+			var comCartao = !string.IsNullOrWhiteSpace(req.Token);
+			var externalRef = Guid.NewGuid().ToString("N");
+
+			// Assinatura SEM plano associado no MP (o fluxo antigo usava preapproval_plan_id sem
+			// cartão, combinação que o MP recusa). Com cartão → "authorized" (cobra já);
+			// sem cartão → "pending" + init_point para pagar no site do MP.
+			MPPreapprovalResponse mp;
 			try
 			{
-				var empresa = await _unitOfWork.Empresas.GetEmpresaById(req.EmpresaId)
-						?? throw new Exception("Empresa não encontrada.");
-
-				var plano = await _unitOfWork.Planos.GetPlanoById(req.PlanoId)
-						?? throw new Exception("Plano não encontrado.");
-
-				if (plano.Valor == 0)
-					throw new Exception("Plano vitalício não pode ser contratado via checkout.");
-
-				if (string.IsNullOrWhiteSpace(plano.MPPreapprovalPlanId))
-					throw new Exception("Plano não sincronizado com o Mercado Pago.");
-
-				if (string.IsNullOrWhiteSpace(req.PayerEmail))
-					throw new Exception("E-mail do pagador é obrigatório.");
-
-				// Bloqueia múltiplas assinaturas ativas concorrentes.
-				var existente = await _unitOfWork.Assinaturas.GetAssinaturaAtivaByEmpresaId(req.EmpresaId);
-				if (existente != null)
-					throw new Exception("Empresa já possui uma assinatura ativa.");
-
-				// Cancela rascunhos pendentes anteriores da mesma empresa sem MPSubscriptionId
-				// (poderia ter sido um checkout que o usuário abandonou).
-				var pendenteAntiga = await _unitOfWork.Assinaturas.GetPendingEmpresaSemMPId(req.EmpresaId);
-				if (pendenteAntiga != null)
+				mp = await _mpClient.CreatePreapproval(new MPCreatePreapprovalRequest
 				{
-					pendenteAntiga.Status = StatusAssinatura.Cancelada;
-					pendenteAntiga.UltimoStatusMP = "abandoned";
-					_unitOfWork.Assinaturas.Update(pendenteAntiga);
-				}
-
-				// External reference único — chave para casar o webhook com a assinatura correta.
-				var externalRef = Guid.NewGuid().ToString("N");
-
-				// Cria de fato um PREAPPROVAL no Mercado Pago, vinculado ao plano e à nossa empresa
-				// via external_reference. O init_point devolvido aqui é o link específico desta
-				// assinatura — diferente do init_point genérico do plano.
-				var mpPreapproval = await _mpClient.CreatePreapproval(new MPCreatePreapprovalRequest
-				{
-					PreapprovalPlanId = plano.MPPreapprovalPlanId!,
-					Reason = plano.Nome,
-					PayerEmail = req.PayerEmail,
+					Reason = $"Confere SET – {plano.Nome}",
+					PayerEmail = email,
+					CardTokenId = comCartao ? req.Token!.Trim() : null,
 					ExternalReference = externalRef,
 					BackUrl = _backUrl,
-					Status = "pending",
+					Status = comCartao ? "authorized" : "pending",
 					AutoRecurring = new MPAutoRecurring
 					{
 						Frequency = (int)plano.Recorrencia,
 						FrequencyType = "months",
-						TransactionAmount = plano.Valor,
+						TransactionAmount = decimal.Round(plano.Valor, 2),
 						CurrencyId = "BRL"
 					}
 				});
-
-				var assinatura = new Assinatura
-				{
-					EmpresaId = req.EmpresaId,
-					PlanoId = req.PlanoId,
-					// Já guardamos o MP id desde a criação — não dependemos de match por plano.
-					MPSubscriptionId = mpPreapproval.Id,
-					Status = StatusAssinatura.Pendente,
-					DataInicio = DateTime.UtcNow,
-					DataVencimento = DateTime.UtcNow.AddMonths((int)plano.Recorrencia),
-					ExternalReference = externalRef,
-					MPPayerEmail = req.PayerEmail,
-					UltimoStatusMP = mpPreapproval.Status
-				};
-
-				await _unitOfWork.Assinaturas.Add(assinatura);
-				_unitOfWork.Save();
-
-				return new CheckoutAssinaturaResponse
-				{
-					InitPoint = mpPreapproval.InitPoint,
-					MPSubscriptionId = mpPreapproval.Id
-				};
 			}
-			catch (Exception)
+			catch (MercadoPagoException ex)
 			{
-				throw;
+				_unitOfWork.Save(); // mantém o cancelamento dos pendentes antigos
+				throw new Exception(ex.MensagemUsuario);
+			}
+
+			var assinatura = new Assinatura
+			{
+				EmpresaId = req.EmpresaId,
+				PlanoId = plano.Id,
+				MPSubscriptionId = mp.Id,
+				Status = StatusAssinatura.Pendente,
+				DataInicio = DateTime.UtcNow,
+				DataVencimento = mp.NextPaymentDate?.ToUniversalTime() ?? DateTime.UtcNow.AddMonths((int)plano.Recorrencia),
+				ExternalReference = externalRef,
+				MPPayerEmail = email,
+				UltimoStatusMP = mp.Status
+			};
+			await _unitOfWork.Assinaturas.Add(assinatura);
+			_unitOfWork.Save();
+
+			// Cartão aprovado na hora: ativa, libera a empresa e encerra a assinatura anterior.
+			if (mp.Status == "authorized")
+				await AplicarStatus(assinatura, "authorized", mp.NextPaymentDate);
+
+			return new CheckoutAssinaturaResponse
+			{
+				AssinaturaId = assinatura.Id,
+				InitPoint = comCartao ? string.Empty : mp.InitPoint,
+				MPSubscriptionId = mp.Id,
+				Status = mp.Status,
+				Ativa = assinatura.Status == StatusAssinatura.Ativa
+			};
+		}
+
+		/// <summary>
+		/// Aplica o status do Mercado Pago na assinatura local: Ativa/Suspensa/Cancelada/Pendente,
+		/// vencimento pelo próximo débito, status da empresa e — quando ativa — cancelamento das
+		/// outras assinaturas pagas da empresa (troca de plano).
+		/// </summary>
+		private async Task AplicarStatus(Assinatura assinatura, string? statusMp, DateTime? proximoPagamento)
+		{
+			var anterior = assinatura.Status;
+			assinatura.UltimoStatusMP = statusMp;
+			assinatura.Status = statusMp switch
+			{
+				"authorized" => StatusAssinatura.Ativa,
+				"paused" => StatusAssinatura.Suspensa,
+				"cancelled" => StatusAssinatura.Cancelada,
+				"pending" => assinatura.Status == StatusAssinatura.Ativa ? StatusAssinatura.Ativa : StatusAssinatura.Pendente,
+				_ => assinatura.Status
+			};
+
+			if (assinatura.Status == StatusAssinatura.Ativa)
+			{
+				if (proximoPagamento.HasValue && proximoPagamento.Value > DateTime.UtcNow)
+					assinatura.DataVencimento = proximoPagamento.Value.ToUniversalTime();
+				else if (anterior != StatusAssinatura.Ativa && assinatura.Plano != null)
+					assinatura.DataVencimento = DateTime.UtcNow.AddMonths((int)assinatura.Plano.Recorrencia);
+			}
+
+			_unitOfWork.Assinaturas.Update(assinatura);
+			_unitOfWork.Save();
+
+			if (assinatura.Status == StatusAssinatura.Ativa)
+			{
+				// Troca de plano: a assinatura paga anterior é encerrada (no MP também).
+				foreach (var outra in await _unitOfWork.Assinaturas.GetByEmpresaAndStatus(assinatura.EmpresaId, StatusAssinatura.Ativa))
+				{
+					if (outra.Id == assinatura.Id || outra.Plano?.Valor == 0) continue;
+					if (!string.IsNullOrWhiteSpace(outra.MPSubscriptionId))
+					{
+						try { await _mpClient.CancelPreapproval(outra.MPSubscriptionId); } catch { /* best-effort */ }
+					}
+					outra.Status = StatusAssinatura.Cancelada;
+					outra.UltimoStatusMP = "replaced";
+					_unitOfWork.Assinaturas.Update(outra);
+				}
+				// O trial deixa de valer quando o plano pago começa.
+				foreach (var trial in await _unitOfWork.Assinaturas.GetByEmpresaAndStatus(assinatura.EmpresaId, StatusAssinatura.Trial))
+				{
+					trial.Status = StatusAssinatura.Expirada;
+					trial.UltimoStatusMP = "trial_replaced";
+					_unitOfWork.Assinaturas.Update(trial);
+				}
+				_unitOfWork.Save();
+			}
+
+			// Empresa acompanha a assinatura (não desativamos por "Cancelada": pode estar trocando de plano).
+			if (assinatura.Status == StatusAssinatura.Ativa || assinatura.Status == StatusAssinatura.Suspensa)
+			{
+				var empresa = await _unitOfWork.Empresas.GetEmpresaById(assinatura.EmpresaId);
+				var novoStatus = assinatura.Status == StatusAssinatura.Ativa;
+				if (empresa != null && empresa.Status != novoStatus)
+				{
+					empresa.Status = novoStatus;
+					_unitOfWork.Empresas.Update(empresa);
+					_unitOfWork.Save();
+				}
+			}
+		}
+
+		/// <summary>
+		/// Busca o status real da assinatura no Mercado Pago e aplica localmente. Usado pelo webhook,
+		/// pela página de retorno do pagamento e pelo botão "Verificar pagamento". Seguro mesmo sem
+		/// autenticação: só aplica o que o próprio Mercado Pago informa para aquele id.
+		/// </summary>
+		public async Task<string?> SincronizarAssinatura(string mpSubscriptionId)
+		{
+			if (string.IsNullOrWhiteSpace(mpSubscriptionId)) return null;
+			var mpData = await _mpClient.GetPreapproval(mpSubscriptionId.Trim());
+
+			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(mpData.Id)
+				?? (!string.IsNullOrWhiteSpace(mpData.ExternalReference)
+					? await _unitOfWork.Assinaturas.GetByExternalReference(mpData.ExternalReference)
+					: null);
+			if (assinatura == null) return null;
+
+			if (string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId)) assinatura.MPSubscriptionId = mpData.Id;
+			await AplicarStatus(assinatura, mpData.Status, mpData.NextPaymentDate);
+			return mpData.Status;
+		}
+
+		public async Task<string?> SincronizarPorId(int assinaturaId)
+		{
+			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaById(assinaturaId)
+					?? throw new Exception("Assinatura não encontrada.");
+			if (string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
+				return assinatura.UltimoStatusMP;
+			try
+			{
+				return await SincronizarAssinatura(assinatura.MPSubscriptionId);
+			}
+			catch (MercadoPagoException ex)
+			{
+				throw new Exception(ex.MensagemUsuario);
 			}
 		}
 
@@ -167,7 +282,20 @@ namespace Services
 				throw new Exception("Assinatura vitalícia não pode ser cancelada.");
 
 			if (!string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
-				await _mpClient.CancelPreapproval(assinatura.MPSubscriptionId);
+			{
+				try
+				{
+					await _mpClient.CancelPreapproval(assinatura.MPSubscriptionId);
+				}
+				catch (MercadoPagoException ex) when (ex.StatusCode == 400 || ex.StatusCode == 404)
+				{
+					// Já cancelada/inexistente no MP: segue com o cancelamento local.
+				}
+				catch (MercadoPagoException ex)
+				{
+					throw new Exception(ex.MensagemUsuario);
+				}
+			}
 
 			assinatura.Status = StatusAssinatura.Cancelada;
 			_unitOfWork.Assinaturas.Update(assinatura);
@@ -259,87 +387,65 @@ namespace Services
 
 		public async Task ProcessarWebhookAssinatura(string mpSubscriptionId)
 		{
-			var mpData = await _mpClient.GetPreapproval(mpSubscriptionId);
+			await SincronizarAssinatura(mpSubscriptionId);
+		}
 
-			// Estratégia de match (em ordem de robustez):
-			// 1) por MPSubscriptionId — funciona quando o IniciarCheckout já criou a assinatura
-			//    com o ID retornado pelo MP (caminho moderno).
-			// 2) por external_reference — caso o registro local tenha ficado sem MPSubscriptionId
-			//    por alguma razão (fluxo legado / corrida na criação).
-			//
-			// O fallback antigo "primeira pendente do plano" (GetPendingByPlanIdAndNoMPId) foi
-			// removido porque era frágil com múltiplos assinantes simultâneos.
+		/// <summary>
+		/// Cobrança recorrente (subscription_authorized_payment): registra o pagamento uma vez só e,
+		/// quando aprovado, renova o vencimento a partir do status atual da assinatura no MP.
+		/// </summary>
+		public async Task ProcessarWebhookCobrancaAssinatura(string authorizedPaymentId)
+		{
+			var ap = await _mpClient.GetAuthorizedPayment(authorizedPaymentId);
+			if (string.IsNullOrWhiteSpace(ap.PreapprovalId)) return;
 
-			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(mpSubscriptionId);
-
-			if (assinatura == null && !string.IsNullOrWhiteSpace(mpData.ExternalReference))
-			{
-				assinatura = await _unitOfWork.Assinaturas.GetByExternalReference(mpData.ExternalReference);
-			}
-
+			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(ap.PreapprovalId);
 			if (assinatura == null) return;
 
-			assinatura.UltimoStatusMP = mpData.Status;
-			assinatura.Status = mpData.Status switch
+			var chave = ap.Payment?.Id?.ToString() ?? $"ap-{ap.Id}";
+			var status = ap.Payment?.Status ?? ap.Status;
+			if (!await _unitOfWork.PagamentosAssinatura.ExistsByMPPaymentId(chave))
 			{
-				"authorized" => StatusAssinatura.Ativa,
-				"paused" => StatusAssinatura.Suspensa,
-				"cancelled" => StatusAssinatura.Cancelada,
-				_ => assinatura.Status
-			};
-
-			if (assinatura.Status == StatusAssinatura.Ativa && assinatura.Plano != null)
-				assinatura.DataVencimento = DateTime.UtcNow.AddMonths((int)assinatura.Plano.Recorrencia);
-
-			// Garante que o MP id esteja salvo (idempotente).
-			if (string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
-				assinatura.MPSubscriptionId = mpSubscriptionId;
-
-			_unitOfWork.Assinaturas.Update(assinatura);
-			_unitOfWork.Save();
-
-			// Sincroniza status da empresa com a assinatura: ativar quando autorizada, suspender
-			// quando suspensa, manter como está nos demais casos. Não desativamos empresa por
-			// "Cancelada" porque o usuário pode estar contratando outro plano.
-			if (assinatura.Status == StatusAssinatura.Ativa || assinatura.Status == StatusAssinatura.Suspensa)
-			{
-				var empresa = await _unitOfWork.Empresas.GetEmpresaById(assinatura.EmpresaId);
-				if (empresa != null)
+				await _unitOfWork.PagamentosAssinatura.Add(new PagamentoAssinatura
 				{
-					var novoStatus = assinatura.Status == StatusAssinatura.Ativa;
-					if (empresa.Status != novoStatus)
-					{
-						empresa.Status = novoStatus;
-						_unitOfWork.Empresas.Update(empresa);
-						_unitOfWork.Save();
-					}
-				}
+					AssinaturaId = assinatura.Id,
+					Valor = ap.TransactionAmount,
+					DataPagamento = (ap.DebitDate ?? ap.DateCreated ?? DateTime.UtcNow).ToUniversalTime(),
+					MPPaymentId = chave,
+					Status = status
+				});
+				_unitOfWork.Save();
 			}
+
+			// Status/vencimento vêm da própria assinatura (fonte única).
+			await SincronizarAssinatura(ap.PreapprovalId);
 		}
 
 		public async Task ProcessarWebhookPagamento(string mpPaymentId)
 		{
-			var jaProcessado = await _unitOfWork.PagamentosAssinatura.ExistsByMPPaymentId(mpPaymentId);
-			if (jaProcessado) return;
+			if (await _unitOfWork.PagamentosAssinatura.ExistsByMPPaymentId(mpPaymentId)) return;
 
 			var payment = await _mpClient.GetPayment(mpPaymentId);
+			var preapprovalId = payment.PreapprovalId;
+			if (string.IsNullOrWhiteSpace(preapprovalId) && payment.Metadata != null
+				&& payment.Metadata.TryGetValue("preapproval_id", out var meta) && meta.ValueKind == System.Text.Json.JsonValueKind.String)
+				preapprovalId = meta.GetString();
+			if (string.IsNullOrWhiteSpace(preapprovalId)) return; // pagamento que não é de assinatura
 
-			if (string.IsNullOrWhiteSpace(payment.PreapprovalId)) return;
-
-			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(payment.PreapprovalId);
+			var assinatura = await _unitOfWork.Assinaturas.GetByMPSubscriptionId(preapprovalId);
 			if (assinatura == null) return;
 
-			var pagamento = new PagamentoAssinatura
+			await _unitOfWork.PagamentosAssinatura.Add(new PagamentoAssinatura
 			{
 				AssinaturaId = assinatura.Id,
 				Valor = payment.TransactionAmount,
-				DataPagamento = payment.DateApproved ?? DateTime.UtcNow,
+				DataPagamento = (payment.DateApproved ?? DateTime.UtcNow).ToUniversalTime(),
 				MPPaymentId = mpPaymentId,
 				Status = payment.Status
-			};
-
-			await _unitOfWork.PagamentosAssinatura.Add(pagamento);
+			});
 			_unitOfWork.Save();
+
+			await SincronizarAssinatura(preapprovalId);
 		}
 
 		private static AssinaturaDTO MapToDTO(Assinatura a) => new()
@@ -358,17 +464,26 @@ namespace Services
 		};
 		public async Task<CallBackAssinaturaResponse> CallBack(string preapproval_id)
 		{
-		
-			if (string.IsNullOrWhiteSpace(preapproval_id)) return new CallBackAssinaturaResponse { Success = false };
-			var preapproval = await _mpClient.GetPreapproval(preapproval_id);
-			if (!string.IsNullOrEmpty( preapproval.Status))
+			if (string.IsNullOrWhiteSpace(preapproval_id))
+				return new CallBackAssinaturaResponse { Success = false, Status = "not_found", Message = "Pagamento não identificado." };
+			string? status;
+			try
 			{
-				if(preapproval.Status== "authorized")
-					return new CallBackAssinaturaResponse { Success = true, Message="Assinatura autorizada!" };
-				else
-					return new CallBackAssinaturaResponse { Success = false,Message="Assinatura não autorizada." };
+				status = await SincronizarAssinatura(preapproval_id);
 			}
-			return new CallBackAssinaturaResponse { Message = "Não localizado a assinatura!", Success = true };
+			catch (MercadoPagoException ex)
+			{
+				return new CallBackAssinaturaResponse { Success = false, Status = "error", Message = ex.MensagemUsuario };
+			}
+			return status switch
+			{
+				"authorized" => new CallBackAssinaturaResponse { Success = true, Status = status, Message = "Assinatura ativa! O acesso já está liberado." },
+				"pending" => new CallBackAssinaturaResponse { Success = false, Status = status, Message = "Pagamento em processamento no Mercado Pago." },
+				"paused" => new CallBackAssinaturaResponse { Success = false, Status = status, Message = "A assinatura está pausada no Mercado Pago." },
+				"cancelled" => new CallBackAssinaturaResponse { Success = false, Status = status, Message = "O pagamento não foi concluído e a assinatura foi cancelada." },
+				null => new CallBackAssinaturaResponse { Success = false, Status = "not_found", Message = "Não encontramos esta assinatura." },
+				_ => new CallBackAssinaturaResponse { Success = false, Status = status, Message = "Status do pagamento: " + status }
+			};
 		}
 		public async Task<bool> AtualizarAssinatura(int assinaturaId, decimal? novoValor = null, string? cardToken = null)
 		{
@@ -552,6 +667,9 @@ namespace Services
 		Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId);
 		Task ProcessarWebhookAssinatura(string mpSubscriptionId);
 		Task ProcessarWebhookPagamento(string mpPaymentId);
+		Task ProcessarWebhookCobrancaAssinatura(string authorizedPaymentId);
+		Task<string?> SincronizarAssinatura(string mpSubscriptionId);
+		Task<string?> SincronizarPorId(int assinaturaId);
 		Task<CallBackAssinaturaResponse> CallBack(string preapproval_id);
 		Task<bool> AtualizarAssinatura(int assinaturaId, decimal? novoValor = null, string? cardToken = null);
 		Task<Assinatura> IniciarTrial(int empresaId, int dias = 15);

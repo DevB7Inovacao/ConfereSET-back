@@ -37,21 +37,30 @@ namespace Services
                 
             };
 
+            // O checkout não depende do plano no Mercado Pago (assinatura sem plano associado):
+            // o espelho no MP é só informativo e uma falha lá não impede criar o plano aqui.
             if (req.Valor > 0)
             {
-                var mpPlan = await _mpClient.CreatePreapprovalPlan(new MPCreatePreapprovalPlanRequest
+                try
                 {
-                    Reason = req.Nome,
-                    BackUrl = _backUrl,
-                    AutoRecurring = new MPAutoRecurring
+                    var mpPlan = await _mpClient.CreatePreapprovalPlan(new MPCreatePreapprovalPlanRequest
                     {
-                        Frequency = (int)req.Recorrencia,
-                        FrequencyType = "months",
-                        TransactionAmount = req.Valor,
-                        CurrencyId = "BRL"
-                    }
-                });
-                plano.MPPreapprovalPlanId = mpPlan.Id;
+                        Reason = req.Nome,
+                        BackUrl = _backUrl,
+                        AutoRecurring = new MPAutoRecurring
+                        {
+                            Frequency = (int)req.Recorrencia,
+                            FrequencyType = "months",
+                            TransactionAmount = req.Valor,
+                            CurrencyId = "BRL"
+                        }
+                    });
+                    plano.MPPreapprovalPlanId = mpPlan.Id;
+                }
+                catch (Exception)
+                {
+                    plano.MPPreapprovalPlanId = null;
+                }
             }
 
             await _unitOfWork.Planos.Add(plano);
@@ -75,6 +84,8 @@ namespace Services
 
             if (!string.IsNullOrWhiteSpace(plano.MPPreapprovalPlanId))
             {
+                try
+                {
                 await _mpClient.UpdatePreapprovalPlan(plano.MPPreapprovalPlanId, new MPUpdatePreapprovalPlanRequest
                 {
                     Reason = plano.Nome,
@@ -87,6 +98,11 @@ namespace Services
                     },
                     Status = plano.Ativo ? "active" : "inactive"
                 });
+                }
+                catch (Exception)
+                {
+                    // Espelho no MP é informativo; o plano local é a fonte da verdade.
+                }
             }
 
             _unitOfWork.Planos.Update(plano);

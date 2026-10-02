@@ -43,34 +43,52 @@ namespace ControlApi.Controllers
 
 		[AllowAnonymous]
 		[HttpPost]
-		public async Task<IActionResult> Receive([FromBody] MercadoPagoWebhookPayload payload, [FromQuery(Name = "data.id")] string? dataIdFromQuery)
+		public async Task<IActionResult> Receive(
+			[FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] MercadoPagoWebhookPayload? payload,
+			[FromQuery(Name = "data.id")] string? dataIdFromQuery,
+			[FromQuery(Name = "type")] string? typeFromQuery,
+			[FromQuery(Name = "topic")] string? topicFromQuery,
+			[FromQuery(Name = "id")] string? idFromQuery)
 		{
-			if (payload?.Data?.Id == null && string.IsNullOrEmpty(dataIdFromQuery))
+			// Formatos aceitos: webhook novo (JSON com type + data.id, e data.id também na query)
+			// e IPN antigo (?topic=preapproval&id=...).
+			var dataId = (dataIdFromQuery ?? payload?.Data?.Id ?? idFromQuery ?? string.Empty).Trim();
+			var tipo = (payload?.Type ?? typeFromQuery ?? topicFromQuery ?? string.Empty).Trim().ToLowerInvariant();
+			if (string.IsNullOrEmpty(dataId) || string.IsNullOrEmpty(tipo))
 				return Ok();
-
-			var dataId = payload?.Data?.Id ?? dataIdFromQuery ?? string.Empty;
 
 			if (!IsSignatureValid(dataId, out var motivo))
 			{
-				_logger.LogWarning("Webhook MP rejeitado: {Motivo}", motivo);
-				// Em vez de 401 (que faria o MP repetir indefinidamente), devolvemos 200 mas
-				// não processamos nada. Já temos log do evento.
+				_logger.LogWarning("Webhook MP rejeitado: {Motivo} (tipo={Tipo} id={Id})", motivo, tipo, dataId);
+				// 200 para o MP não reenviar sem parar; o evento fica no log.
 				return Ok();
 			}
 
 			try
 			{
-				if (payload?.Type == "subscription_preapproval")
-					await _assinaturaService.ProcessarWebhookAssinatura(dataId);
-
-				if (payload?.Type == "payment")
-					await _assinaturaService.ProcessarWebhookPagamento(dataId);
+				switch (tipo)
+				{
+					case "subscription_preapproval":
+					case "preapproval":
+						await _assinaturaService.ProcessarWebhookAssinatura(dataId);
+						break;
+					case "subscription_authorized_payment":
+					case "authorized_payment":
+						await _assinaturaService.ProcessarWebhookCobrancaAssinatura(dataId);
+						break;
+					case "payment":
+						await _assinaturaService.ProcessarWebhookPagamento(dataId);
+						break;
+					default:
+						_logger.LogInformation("Webhook MP ignorado: tipo={Tipo} id={Id}", tipo, dataId);
+						break;
+				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Erro processando webhook MP tipo={Type} id={Id}", payload?.Type, dataId);
-				// Não relançamos para não disparar reentregas — o erro pode ser de dado, não de canal.
-				return Ok();
+				_logger.LogError(ex, "Erro processando webhook MP tipo={Tipo} id={Id}", tipo, dataId);
+				// 500 → o MP tenta de novo mais tarde (falha temporária: rede, MP instável, banco).
+				return StatusCode(StatusCodes.Status500InternalServerError);
 			}
 
 			return Ok();
@@ -117,7 +135,7 @@ namespace ControlApi.Controllers
 
 			// String a assinar conforme docs do MP:
 			// id:{data.id};request-id:{x-request-id};ts:{ts};
-			var manifest = $"id:{dataId};request-id:{xRequestId};ts:{ts};";
+			var manifest = $"id:{dataId.ToLowerInvariant()};request-id:{xRequestId};ts:{ts};";
 
 			using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_webhookSecret!));
 			var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(manifest));

@@ -61,6 +61,15 @@ namespace Infrastructure.MercadoPago
 			await PutAsync($"preapproval/{subscriptionId}", new { status = "cancelled" });
 		}
 
+		/// <summary>Cobrança recorrente de uma assinatura (evento subscription_authorized_payment).</summary>
+		public async Task<MPAuthorizedPaymentResponse> GetAuthorizedPayment(string authorizedPaymentId)
+		{
+			var response = await _http.GetAsync($"authorized_payments/{authorizedPaymentId}");
+			await EnsureSuccess(response);
+			var json = await response.Content.ReadAsStringAsync();
+			return Deserialize<MPAuthorizedPaymentResponse>(json);
+		}
+
 		public async Task<MPPaymentResponse> GetPayment(string paymentId)
 		{
 			var response = await _http.GetAsync($"v1/payments/{paymentId}");
@@ -122,7 +131,7 @@ namespace Infrastructure.MercadoPago
 			{
 				var body = await response.Content.ReadAsStringAsync();
 				_logger.LogError("MP error {Status}: {Body}", (int)response.StatusCode, body);
-				throw new Exception($"Mercado Pago error {(int)response.StatusCode}: {body}");
+				throw MercadoPagoException.From((int)response.StatusCode, body);
 			}
 		}
 
@@ -134,8 +143,71 @@ namespace Infrastructure.MercadoPago
 
 	}
 
+	/// <summary>
+	/// Erro devolvido pela API do Mercado Pago, com o corpo original (para log) e uma
+	/// mensagem em português para mostrar ao usuário.
+	/// </summary>
+	public class MercadoPagoException : Exception
+	{
+		public int StatusCode { get; }
+		public string RawBody { get; }
+		public string MensagemUsuario { get; }
+
+		private MercadoPagoException(int status, string raw, string usuario)
+			: base($"Mercado Pago {status}: {raw}")
+		{
+			StatusCode = status;
+			RawBody = raw;
+			MensagemUsuario = usuario;
+		}
+
+		public static MercadoPagoException From(int status, string body)
+		{
+			string? message = null, cause = null;
+			try
+			{
+				using var doc = JsonDocument.Parse(body);
+				var root = doc.RootElement;
+				if (root.TryGetProperty("message", out var m)) message = m.GetString();
+				if (root.TryGetProperty("cause", out var c) && c.ValueKind == JsonValueKind.Array && c.GetArrayLength() > 0)
+				{
+					var first = c[0];
+					if (first.TryGetProperty("description", out var d)) cause = d.GetString();
+					else if (first.TryGetProperty("code", out var code)) cause = code.ToString();
+				}
+			}
+			catch { /* corpo não-JSON */ }
+
+			var texto = $"{message} {cause} {body}".ToLowerInvariant();
+			string usuario;
+			if (status == 401 || status == 403 || texto.Contains("invalid access token") || texto.Contains("unauthorized"))
+				usuario = "A integração com o Mercado Pago não está configurada corretamente (credencial inválida). Avise o suporte.";
+			else if (texto.Contains("both payer and collector must be real or test users") || texto.Contains("test user"))
+				usuario = "A conta de pagamento está em modo de teste: use um usuário e um cartão de teste do Mercado Pago, ou ative as credenciais de produção.";
+			else if (texto.Contains("payer_email") || texto.Contains("payer email") || texto.Contains("invalid email"))
+				usuario = "E-mail do pagador inválido. Use o e-mail da sua conta do Mercado Pago.";
+			else if (texto.Contains("card_token") || texto.Contains("card token") || texto.Contains("invalid token"))
+				usuario = "Não foi possível validar os dados do cartão. Confira os dados e tente de novo.";
+			else if (texto.Contains("rejected") || texto.Contains("insufficient"))
+				usuario = "O pagamento foi recusado pelo cartão. Tente outro cartão ou fale com o seu banco.";
+			else if (texto.Contains("back_url"))
+				usuario = "Endereço de retorno do pagamento inválido na configuração. Avise o suporte.";
+			else if (texto.Contains("transaction_amount"))
+				usuario = "Valor do plano inválido para o Mercado Pago. Avise o suporte.";
+			else if (status >= 500)
+				usuario = "O Mercado Pago está instável no momento. Tente novamente em alguns minutos.";
+			else
+				usuario = string.IsNullOrWhiteSpace(message)
+					? "O Mercado Pago recusou a operação. Tente novamente."
+					: "O Mercado Pago recusou a operação: " + message;
+
+			return new MercadoPagoException(status, body, usuario);
+		}
+	}
+
 	public interface IMercadoPagoClient
 	{
+		Task<MPAuthorizedPaymentResponse> GetAuthorizedPayment(string authorizedPaymentId);
 		Task<MPPreapprovalPlanResponse> CreatePreapprovalPlan(MPCreatePreapprovalPlanRequest req);
 		Task<MPPreapprovalPlanResponse> UpdatePreapprovalPlan(string planId, MPUpdatePreapprovalPlanRequest req);
 		Task<MPPreapprovalResponse> CreatePreapproval(MPCreatePreapprovalRequest req);
@@ -169,16 +241,22 @@ namespace Infrastructure.MercadoPago
 		public string CurrencyId { get; set; } = "BRL";
 	}
 
+	/// <summary>
+	/// Assinatura SEM plano associado (POST /preapproval). Com <see cref="CardTokenId"/> e status
+	/// "authorized" a cobrança começa na hora; sem cartão e com status "pending" o MP devolve um
+	/// init_point para a pessoa pagar no site dele. (Assinatura COM preapproval_plan_id exige
+	/// card_token_id já na criação — por isso o fluxo antigo dava erro ao pagar.)
+	/// </summary>
 	public class MPCreatePreapprovalRequest
 	{
-		public string PreapprovalPlanId { get; set; } = string.Empty;
+		public string? PreapprovalPlanId { get; set; }
 		public string Reason { get; set; } = string.Empty;
 		public string PayerEmail { get; set; } = string.Empty;
-		//public string? CardTokenId { get; set; } // Opcional - se quiser cobrar já
+		public string? CardTokenId { get; set; }
 		public MPAutoRecurring AutoRecurring { get; set; } = new();
 		public string BackUrl { get; set; } = string.Empty;
 		public string Status { get; set; } = "pending"; // "pending" ou "authorized"
-		public string ExternalReference { get; set; }
+		public string ExternalReference { get; set; } = string.Empty;
 	}
 
 	public class MPPreapprovalPlanResponse
@@ -192,6 +270,25 @@ namespace Infrastructure.MercadoPago
 		public string Id { get; set; } = string.Empty;
 		public string Status { get; set; } = string.Empty;
 		public string InitPoint { get; set; } = string.Empty;
+		public DateTime? NextPaymentDate { get; set; }
+	}
+
+	public class MPAuthorizedPaymentResponse
+	{
+		public long Id { get; set; }
+		public string? PreapprovalId { get; set; }
+		public string Status { get; set; } = string.Empty;
+		public decimal TransactionAmount { get; set; }
+		public DateTime? DateCreated { get; set; }
+		public DateTime? DebitDate { get; set; }
+		public MPAuthorizedPaymentInfo? Payment { get; set; }
+	}
+
+	public class MPAuthorizedPaymentInfo
+	{
+		public long? Id { get; set; }
+		public string? Status { get; set; }
+		public string? StatusDetail { get; set; }
 	}
 
 	public class MPPaymentResponse
@@ -201,6 +298,8 @@ namespace Infrastructure.MercadoPago
 		public decimal TransactionAmount { get; set; }
 		public DateTime? DateApproved { get; set; }
 		public string? PreapprovalId { get; set; }
+		/// <summary>Pagamentos de assinatura trazem o id dela em metadata.preapproval_id.</summary>
+		public Dictionary<string, JsonElement>? Metadata { get; set; }
 	}
 	public class MPPreapprovalPlanResponseSimplified
 	{

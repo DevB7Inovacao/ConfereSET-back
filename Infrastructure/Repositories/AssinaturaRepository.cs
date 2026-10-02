@@ -80,6 +80,15 @@ namespace Infrastructure.Repositories
 					.FirstOrDefaultAsync();
 		}
 
+		/// <summary>Assinaturas da empresa num status (rastreadas, para atualizar).</summary>
+		public async Task<List<Assinatura>> GetByEmpresaAndStatus(int empresaId, StatusAssinatura status)
+		{
+			return await _dbContext.Set<Assinatura>()
+					.Include(x => x.Plano)
+					.Where(a => a.EmpresaId == empresaId && a.Status == status)
+					.ToListAsync();
+		}
+
 		public async Task<Assinatura?> GetPendingEmpresaSemMPId(int empresaId)
 		{
 			return await _dbContext.Set<Assinatura>()
@@ -102,5 +111,6 @@ namespace Infrastructure.Repositories
 		Task<Assinatura?> GetByExternalReference(string externaReference);
 		Task<Assinatura?> GetPendingByPlanIdAndNoMPId(string preapprovalPlanId);
 		Task<Assinatura?> GetPendingEmpresaSemMPId(int empresaId);
+		Task<List<Assinatura>> GetByEmpresaAndStatus(int empresaId, StatusAssinatura status);
 	}
 }

@@ -84,6 +84,30 @@ namespace ControlApi.Controllers
 		}
 
 		/// <summary>
+		/// "Já paguei — verificar": consulta o status real no Mercado Pago e aplica na assinatura
+		/// da própria empresa (não depende do webhook ter chegado).
+		/// </summary>
+		[HttpPost("{id}/sincronizar")]
+		public async Task<IActionResult> Sincronizar(int id)
+		{
+			try
+			{
+				var assinatura = await _assinaturaService.GetById(id);
+				if (assinatura == null) return NotFound("Assinatura não encontrada.");
+				if (assinatura.EmpresaId != User.GetEmpresaId() && !User.IsPlatformAdmin())
+					return NotFound("Assinatura não encontrada.");
+
+				var status = await _assinaturaService.SincronizarPorId(id);
+				var atual = await _assinaturaService.GetById(id);
+				return Ok(new { status, assinatura = atual });
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(ex.Message);
+			}
+		}
+
+		/// <summary>
 		/// Atualiza valor/cartão da assinatura ativa da própria empresa.
 		/// </summary>
 		[HttpPut("{id}/atualizar")]
