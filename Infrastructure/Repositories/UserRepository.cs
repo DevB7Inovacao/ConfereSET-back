@@ -83,6 +83,18 @@ namespace Infrastructure.Repositories
 					.Where(u => u.Empresa != null && u.Empresa.Id == empresaId && u.Type == (TypeUser)type)
 					.CountAsync();
 		}
+
+		/// <summary>[v2] Id → Nome (projeção leve, sem senha) para exibir autoria em DTOs.</summary>
+		public async Task<Dictionary<int, string>> GetNamesByIds(IEnumerable<int> ids)
+		{
+			var lista = ids?.Distinct().ToList() ?? new List<int>();
+			if (lista.Count == 0) return new Dictionary<int, string>();
+			return await _dbContext.Set<User>()
+					.AsNoTracking()
+					.Where(u => lista.Contains(u.Id))
+					.Select(u => new { u.Id, u.Name })
+					.ToDictionaryAsync(u => u.Id, u => u.Name);
+		}
 	}
 
 	public interface IUserRepository : IGenericRepository<User>
@@ -94,6 +106,7 @@ namespace Infrastructure.Repositories
 		Task<int> CountUsersByEmpresaId(int empresaId);
 		Task<int> CountUsersByEmpresaIdAndType(int empresaId, int type);
 		Task<PagedResult<User>> GetAllPaged(FiltersDTO filtersDTO);
+		Task<Dictionary<int, string>> GetNamesByIds(IEnumerable<int> ids);
 
 	}
 }

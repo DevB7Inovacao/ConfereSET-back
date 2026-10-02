@@ -69,6 +69,40 @@ namespace Core.DTO
 		public string? NomeArquivo { get; set; }
 		public string? ImagemBase64 { get; set; }
 		public string S3Url { get; set; } = string.Empty;
+		// [v2]
+		public string? Legenda { get; set; }
+		public int Ordem { get; set; }
+		public DateTime CreatedDate { get; set; }
+	}
+
+	/// <summary>[v2] PUT /api/Relatorio/foto/{fotoId}. Campo ausente = mantém; legenda null/"" = limpa.</summary>
+	public class UpdateRelatorioFotoRequest
+	{
+		private string? _legenda;
+		public string? Legenda { get => _legenda; set { _legenda = value; LegendaInformada = true; } }
+		[System.Text.Json.Serialization.JsonIgnore] public bool LegendaInformada { get; private set; }
+		public int? Ordem { get; set; }
+	}
+
+	/// <summary>[v2] PUT /api/Relatorio/item/{itemId}/fotos/reorder.</summary>
+	public class ReorderRelatorioFotosRequest
+	{
+		public List<int> FotoIds { get; set; } = new();
+	}
+
+	/// <summary>[v2] POST /api/Relatorio/{id}/duplicar.</summary>
+	public class DuplicarRelatorioRequest
+	{
+		public string? Titulo { get; set; }
+		public DateTime? DataRelatorio { get; set; }
+	}
+
+	/// <summary>[v2] Pendência de preenchimento que impede a submissão.</summary>
+	public class PendenciaRelatorioDTO
+	{
+		public int SecaoId { get; set; }
+		public string? Titulo { get; set; }
+		public string Motivo { get; set; } = string.Empty;
 	}
 
 	public class RelatorioComentarioDTO
@@ -128,6 +162,8 @@ namespace Core.DTO
 		public required string ImagemBase64 { get; set; }
 		public required string ContentType { get; set; }
 		public string? NomeArquivo { get; set; }
+		// [v2]
+		public string? Legenda { get; set; }
 	}
 
 	public class UpdateRelatorioStatusRequest

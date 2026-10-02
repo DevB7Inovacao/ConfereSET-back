@@ -3,6 +3,7 @@ using System;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(DbContextClass))]
-    partial class DbContextClassModelSnapshot : ModelSnapshot
+    [Migration("20261002164839_relatorios_checklists_v2")]
+    partial class relatorios_checklists_v2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -69,7 +72,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("PlanoId");
 
-                    b.ToTable("Assinaturas", (string)null);
+                    b.ToTable("Assinaturas");
                 });
 
             modelBuilder.Entity("Core.Models.AtividadeRecente", b =>
@@ -108,7 +111,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OperadorId");
 
-                    b.ToTable("AtividadesRecentes", (string)null);
+                    b.ToTable("AtividadesRecentes");
                 });
 
             modelBuilder.Entity("Core.Models.Checklist", b =>
@@ -143,7 +146,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Checklists", (string)null);
+                    b.ToTable("Checklists");
                 });
 
             modelBuilder.Entity("Core.Models.ChecklistItem", b =>
@@ -201,7 +204,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ChecklistId");
 
-                    b.ToTable("ChecklistItens", (string)null);
+                    b.ToTable("ChecklistItens");
                 });
 
             modelBuilder.Entity("Core.Models.Despesas", b =>
@@ -245,7 +248,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Despesas", (string)null);
+                    b.ToTable("Despesas");
                 });
 
             modelBuilder.Entity("Core.Models.Empresas", b =>
@@ -298,7 +301,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Empresas", (string)null);
+                    b.ToTable("Empresas");
                 });
 
             modelBuilder.Entity("Core.Models.Equipamentos", b =>
@@ -330,7 +333,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Equipamentos", (string)null);
+                    b.ToTable("Equipamentos");
                 });
 
             modelBuilder.Entity("Core.Models.GrupoDeObras", b =>
@@ -359,7 +362,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GrupoDeObras", (string)null);
+                    b.ToTable("GrupoDeObras");
                 });
 
             modelBuilder.Entity("Core.Models.MaoDeObra", b =>
@@ -391,7 +394,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MaoDeObra", (string)null);
+                    b.ToTable("MaoDeObra");
                 });
 
             modelBuilder.Entity("Core.Models.ModeloTexto", b =>
@@ -424,7 +427,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ModeloTextos", (string)null);
+                    b.ToTable("ModeloTextos");
                 });
 
             modelBuilder.Entity("Core.Models.ModeloTextoVariavel", b =>
@@ -470,7 +473,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ModeloTextoVariaveis", (string)null);
+                    b.ToTable("ModeloTextoVariaveis");
                 });
 
             modelBuilder.Entity("Core.Models.ModeloTextoVariavelVinculo", b =>
@@ -505,7 +508,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ModeloTextoVariavelId");
 
-                    b.ToTable("ModeloTextoVariavelVinculos", (string)null);
+                    b.ToTable("ModeloTextoVariavelVinculos");
                 });
 
             modelBuilder.Entity("Core.Models.ObraChecklist", b =>
@@ -555,7 +558,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ObraId", "ChecklistId");
 
-                    b.ToTable("ObraChecklists", (string)null);
+                    b.ToTable("ObraChecklists");
                 });
 
             modelBuilder.Entity("Core.Models.ObraChecklistItem", b =>
@@ -611,7 +614,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ObraChecklistId");
 
-                    b.ToTable("ObraChecklistItens", (string)null);
+                    b.ToTable("ObraChecklistItens");
                 });
 
             modelBuilder.Entity("Core.Models.ObraChecklistItemFoto", b =>
@@ -652,7 +655,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ObraChecklistItemId");
 
-                    b.ToTable("ObraChecklistItemFotos", (string)null);
+                    b.ToTable("ObraChecklistItemFotos");
                 });
 
             modelBuilder.Entity("Core.Models.ObraDespesa", b =>
@@ -682,7 +685,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ObraId", "DespesaId")
                         .IsUnique();
 
-                    b.ToTable("ObraDespesas", (string)null);
+                    b.ToTable("ObraDespesas");
                 });
 
             modelBuilder.Entity("Core.Models.ObraEquipamento", b =>
@@ -712,7 +715,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ObraId", "EquipamentoId")
                         .IsUnique();
 
-                    b.ToTable("ObraEquipamentos", (string)null);
+                    b.ToTable("ObraEquipamentos");
                 });
 
             modelBuilder.Entity("Core.Models.ObraMaoDeObra", b =>
@@ -742,7 +745,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ObraId", "MaoDeObraId")
                         .IsUnique();
 
-                    b.ToTable("ObraMaoDeObra", (string)null);
+                    b.ToTable("ObraMaoDeObra");
                 });
 
             modelBuilder.Entity("Core.Models.ObraModeloTexto", b =>
@@ -772,7 +775,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ObraId", "ModeloTextoId")
                         .IsUnique();
 
-                    b.ToTable("ObraModelosTexto", (string)null);
+                    b.ToTable("ObraModelosTexto");
                 });
 
             modelBuilder.Entity("Core.Models.ObraOperador", b =>
@@ -801,7 +804,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("OperadorId");
 
-                    b.ToTable("ObraOperadores", (string)null);
+                    b.ToTable("ObraOperadores");
                 });
 
             modelBuilder.Entity("Core.Models.ObraTipoOcorrencia", b =>
@@ -831,7 +834,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ObraId", "TipoOcorrenciaId")
                         .IsUnique();
 
-                    b.ToTable("ObraTiposOcorrencia", (string)null);
+                    b.ToTable("ObraTiposOcorrencia");
                 });
 
             modelBuilder.Entity("Core.Models.Obras", b =>
@@ -907,7 +910,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("EmpresaId");
 
-                    b.ToTable("Obras", (string)null);
+                    b.ToTable("Obras");
                 });
 
             modelBuilder.Entity("Core.Models.Ocorrencia", b =>
@@ -957,7 +960,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("TipoOcorrenciaId");
 
-                    b.ToTable("Ocorrencias", (string)null);
+                    b.ToTable("Ocorrencias");
                 });
 
             modelBuilder.Entity("Core.Models.PagamentoAssinatura", b =>
@@ -994,7 +997,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("AssinaturaId");
 
-                    b.ToTable("PagamentosAssinatura", (string)null);
+                    b.ToTable("PagamentosAssinatura");
                 });
 
             modelBuilder.Entity("Core.Models.Plano", b =>
@@ -1043,7 +1046,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("EmpresaId");
 
-                    b.ToTable("Planos", (string)null);
+                    b.ToTable("Planos");
                 });
 
             modelBuilder.Entity("Core.Models.RelacaoGrupoObras", b =>
@@ -1073,7 +1076,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("GroupId", "ObraId")
                         .IsUnique();
 
-                    b.ToTable("RelacaoGrupoObras", (string)null);
+                    b.ToTable("RelacaoGrupoObras");
                 });
 
             modelBuilder.Entity("Core.Models.Relatorio", b =>
@@ -1123,7 +1126,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("ObraId");
 
-                    b.ToTable("Relatorios", (string)null);
+                    b.ToTable("Relatorios");
                 });
 
             modelBuilder.Entity("Core.Models.RelatorioComentario", b =>
@@ -1156,7 +1159,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("RelatorioSecaoId");
 
-                    b.ToTable("RelatorioComentarios", (string)null);
+                    b.ToTable("RelatorioComentarios");
                 });
 
             modelBuilder.Entity("Core.Models.RelatorioItemFoto", b =>
@@ -1200,7 +1203,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("RelatorioSecaoItemId");
 
-                    b.ToTable("RelatorioItemFotos", (string)null);
+                    b.ToTable("RelatorioItemFotos");
                 });
 
             modelBuilder.Entity("Core.Models.RelatorioSecao", b =>
@@ -1245,7 +1248,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("TipoOcorrenciaId");
 
-                    b.ToTable("RelatorioSecoes", (string)null);
+                    b.ToTable("RelatorioSecoes");
                 });
 
             modelBuilder.Entity("Core.Models.RelatorioSecaoItem", b =>
@@ -1278,7 +1281,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("RelatorioSecaoId");
 
-                    b.ToTable("RelatorioSecaoItens", (string)null);
+                    b.ToTable("RelatorioSecaoItens");
                 });
 
             modelBuilder.Entity("Core.Models.SupportTicket", b =>
@@ -1323,7 +1326,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SupportTickets", (string)null);
+                    b.ToTable("SupportTickets");
                 });
 
             modelBuilder.Entity("Core.Models.TiposOcorrencia", b =>
@@ -1361,7 +1364,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TiposOcorrencia", (string)null);
+                    b.ToTable("TiposOcorrencia");
                 });
 
             modelBuilder.Entity("Core.Models.User", b =>
@@ -1403,7 +1406,7 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("EmpresaId");
 
-                    b.ToTable("User", (string)null);
+                    b.ToTable("User");
                 });
 
             modelBuilder.Entity("Core.Models.Assinatura", b =>

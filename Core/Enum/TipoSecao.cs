@@ -8,6 +8,11 @@
         TextoLivre = 4,
         Fotos = 5,
         Comentarios = 6,
-        Ocorrencias = 7
+        Ocorrencias = 7,
+        // [v2] Blocos configuráveis pelo modelo (data-config).
+        Clima = 8,
+        Assinatura = 9,
+        Formulario = 10,
+        Checklist = 11
     }
 }

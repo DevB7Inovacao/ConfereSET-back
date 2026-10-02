@@ -8,5 +8,8 @@
         public string? NomeArquivo { get; set; }
         public RelatorioSecaoItem? RelatorioSecaoItem { get; set; }
 		public string S3Url { get; set; } = string.Empty; // URL da imagem no S3
+		// [v2] Legenda exibida abaixo da foto e ordem dentro do item.
+		public string? Legenda { get; set; }
+		public int Ordem { get; set; } = 0;
 	}
 }

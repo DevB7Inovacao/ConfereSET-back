@@ -36,6 +36,7 @@ namespace Infrastructure
 		public DbSet<ChecklistItem> ChecklistItens { get; set; }
 		public DbSet<ObraChecklist> ObraChecklists { get; set; }
 		public DbSet<ObraChecklistItem> ObraChecklistItens { get; set; }
+		public DbSet<ObraChecklistItemFoto> ObraChecklistItemFotos { get; set; }
 		public DbSet<AtividadeRecente> AtividadesRecentes { get; set; }
 		public DbSet<Plano> Planos { get; set; }
 		public DbSet<Assinatura> Assinaturas { get; set; }
@@ -186,7 +187,9 @@ namespace Infrastructure
 			modelBuilder.Entity<ObraChecklist>(entity =>
 			{
 				entity.HasKey(k => k.Id);
-				entity.HasIndex(x => new { x.ObraId, x.ChecklistId }).IsUnique();
+				// [Conferelist v2] Não é mais único: a mesma obra pode ter várias execuções (rodadas)
+				// do mesmo checklist, desde que as anteriores estejam concluídas.
+				entity.HasIndex(x => new { x.ObraId, x.ChecklistId });
 				entity.HasOne(x => x.Obra).WithMany().HasForeignKey(x => x.ObraId).OnDelete(DeleteBehavior.Cascade);
 				entity.HasOne(x => x.Checklist).WithMany().HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
 			});
@@ -196,6 +199,12 @@ namespace Infrastructure
 				entity.HasKey(k => k.Id);
 				entity.HasOne(x => x.ObraChecklist).WithMany(o => o.Itens).HasForeignKey(x => x.ObraChecklistId).OnDelete(DeleteBehavior.Cascade);
 				entity.HasOne(x => x.ChecklistItem).WithMany().HasForeignKey(x => x.ChecklistItemId).OnDelete(DeleteBehavior.Restrict);
+			});
+
+			modelBuilder.Entity<ObraChecklistItemFoto>(entity =>
+			{
+				entity.HasKey(k => k.Id);
+				entity.HasOne(x => x.ObraChecklistItem).WithMany(i => i.Fotos).HasForeignKey(x => x.ObraChecklistItemId).OnDelete(DeleteBehavior.Cascade);
 			});
 
 			modelBuilder.Entity<AtividadeRecente>(entity =>

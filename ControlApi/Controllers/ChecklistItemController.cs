@@ -132,5 +132,51 @@ namespace ControlApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>[v2] Cria vários itens de uma vez (colar lista / biblioteca de modelos).</summary>
+        [HttpPost("bulk")]
+        public async Task<IActionResult> BulkCreate([FromBody] BulkCreateChecklistItensRequest req)
+        {
+            try
+            {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (req == null) return BadRequest("Payload inválido.");
+                var result = await _service.BulkCreate(User.GetEmpresaId(), req);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>[v2] Reordena os itens: Ordem = posição em ItemIds.</summary>
+        [HttpPut("reorder")]
+        public async Task<IActionResult> Reorder([FromBody] ReorderChecklistItensRequest req)
+        {
+            try
+            {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (req == null) return BadRequest("Payload inválido.");
+                var ok = await _service.Reorder(User.GetEmpresaId(), req);
+                return ok ? Ok(true) : BadRequest("Falha ao reordenar.");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

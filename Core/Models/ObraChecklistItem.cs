@@ -13,5 +13,11 @@
 		public string? DataHora { get; set; }
 		public string? Equipamento { get; set; }
 		public string? Marca { get; set; }
+		// [Conferelist v2]
+		/// <summary>Resposta dos tipos Texto/Numero/Data/Selecao.</summary>
+		public string? Valor { get; set; }
+		public int? RespondidoPorUserId { get; set; }
+		public DateTime? RespondidoEm { get; set; }
+		public List<ObraChecklistItemFoto> Fotos { get; set; } = new();
 	}
 }

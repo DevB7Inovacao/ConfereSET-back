@@ -27,10 +27,12 @@ namespace ControlApi.Controllers
     public class RelatorioController : ControllerBase
     {
         private readonly IRelatorioService _service;
+        private readonly IObrasService _obrasService;
 
-        public RelatorioController(IRelatorioService service)
+        public RelatorioController(IRelatorioService service, IObrasService obrasService)
         {
             _service = service;
+            _obrasService = obrasService;
         }
 
         // ---------------------------------------------------------------------
@@ -210,6 +212,11 @@ namespace ControlApi.Controllers
 
                 var ok = await _service.UpdateStatus(id, req);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar status.");
+            }
+            catch (PendenciasException ex)
+            {
+                // [v2] { message, pendencias: [{ secaoId, titulo, motivo }] }
+                return BadRequest(new { message = ex.Message, pendencias = ex.Pendencias });
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -439,6 +446,97 @@ namespace ControlApi.Controllers
 
                 var ok = await _service.DeleteFoto(fotoId);
                 return ok ? Ok("Foto excluída com sucesso.") : BadRequest("Falha ao excluir foto.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>[v2] Atualiza legenda e/ou ordem de uma foto.</summary>
+        [HttpPut("foto/{fotoId}")]
+        public async Task<IActionResult> UpdateFoto(int fotoId, [FromBody] UpdateRelatorioFotoRequest req)
+        {
+            try
+            {
+                if (fotoId <= 0) return BadRequest("fotoId inválido.");
+                if (req == null) return BadRequest("Payload inválido.");
+
+                var (allowed, denied) = await AssertWriteByFotoId(fotoId);
+                if (!allowed) return denied!;
+
+                var ok = await _service.UpdateFoto(fotoId, req);
+                return ok ? Ok(true) : BadRequest("Falha ao atualizar a foto.");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>[v2] Reordena as fotos de um item (Ordem = posição em fotoIds).</summary>
+        [HttpPut("item/{itemId}/fotos/reorder")]
+        public async Task<IActionResult> ReorderFotos(int itemId, [FromBody] ReorderRelatorioFotosRequest req)
+        {
+            try
+            {
+                if (itemId <= 0) return BadRequest("itemId inválido.");
+                if (req?.FotoIds == null || req.FotoIds.Count == 0) return BadRequest("Nenhuma foto informada.");
+
+                var (allowed, denied, _) = await AssertWriteByItemId(itemId);
+                if (!allowed) return denied!;
+
+                var ok = await _service.ReorderFotos(itemId, req.FotoIds);
+                return ok ? Ok(true) : BadRequest("Falha ao reordenar as fotos.");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// [v2] Cria um novo rascunho a partir de um relatório existente (mesmo modelo e obra),
+        /// copiando os textos. Autor do original, operador vinculado à obra ou admin/gerente.
+        /// </summary>
+        [HttpPost("{id}/duplicar")]
+        public async Task<IActionResult> Duplicar(int id, [FromBody] DuplicarRelatorioRequest? req)
+        {
+            try
+            {
+                if (User.IsReadOnly())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Usuários somente leitura não podem criar relatórios.");
+                if (id <= 0) return BadRequest("id inválido.");
+
+                var empresaJwt = User.GetEmpresaId();
+                var userId = User.GetUserId();
+                var relatorio = await _service.GetByIdScoped(id, empresaJwt);
+                if (relatorio == null) return NotFound("Relatório não encontrado.");
+
+                if (!User.IsAdminOrGerente() && relatorio.CriadoPorUserId != userId
+                    && !await _obrasService.IsOperadorVinculado(relatorio.ObraId, userId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, "Você não pode copiar este relatório.");
+                }
+
+                var novoId = await _service.Duplicar(id, req ?? new DuplicarRelatorioRequest(), userId, empresaJwt);
+                return Ok(new { id = novoId });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {

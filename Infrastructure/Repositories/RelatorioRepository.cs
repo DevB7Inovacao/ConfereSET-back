@@ -144,6 +144,11 @@ namespace Infrastructure.Repositories
             _dbContext.RelatorioItemFotos.Remove(foto);
         }
 
+        public void UpdateFoto(RelatorioItemFoto foto)
+        {
+            _dbContext.RelatorioItemFotos.Update(foto);
+        }
+
         public async Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds)
         {
             if (fotoIds == null || fotoIds.Count == 0) return new List<RelatorioFotoEscopoDTO>();
@@ -212,6 +217,7 @@ namespace Infrastructure.Repositories
         Task AddFoto(RelatorioItemFoto foto);
         Task<RelatorioItemFoto?> GetFotoById(int fotoId);
         void DeleteFoto(RelatorioItemFoto foto);
+        void UpdateFoto(RelatorioItemFoto foto);
         Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds);
         Task<RelatorioComentario?> GetComentarioById(int comentarioId);
         Task AddSecao(RelatorioSecao secao);

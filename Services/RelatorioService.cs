@@ -28,6 +28,13 @@ namespace Services
 					["fotos"] = TipoSecao.Fotos,
 					["comentarios"] = TipoSecao.Comentarios,
 					["ocorrencias"] = TipoSecao.Ocorrencias,
+					// [v2] Blocos configuráveis
+					["clima"] = TipoSecao.Clima,
+					["assinatura"] = TipoSecao.Assinatura,
+					["formulario"] = TipoSecao.Formulario,
+					["checklist"] = TipoSecao.Checklist,
+					// "observacao" é um texto livre com título "Observações".
+					["observacao"] = TipoSecao.TextoLivre,
 				};
 
 		public RelatorioService(IUnitOfWork unitOfWork, IAtividadeRecenteService atividadeService, IS3Service s3Service)
@@ -249,6 +256,14 @@ namespace Services
 
 			ValidarTransicaoStatus(relatorio.Status, req.Status);
 
+			// [v2] Campos obrigatórios do modelo precisam estar preenchidos para enviar.
+			if (req.Status == StatusRelatorio.Submetido)
+			{
+				var pendencias = CalcularPendencias(relatorio);
+				if (pendencias.Count > 0)
+					throw new PendenciasException("Preencha os campos obrigatórios antes de enviar.", pendencias);
+			}
+
 			if (req.Status == StatusRelatorio.Rejeitado)
 			{
 				if (string.IsNullOrWhiteSpace(req.ObservacaoRejeicao))
@@ -348,71 +363,11 @@ namespace Services
 			return _unitOfWork.Save() > 0;
 		}
 		// ---------------------------------------------------------------------
-		// Validação de imagens (upload de fotos)
+		// Validação de imagens (upload de fotos) — lógica compartilhada em ImageValidation.
 		// ---------------------------------------------------------------------
 
-		private const int MaxFotoBytes = 10 * 1024 * 1024; // 10 MB por foto
-
-		private sealed record ImagemValidada(byte[] Bytes, string ContentType, string NomeArquivo);
-
-		/// <summary>
-		/// Detecta o tipo real pelos magic bytes (JPEG FFD8FF, PNG 89504E47, WEBP RIFF....WEBP).
-		/// Retorna <c>null</c> para qualquer outro formato. O ContentType enviado pelo cliente é ignorado.
-		/// </summary>
-		private static (string ContentType, string Extensao)? DetectarTipoImagem(byte[] b)
-		{
-			if (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF)
-				return ("image/jpeg", ".jpg");
-			if (b.Length >= 4 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47)
-				return ("image/png", ".png");
-			if (b.Length >= 12
-				&& b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46      // "RIFF"
-				&& b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50)  // "WEBP"
-				return ("image/webp", ".webp");
-			return null;
-		}
-
-		/// <summary>Nome seguro para a key do S3 (sem path/espaços/acentos) com a extensão do tipo detectado.</summary>
-		private static string SanitizarNomeArquivo(string? nome, string extensao)
-		{
-			var baseName = Path.GetFileNameWithoutExtension(Path.GetFileName(nome ?? string.Empty));
-			var limpo = new string(baseName.Select(c => char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_' ? c : '_').ToArray());
-			if (string.IsNullOrWhiteSpace(limpo.Trim('_'))) limpo = "foto";
-			if (limpo.Length > 80) limpo = limpo[..80];
-			return limpo + extensao;
-		}
-
-		private static ImagemValidada ValidarImagem(AddFotoToItemRequest f)
-		{
-			var nomeExibicao = string.IsNullOrWhiteSpace(f?.NomeArquivo) ? "sem nome" : f!.NomeArquivo!;
-			if (f == null || string.IsNullOrWhiteSpace(f.ImagemBase64))
-				throw new Exception($"A foto '{nomeExibicao}' está vazia.");
-
-			var base64 = f.ImagemBase64.Trim();
-			// Tolera data URI ("data:image/png;base64,....").
-			var virgula = base64.IndexOf(',');
-			if (base64.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && virgula >= 0)
-				base64 = base64[(virgula + 1)..];
-
-			// Checagem barata antes de decodificar (base64 ≈ 4/3 do binário).
-			if ((long)base64.Length * 3 / 4 > MaxFotoBytes + 3)
-				throw new Exception($"A foto '{nomeExibicao}' excede o tamanho máximo de 10 MB.");
-
-			byte[] bytes;
-			try { bytes = Convert.FromBase64String(base64); }
-			catch (FormatException) { throw new Exception($"A foto '{nomeExibicao}' não está em um formato válido."); }
-
-			if (bytes.Length == 0)
-				throw new Exception($"A foto '{nomeExibicao}' está vazia.");
-			if (bytes.Length > MaxFotoBytes)
-				throw new Exception($"A foto '{nomeExibicao}' excede o tamanho máximo de 10 MB.");
-
-			var tipo = DetectarTipoImagem(bytes);
-			if (tipo == null)
-				throw new Exception($"Formato de imagem não suportado em '{nomeExibicao}'. Envie apenas fotos JPEG, PNG ou WEBP.");
-
-			return new ImagemValidada(bytes, tipo.Value.ContentType, SanitizarNomeArquivo(f.NomeArquivo, tipo.Value.Extensao));
-		}
+		private static ImagemValidada ValidarImagem(AddFotoToItemRequest f) =>
+			ImageValidation.Validar(f?.ImagemBase64, f?.NomeArquivo);
 
 		/// <summary>
 		/// Upload em lote "tudo ou nada": valida TODAS as fotos antes de enviar qualquer uma; se um
@@ -431,8 +386,11 @@ namespace Services
 			var enviadas = new List<string>();
 			try
 			{
-				foreach (var img in validadas)
+				// [v2] Novas fotos entram no fim da ordem atual do item.
+				var proximaOrdem = item.Fotos.Count == 0 ? 0 : item.Fotos.Max(f => f.Ordem) + 1;
+				for (var idx = 0; idx < validadas.Count; idx++)
 				{
+					var img = validadas[idx];
 					// ContentType do objeto no S3 vem do tipo detectado, nunca do cliente.
 					var s3Url = await _s3Service.UploadImageAsync(img.Bytes, img.NomeArquivo, img.ContentType);
 					enviadas.Add(s3Url);
@@ -443,6 +401,8 @@ namespace Services
 						S3Url = s3Url,
 						ContentType = img.ContentType,
 						NomeArquivo = img.NomeArquivo,
+						Legenda = LimitarTexto(fotos[idx]?.Legenda, MaxLegendaFoto),
+						Ordem = proximaOrdem++,
 					});
 				}
 
@@ -603,10 +563,13 @@ namespace Services
 		private async Task<List<RelatorioSecao>> ParseSecoesDoHtml(string html, Obras obra)
 		{
 			var secoes = new List<RelatorioSecao>();
-			var secoesMap = new Dictionary<TipoSecao, RelatorioSecao>();
+			// Tipos únicos (Local, MaoDeObra, Equipamentos, Comentarios, Ocorrencias) deduplicam por tipo;
+			// os configuráveis (4,5,8,9,10,11) deduplicam pelo DataSecao ("<tipo>" ou "<tipo>:<campo>").
+			var tiposUnicosVistos = new HashSet<TipoSecao>();
+			var dataSecoesVistas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 			var doc = new HtmlDocument();
-			doc.LoadHtml(html);
+			doc.LoadHtml(html ?? string.Empty);
 
 			var nodes = doc.DocumentNode.SelectNodes("//*[@data-secao]");
 			if (nodes == null) return secoes;
@@ -625,26 +588,54 @@ namespace Services
 
 				if (tipoSecao == TipoSecao.Ocorrencias)
 				{
-					if (secoesMap.ContainsKey(tipoSecao))
+					if (!tiposUnicosVistos.Add(tipoSecao))
 						continue;
 
 					var (secoesOcorrencias, proximaOrdem) = await BuildSecoesOcorrencias(obra, ordem);
 					secoes.AddRange(secoesOcorrencias);
 					ordem = proximaOrdem;
-					secoesMap[tipoSecao] = new RelatorioSecao { DataSecao = dataSecao, TipoSecao = tipoSecao };
 					continue;
 				}
 
-				if (secoesMap.ContainsKey(tipoSecao))
+				var configuravel = RelatorioSecaoConfig.IsConfiguravel(tipoSecao);
+				string chaveDataSecao = dataSecao;
+				if (configuravel)
+				{
+					var campo = RelatorioSecaoConfig.NormalizarCampo(node.GetAttributeValue("data-campo", null));
+					if (campo != null) chaveDataSecao = $"{dataSecao}:{campo}";
+					if (!dataSecoesVistas.Add(chaveDataSecao))
+						continue;
+				}
+				else if (!tiposUnicosVistos.Add(tipoSecao))
+				{
 					continue;
+				}
+
+				var titulo = LerAtributoTexto(node, "data-titulo", 200);
+				if (titulo == null && dataSecao == "observacao") titulo = "Observações";
 
 				var secao = new RelatorioSecao
 				{
-					DataSecao = dataSecao,
+					DataSecao = chaveDataSecao,
 					TipoSecao = tipoSecao,
 					Ordem = ordem++,
+					Titulo = titulo,
 					Itens = new List<RelatorioSecaoItem>()
 				};
+
+				if (configuravel)
+				{
+					// data-config chega HTML-escaped no atributo; JSON inválido/grande vira config vazia.
+					var rawConfig = node.GetAttributeValue("data-config", null);
+					if (rawConfig != null) rawConfig = HtmlEntity.DeEntitize(rawConfig);
+					secao.ConteudoJson = RelatorioSecaoConfig.Normalizar(tipoSecao, rawConfig);
+
+					var cfg = RelatorioSecaoConfig.Parse(secao.ConteudoJson);
+					if (tipoSecao == TipoSecao.Checklist)
+						secao.ConteudoJson = await BuildChecklistConteudo(obra.Id, cfg);
+					else
+						secao.Itens = RelatorioSecaoConfig.ItensPadrao(tipoSecao, cfg);
+				}
 
 				switch (tipoSecao)
 				{
@@ -684,26 +675,17 @@ namespace Services
 						}).ToList();
 						break;
 
-					case TipoSecao.TextoLivre:
-						secao.Itens = [new RelatorioSecaoItem { Nome = null, Descricao = null }];
-						break;
-
-					case TipoSecao.Fotos:
-						secao.Itens = [new RelatorioSecaoItem { Nome = null, Descricao = null }];
-						break;
-
 					case TipoSecao.Comentarios:
 						break;
 				}
 
-				secoesMap[tipoSecao] = secao;
 				secoes.Add(secao);
 			}
 
 			// Garante que TODA relatório tenha uma seção de Comentários no final, mesmo que
 			// o modelo HTML não declare data-secao="comentarios". É o local oficial onde admin
 			// e gerente trocam observações sobre o relatório durante a aprovação.
-			if (!secoesMap.ContainsKey(TipoSecao.Comentarios))
+			if (!tiposUnicosVistos.Contains(TipoSecao.Comentarios))
 			{
 				secoes.Add(new RelatorioSecao
 				{
@@ -715,6 +697,41 @@ namespace Services
 			}
 
 			return secoes;
+		}
+
+		/// <summary>Atributo de texto do modelo (HTML-decoded, trim, limitado). <c>null</c> se vazio.</summary>
+		private static string? LerAtributoTexto(HtmlNode node, string atributo, int max)
+		{
+			var v = node.GetAttributeValue(atributo, null);
+			if (v == null) return null;
+			v = HtmlEntity.DeEntitize(v).Trim();
+			if (v.Length == 0) return null;
+			return v.Length > max ? v[..max] : v;
+		}
+
+		/// <summary>
+		/// [v2] Config da seção Checklist: mantém a config do modelo e acrescenta <c>obraChecklistIds</c>
+		/// com as execuções existentes na obra (filtradas por checklistId quando informado).
+		/// </summary>
+		private async Task<string?> BuildChecklistConteudo(int obraId, System.Text.Json.Nodes.JsonObject? cfg)
+		{
+			var obj = cfg ?? new System.Text.Json.Nodes.JsonObject();
+			try
+			{
+				var checklistId = RelatorioSecaoConfig.ChecklistId(cfg);
+				var ids = await _unitOfWork.ObraChecklists.GetIdsByObra(obraId, checklistId);
+				if (ids.Count > 0)
+				{
+					var arr = new System.Text.Json.Nodes.JsonArray();
+					foreach (var id in ids) arr.Add(id);
+					obj["obraChecklistIds"] = arr;
+				}
+			}
+			catch
+			{
+				// best-effort: a lista é opcional (o front busca as execuções da obra).
+			}
+			return obj.Count == 0 ? null : obj.ToJsonString();
 		}
 
 		private async Task<(List<RelatorioSecao> Secoes, int ProximaOrdem)> BuildSecoesOcorrencias(Obras obra, int ordemInicial)
@@ -814,7 +831,7 @@ namespace Services
 					ReferenciaId = i.ReferenciaId,
 					Nome = i.Nome,
 					Descricao = i.Descricao,
-					Fotos = i.Fotos?.Select(f => new RelatorioItemFotoDTO
+					Fotos = i.Fotos?.OrderBy(f => f.Ordem).ThenBy(f => f.Id).Select(f => new RelatorioItemFotoDTO
 					{
 						Id = f.Id,
 						RelatorioSecaoItemId = f.RelatorioSecaoItemId,
@@ -822,6 +839,9 @@ namespace Services
 						NomeArquivo = f.NomeArquivo,
 						ImagemBase64 = f.ImagemBytes!=null? Convert.ToBase64String(f.ImagemBytes) : null,
 						S3Url=f.S3Url,
+						Legenda = f.Legenda,
+						Ordem = f.Ordem,
+						CreatedDate = f.CreatedDate,
 					}).ToList() ?? new()
 				}).ToList() ?? new(),
 				Comentarios = s.Comentarios?.Select(MapComentarioToDTO).ToList() ?? new()
@@ -861,6 +881,171 @@ namespace Services
 		// banco que não vierem no payload são MANTIDAS (sem delete implícito).
 		// Para deletar use o endpoint granular existente (delete/{id}) ou
 		// adicione um marcador "deleted: true" no payload futuramente.
+		// =====================================================================
+		// [v2] Fotos: legenda e ordem
+		// =====================================================================
+
+		private const int MaxLegendaFoto = 300;
+
+		private static string? LimitarTexto(string? s, int max)
+		{
+			if (string.IsNullOrWhiteSpace(s)) return null;
+			var t = s.Trim();
+			return t.Length > max ? t[..max] : t;
+		}
+
+		public async Task<bool> UpdateFoto(int fotoId, UpdateRelatorioFotoRequest req)
+		{
+			var foto = await _unitOfWork.Relatorios.GetFotoById(fotoId);
+			if (foto == null) throw new KeyNotFoundException("Foto não encontrada.");
+			if (req.LegendaInformada) foto.Legenda = LimitarTexto(req.Legenda, MaxLegendaFoto);
+			if (req.Ordem.HasValue) foto.Ordem = Math.Max(0, req.Ordem.Value);
+			foto.UpdatedDate = DateTime.UtcNow;
+			_unitOfWork.Relatorios.UpdateFoto(foto);
+			return _unitOfWork.Save() >= 0;
+		}
+
+		/// <summary>Ordem = posição em <paramref name="fotoIds"/>; fotos não listadas vão para o fim.</summary>
+		public async Task<bool> ReorderFotos(int itemId, List<int> fotoIds)
+		{
+			var item = await _unitOfWork.Relatorios.GetItemById(itemId);
+			if (item == null) throw new KeyNotFoundException("Item não encontrado.");
+			var porId = item.Fotos.ToDictionary(f => f.Id);
+			var ids = (fotoIds ?? new List<int>()).Distinct().ToList();
+			if (ids.Any(id => !porId.ContainsKey(id))) throw new Exception("Há fotos que não pertencem a este item.");
+
+			var ordem = 0;
+			foreach (var id in ids) porId[id].Ordem = ordem++;
+			foreach (var resto in item.Fotos.Where(f => !ids.Contains(f.Id)).OrderBy(f => f.Ordem).ThenBy(f => f.Id))
+				resto.Ordem = ordem++;
+			_unitOfWork.Save();
+			return true;
+		}
+
+		// =====================================================================
+		// [v2] Duplicar relatório (ex.: RDO do dia seguinte)
+		// =====================================================================
+
+		private static readonly HashSet<TipoSecao> TiposCopiaveis = new()
+		{
+			TipoSecao.TextoLivre, TipoSecao.Formulario, TipoSecao.Clima, TipoSecao.MaoDeObra, TipoSecao.Equipamentos,
+		};
+
+		public async Task<int> Duplicar(int id, DuplicarRelatorioRequest req, int criadoPorUserId, int empresaIdJwt)
+		{
+			var original = await _unitOfWork.Relatorios.GetById(id);
+			if (original == null || original.Obra?.EmpresaId != empresaIdJwt) throw new KeyNotFoundException("Relatório não encontrado.");
+
+			var titulo = string.IsNullOrWhiteSpace(req?.Titulo) ? $"{original.Titulo} (cópia)" : req!.Titulo!.Trim();
+			if (titulo.Length > 300) titulo = titulo[..300];
+
+			var novo = await CreateInternal(new CreateRelatorioRequest
+			{
+				ModeloTextoId = original.ModeloTextoId,
+				ObraId = original.ObraId,
+				CriadoPorUserId = criadoPorUserId,
+				Titulo = titulo,
+				DataRelatorio = req?.DataRelatorio,
+			}, criadoPorUserId, empresaIdJwt);
+
+			// Copia os valores de texto por DataSecao + item (ReferenciaId para mão de obra/equipamentos,
+			// senão Nome; por último a posição). Fotos, assinaturas e comentários não são copiados.
+			var origemPorChave = original.Secoes
+				.Where(sec => TiposCopiaveis.Contains(sec.TipoSecao))
+				.GroupBy(sec => sec.DataSecao ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+				.ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+			var alterou = false;
+			foreach (var destino in novo.Secoes.Where(sec => TiposCopiaveis.Contains(sec.TipoSecao)))
+			{
+				if (!origemPorChave.TryGetValue(destino.DataSecao ?? string.Empty, out var origem)) continue;
+				var itensOrigem = origem.Itens.OrderBy(i => i.Id).ToList();
+				var usados = new HashSet<int>();
+				var destinos = destino.Itens.ToList();
+				for (var idx = 0; idx < destinos.Count; idx++)
+				{
+					var d = destinos[idx];
+					RelatorioSecaoItem? o = null;
+					if (d.ReferenciaId.HasValue)
+						o = itensOrigem.FirstOrDefault(x => x.ReferenciaId == d.ReferenciaId && !usados.Contains(x.Id));
+					o ??= itensOrigem.FirstOrDefault(x => !usados.Contains(x.Id) && string.Equals(x.Nome ?? "", d.Nome ?? "", StringComparison.OrdinalIgnoreCase) && !d.ReferenciaId.HasValue && !x.ReferenciaId.HasValue);
+					if (o == null && !d.ReferenciaId.HasValue && idx < itensOrigem.Count && !usados.Contains(itensOrigem[idx].Id) && !itensOrigem[idx].ReferenciaId.HasValue)
+						o = itensOrigem[idx];
+					if (o == null || string.IsNullOrEmpty(o.Descricao)) continue;
+					usados.Add(o.Id);
+					d.Descricao = o.Descricao;
+					alterou = true;
+				}
+			}
+
+			if (alterou) _unitOfWork.Save();
+
+
+			return novo.Id;
+		}
+
+		// =====================================================================
+		// [v2] Pendências de preenchimento (obrigatórios do modelo)
+		// =====================================================================
+
+		private static List<PendenciaRelatorioDTO> CalcularPendencias(Relatorio relatorio)
+		{
+			var pendencias = new List<PendenciaRelatorioDTO>();
+			foreach (var secao in (relatorio.Secoes ?? new List<RelatorioSecao>()).OrderBy(x => x.Ordem))
+			{
+				if (!RelatorioSecaoConfig.IsConfiguravel(secao.TipoSecao)) continue;
+				var cfg = RelatorioSecaoConfig.Parse(secao.ConteudoJson);
+				var titulo = string.IsNullOrWhiteSpace(secao.Titulo) ? RelatorioSecaoConfig.TituloPadrao(secao.TipoSecao) : secao.Titulo!;
+				void Add(string motivo) => pendencias.Add(new PendenciaRelatorioDTO { SecaoId = secao.Id, Titulo = titulo, Motivo = motivo });
+				var itens = secao.Itens.OrderBy(i => i.Id).ToList();
+
+				switch (secao.TipoSecao)
+				{
+					case TipoSecao.TextoLivre:
+						if (RelatorioSecaoConfig.Obrigatorio(cfg) && itens.All(i => RelatorioSecaoConfig.TextoVazio(i.Descricao)))
+							Add("Preencha este campo.");
+						break;
+
+					case TipoSecao.Formulario:
+						var campos = RelatorioSecaoConfig.Campos(cfg);
+						for (var idx = 0; idx < campos.Count; idx++)
+						{
+							if (!campos[idx].Obrigatorio) continue;
+							var campoItem = idx < itens.Count && string.Equals(itens[idx].Nome ?? "", campos[idx].Label, StringComparison.OrdinalIgnoreCase)
+								? itens[idx]
+								: itens.FirstOrDefault(i => string.Equals(i.Nome ?? "", campos[idx].Label, StringComparison.OrdinalIgnoreCase));
+							if (campoItem == null || string.IsNullOrWhiteSpace(campoItem.Descricao))
+								Add($"Preencha '{campos[idx].Label}'.");
+						}
+						break;
+
+					case TipoSecao.Clima:
+						if (!RelatorioSecaoConfig.Obrigatorio(cfg)) break;
+						foreach (var periodo in itens)
+							if (string.IsNullOrWhiteSpace(RelatorioSecaoConfig.LerCampoValor(periodo.Descricao, "tempo")))
+								Add($"Informe o tempo de '{periodo.Nome ?? "período"}'.");
+						break;
+
+					case TipoSecao.Assinatura:
+						if (!RelatorioSecaoConfig.Obrigatorio(cfg)) break;
+						foreach (var assinante in itens)
+							if (assinante.Fotos.Count == 0)
+								Add($"Falta a assinatura de '{assinante.Nome ?? "responsável"}'.");
+						break;
+
+					case TipoSecao.Fotos:
+						var totalFotos = itens.Sum(i => i.Fotos.Count);
+						var min = RelatorioSecaoConfig.MinFotos(cfg);
+						if (min.HasValue && min.Value > 0 && totalFotos < min.Value)
+							Add(min.Value == 1 ? "Adicione pelo menos 1 foto." : $"Adicione pelo menos {min.Value} fotos.");
+						if (RelatorioSecaoConfig.GetBool(cfg, "exigirLegenda") && itens.SelectMany(i => i.Fotos).Any(f => string.IsNullOrWhiteSpace(f.Legenda)))
+							Add("Todas as fotos precisam de legenda.");
+						break;
+				}
+			}
+			return pendencias;
+		}
+
 		public async Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req)
 		{
 			try
@@ -913,20 +1098,20 @@ namespace Services
 							};
 							await _unitOfWork.Relatorios.AddSecao(nova);
 
-							// [v12] Seções de Fotos precisam de um item raiz pra ancorar
-							// as fotos. Sem isso, secao.itens[0] fica vazio e o operador
-							// não consegue fazer upload.
-							if (sReq.TipoSecao == TipoSecao.Fotos)
+							// [v12] Seções de Fotos precisam de um item raiz pra ancorar as fotos.
+							// [v2] Demais configuráveis (texto, clima, assinatura, formulário) recebem os
+							// itens definidos pela config (períodos, assinantes, campos).
+							if (RelatorioSecaoConfig.IsConfiguravel(sReq.TipoSecao) && sReq.TipoSecao != TipoSecao.Checklist)
 							{
+								nova.ConteudoJson = RelatorioSecaoConfig.Normalizar(sReq.TipoSecao, sReq.ConteudoJson) ?? sReq.ConteudoJson;
 								// Salva primeiro pra ter o ID da seção
 								_unitOfWork.Save();
-								var itemRaiz = new RelatorioSecaoItem
+								var cfgNova = RelatorioSecaoConfig.Parse(nova.ConteudoJson);
+								foreach (var itemPadrao in RelatorioSecaoConfig.ItensPadrao(sReq.TipoSecao, cfgNova))
 								{
-									RelatorioSecaoId = nova.Id,
-									Nome = "Fotos",
-									Descricao = null,
-								};
-								await _unitOfWork.Relatorios.AddItem(itemRaiz);
+									itemPadrao.RelatorioSecaoId = nova.Id;
+									await _unitOfWork.Relatorios.AddItem(itemPadrao);
+								}
 							}
 						}
 					}
@@ -958,6 +1143,9 @@ namespace Services
 		Task<bool> UpdateStatus(int id, UpdateRelatorioStatusRequest req);
 		Task<bool> Delete(int id);
 		Task<bool> UpdateItem(int itemId, UpdateRelatorioSecaoItemRequest req);
+		Task<bool> UpdateFoto(int fotoId, UpdateRelatorioFotoRequest req);
+		Task<bool> ReorderFotos(int itemId, List<int> fotoIds);
+		Task<int> Duplicar(int id, DuplicarRelatorioRequest req, int criadoPorUserId, int empresaIdJwt);
 		Task<bool> AddFotoToItem(int itemId, AddFotoToItemRequest req);
 		Task<bool> DeleteFoto(int fotoId);
 		Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req);

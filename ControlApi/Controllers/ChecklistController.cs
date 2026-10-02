@@ -1,4 +1,4 @@
-using ControlApi;
+﻿using ControlApi;
 using Core.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -125,6 +125,31 @@ namespace ControlApi.Controllers
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Checklist não encontrado.");
                 var ok = await _service.ToggleStatus(id);
                 return ok ? Ok(true) : BadRequest("Falha ao alternar status.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        public class DuplicarChecklistRequest
+        {
+            public string? Nome { get; set; }
+        }
+
+        /// <summary>[v2] Duplica o modelo com todos os itens ativos.</summary>
+        [HttpPost("{id}/duplicar")]
+        public async Task<IActionResult> Duplicar(int id, [FromBody] DuplicarChecklistRequest? req)
+        {
+            try
+            {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Checklist não encontrado.");
+                var result = await _service.Duplicar(id, req?.Nome);
+                return Ok(result);
             }
             catch (Exception ex)
             {
