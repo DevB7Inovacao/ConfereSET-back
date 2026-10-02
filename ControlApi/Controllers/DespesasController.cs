@@ -93,8 +93,9 @@ namespace ControlApi.Controllers
 
                 var result = await _despesasService.CreateDespesa(despesa);
 
+                // [v2] Devolve o id para o relatório vincular a despesa recém-lançada.
                 if (result.Id > 0)
-                    return Ok("Despesa cadastrada com sucesso.");
+                    return Ok(new { id = result.Id, message = "Despesa cadastrada com sucesso." });
                 else
                     return BadRequest("Erro ao cadastrar despesa.");
             }

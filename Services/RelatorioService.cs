@@ -33,6 +33,7 @@ namespace Services
 					["assinatura"] = TipoSecao.Assinatura,
 					["formulario"] = TipoSecao.Formulario,
 					["checklist"] = TipoSecao.Checklist,
+					["despesas"] = TipoSecao.Despesas,
 					// "observacao" é um texto livre com título "Observações".
 					["observacao"] = TipoSecao.TextoLivre,
 				};
@@ -1073,6 +1074,8 @@ namespace Services
 						if (sReq.Id.HasValue && sReq.Id.Value > 0 && existentesPorId.TryGetValue(sReq.Id.Value, out var existente))
 						{
 							// UPDATE
+							if (RelatorioSecaoConfig.ExcedeLimite(sReq.ConteudoJson))
+								throw new Exception("Configuração da seção muito grande.");
 							existente.Titulo = sReq.Titulo;
 							existente.Ordem = sReq.Ordem;
 							existente.ConteudoJson = sReq.ConteudoJson;

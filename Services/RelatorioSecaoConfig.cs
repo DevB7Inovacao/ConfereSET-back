@@ -28,7 +28,8 @@ namespace Services
 		/// <summary>Tipos cuja config fica em ConteudoJson e que podem aparecer várias vezes (via data-campo).</summary>
 		public static bool IsConfiguravel(TipoSecao tipo) =>
 			tipo == TipoSecao.TextoLivre || tipo == TipoSecao.Fotos || tipo == TipoSecao.Clima
-			|| tipo == TipoSecao.Assinatura || tipo == TipoSecao.Formulario || tipo == TipoSecao.Checklist;
+			|| tipo == TipoSecao.Assinatura || tipo == TipoSecao.Formulario || tipo == TipoSecao.Checklist
+			|| tipo == TipoSecao.Despesas;
 
 		/// <summary>Normaliza o <c>data-campo</c> (a-z0-9-_). Retorna <c>null</c> se ausente ou inválido.</summary>
 		public static string? NormalizarCampo(string? campo)
@@ -217,6 +218,7 @@ namespace Services
 			TipoSecao.Assinatura => "Assinaturas",
 			TipoSecao.Formulario => "Formulário",
 			TipoSecao.Checklist => "Conferelist",
+			TipoSecao.Despesas => "Despesas",
 			_ => "Seção"
 		};
 

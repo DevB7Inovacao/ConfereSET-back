@@ -13,6 +13,8 @@
         Clima = 8,
         Assinatura = 9,
         Formulario = 10,
-        Checklist = 11
+        Checklist = 11,
+        // [v2] Despesas da obra vinculadas ao relatório (ids em ConteudoJson: { "despesaIds": [..] }).
+        Despesas = 12
     }
 }
