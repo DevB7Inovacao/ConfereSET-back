@@ -161,6 +161,27 @@ namespace Services
                 };
             }
 
+            // Antes o plano era apagado do banco mas continuava ATIVO no Mercado Pago (órfão).
+            if (!string.IsNullOrWhiteSpace(plano.MPPreapprovalPlanId))
+            {
+                try
+                {
+                    await _mpClient.UpdatePreapprovalPlan(plano.MPPreapprovalPlanId, new MPUpdatePreapprovalPlanRequest
+                    {
+                        Reason = plano.Nome,
+                        AutoRecurring = new MPAutoRecurring
+                        {
+                            Frequency = (int)plano.Recorrencia,
+                            FrequencyType = "months",
+                            TransactionAmount = plano.Valor,
+                            CurrencyId = "BRL"
+                        },
+                        Status = "inactive"
+                    });
+                }
+                catch { /* sincronização com o MP é best-effort */ }
+            }
+
             _unitOfWork.Planos.Delete(plano);
             _unitOfWork.Save();
 
