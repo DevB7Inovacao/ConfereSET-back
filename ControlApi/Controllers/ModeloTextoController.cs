@@ -1,4 +1,4 @@
-using ControlApi;
+﻿using ControlApi;
 using Core.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +12,68 @@ namespace ControlApi.Controllers
     public class ModeloTextoController : ControllerBase
     {
         private readonly IModeloTextoService _service;
-    private readonly IRelatorioService _relatorioService;
+        private readonly IRelatorioService _relatorioService;
+        private readonly IS3Service _s3Service;
 
-        public ModeloTextoController(IModeloTextoService service,IRelatorioService relatorioService)
+        /// <summary>Imagens por envio na importação de documentos (o front manda em lotes).</summary>
+        private const int MaxImagensPorEnvio = 20;
+
+        public ModeloTextoController(IModeloTextoService service, IRelatorioService relatorioService, IS3Service s3Service)
         {
             _service = service;
-      _relatorioService = relatorioService;
+            _relatorioService = relatorioService;
+            _s3Service = s3Service;
+        }
+
+        public class UploadImagensModeloRequest
+        {
+            public List<UploadImagemModeloItem>? Imagens { get; set; }
+        }
+
+        public class UploadImagemModeloItem
+        {
+            public string? ImagemBase64 { get; set; }
+            public string? NomeArquivo { get; set; }
+        }
+
+        /// <summary>
+        /// Envia as imagens de um documento importado (Word) para o S3 e devolve as URLs, na mesma
+        /// ordem. Assim o modelo guarda só o link (antes a imagem ia embutida em base64 no HTML e
+        /// era copiada para cada relatório). Tudo ou nada: se uma falhar, as já enviadas são apagadas.
+        /// </summary>
+        [HttpPost("imagens")]
+        [RequestSizeLimit(150_000_000)]
+        public async Task<IActionResult> UploadImagens([FromBody] UploadImagensModeloRequest req)
+        {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+
+            var imagens = req?.Imagens ?? new List<UploadImagemModeloItem>();
+            if (imagens.Count == 0) return BadRequest("Nenhuma imagem enviada.");
+            if (imagens.Count > MaxImagensPorEnvio) return BadRequest($"Envie no máximo {MaxImagensPorEnvio} imagens por vez.");
+
+            List<ImagemValidada> validadas;
+            try
+            {
+                validadas = imagens.Select(i => ImageValidation.Validar(i.ImagemBase64, i.NomeArquivo, "imagem")).ToList();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            var urls = new List<string>();
+            try
+            {
+                foreach (var img in validadas)
+                    urls.Add(await _s3Service.UploadImageAsync(img.Bytes, $"modelo_{User.GetEmpresaId()}_{img.NomeArquivo}", img.ContentType));
+                return Ok(new { urls });
+            }
+            catch (Exception ex)
+            {
+                foreach (var url in urls) await _s3Service.DeleteImageAsync(url);
+                return BadRequest($"Falha ao enviar as imagens: {ex.Message}");
+            }
         }
 
         private IActionResult? ChecarPermissaoEscrita()
