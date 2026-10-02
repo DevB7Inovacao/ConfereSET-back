@@ -32,7 +32,10 @@ namespace Infrastructure.Repositories
         {
              return await _dbContext.Set<Empresas>()
             .Where(x => string.IsNullOrEmpty(filtersDTO.Name) 
-            || EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
+            || EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%")
+            || (x.TradeName != null && EF.Functions.Like(x.TradeName.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
+            || (x.CNPJ != null && EF.Functions.Like(x.CNPJ, $"%{filtersDTO.Name}%")))
+            .OrderBy(x => x.Name)
             .GetPagedAsync<Empresas>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
     }

@@ -54,6 +54,12 @@ namespace ControlApi
 			return t == TypeUser.admin || t == TypeUser.gerente;
 		}
 
+		/// <summary>Admin master (dono da plataforma) — único que gerencia todas as empresas.</summary>
+		public static bool IsPlatformAdmin(this ClaimsPrincipal user)
+		{
+			return user.GetUserType() == TypeUser.admin;
+		}
+
 		public static bool IsReadOnly(this ClaimsPrincipal user)
 		{
 			return user.GetUserType() == TypeUser.somenteleitura;

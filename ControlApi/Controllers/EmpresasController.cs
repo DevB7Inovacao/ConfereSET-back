@@ -28,6 +28,9 @@ namespace ControlApi.Controllers
 		[Route("create")]
 		public async Task<IActionResult> CreateEmpresa([FromBody] EmpresasDTO empresas)
 		{
+			if (!User.IsPlatformAdmin())
+				return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode realizar esta ação.");
+
 			try
 			{
 				var empresa = _mapper.Map<Empresas>(empresas);
@@ -71,6 +74,9 @@ namespace ControlApi.Controllers
 		[Route("delete/{id}")]
 		public async Task<IActionResult> DeleteEmpresa(int id)
 		{
+			if (!User.IsPlatformAdmin())
+				return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode realizar esta ação.");
+
 			try
 			{
 				bool result = await _empresasService.DeleteEmpresa(id);
@@ -89,6 +95,9 @@ namespace ControlApi.Controllers
 		[Route("toggle-status/{id}")]
 		public async Task<IActionResult> ToggleEmpresaStatus(int id)
 		{
+			if (!User.IsPlatformAdmin())
+				return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode realizar esta ação.");
+
 			try
 			{
 				bool result = await _empresasService.ToggleEmpresaStatus(id);
@@ -107,6 +116,9 @@ namespace ControlApi.Controllers
 		[Route("getEmpresasPaged")]
 		public async Task<IActionResult> GetEmpresasPaged([FromQuery] FiltersDTO filtersDTO)
 		{
+			if (!User.IsPlatformAdmin())
+				return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode realizar esta ação.");
+
 			var result = await _empresasService.GetEmpresasPaged(filtersDTO);
 			if (result != null)
 				return Ok(result);

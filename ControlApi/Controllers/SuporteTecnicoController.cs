@@ -1,4 +1,5 @@
-﻿using Core.DTO;
+﻿using ControlApi;
+using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
 using Microsoft.AspNetCore.Authorization;
@@ -20,6 +21,9 @@ namespace ControlApi.Controllers
             _jWTManager = jWTManager;
             _supportTicketsService = supportTicketsService;
         }
+
+        private bool PodeAcessar(SupportTicket ticket) =>
+            User.IsPlatformAdmin() || ticket.EmpresaId == User.GetEmpresaId();
 
         [HttpPost]
         [Route("create")]
@@ -79,6 +83,10 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Multi-tenant: empresas só veem os próprios chamados; o admin master vê todos.
+                if (!User.IsPlatformAdmin())
+                    filtersDTO.EmpresaId = User.GetEmpresaId();
+
                 var result = await _supportTicketsService.GetPaged(filtersDTO);
                 return Ok(result);
             }
@@ -95,7 +103,7 @@ namespace ControlApi.Controllers
             if (req == null) return BadRequest("Payload inválido.");
 
             var existing = await _supportTicketsService.GetById(id);
-            if (existing == null) return NotFound("Chamado não encontrado.");
+            if (existing == null || !PodeAcessar(existing)) return NotFound("Chamado não encontrado.");
 
             if (req.Subject.HasValue) existing.Subject = req.Subject.Value;
             if (req.Status.HasValue) existing.Status = req.Status.Value;
@@ -115,6 +123,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var ticket = await _supportTicketsService.GetById(id);
+                if (ticket == null || !PodeAcessar(ticket)) return NotFound("Chamado não encontrado.");
+
                 bool result = await _supportTicketsService.Delete(id);
                 if (result)
                     return Ok("Chamado excluído com sucesso.");
@@ -133,6 +144,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var ticket = await _supportTicketsService.GetById(id);
+                if (ticket == null || !PodeAcessar(ticket)) return NotFound("Chamado não encontrado.");
+
                 bool result = await _supportTicketsService.ToggleStatus(id);
                 if (result)
                     return Ok("Status do chamado alterado com sucesso.");
@@ -151,7 +165,7 @@ namespace ControlApi.Controllers
             if (id <= 0) return BadRequest("id inválido.");
 
             var ticket = await _supportTicketsService.GetById(id);
-            if (ticket == null) return NotFound("Chamado não encontrado.");
+            if (ticket == null || !PodeAcessar(ticket)) return NotFound("Chamado não encontrado.");
 
             var dto = new SupportTicketDTO
             {
@@ -177,6 +191,7 @@ namespace ControlApi.Controllers
         {
             try
             {
+                if (!User.IsPlatformAdmin()) empresaId = User.GetEmpresaId();
                 if (empresaId <= 0) return BadRequest("empresaId inválido.");
                 var result = await _supportTicketsService.GetSimple(empresaId);
                 return Ok(result);
@@ -193,7 +208,7 @@ namespace ControlApi.Controllers
             if (id <= 0) return BadRequest("id inválido.");
 
             var ticket = await _supportTicketsService.GetById(id);
-            if (ticket == null) return NotFound("Chamado não encontrado.");
+            if (ticket == null || !PodeAcessar(ticket)) return NotFound("Chamado não encontrado.");
             if (ticket.AttachmentBytes == null || ticket.AttachmentBytes.Length == 0) return NotFound("Chamado não possui anexo.");
 
             var contentType = string.IsNullOrWhiteSpace(ticket.AttachmentContentType) ? "application/octet-stream" : ticket.AttachmentContentType;

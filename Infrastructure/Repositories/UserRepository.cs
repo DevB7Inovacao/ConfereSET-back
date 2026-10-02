@@ -52,12 +52,17 @@ namespace Infrastructure.Repositories
 
 		public async Task<PagedResult<User>> GetAllPaged(FiltersDTO filtersDTO)
 		{
+			// Visão do admin master: todas as empresas, com filtro opcional por empresa
+			// e busca por nome OU e-mail.
+			var termo = (filtersDTO.Name ?? "").Trim().ToLower();
 			return await _dbContext.Set<User>()
 						.Include(x => x.Empresa)
-						.Where(x => (string.IsNullOrEmpty(filtersDTO.Name)
-						|| EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
-
-						).GetPagedAsync<User>(filtersDTO.pageNumber, filtersDTO.pageSize);
+						.Where(x => (termo == ""
+							|| EF.Functions.Like(x.Name.ToLower(), $"%{termo}%")
+							|| EF.Functions.Like(x.Email.ToLower(), $"%{termo}%"))
+							&& (filtersDTO.EmpresaId <= 0 || x.EmpresaId == filtersDTO.EmpresaId))
+						.OrderBy(x => x.Name)
+						.GetPagedAsync<User>(filtersDTO.pageNumber, filtersDTO.pageSize);
 		}
 
 		public async Task<int> CountUsersByEmpresaId(int empresaId)

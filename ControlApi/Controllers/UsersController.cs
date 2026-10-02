@@ -166,6 +166,10 @@ namespace API.Controllers
 				if (tipoUsuario == TypeUser.admin && tipoLogado != TypeUser.admin)
 					return BadRequest("O perfil Admin é reservado ao master da plataforma. Para a empresa, use Administrador/Gerente.");
 
+				// Multi-tenant: só o admin master cria usuários em outra empresa.
+				if (tipoLogado != TypeUser.admin && hasEmpresa!.Id != User.GetEmpresaId())
+					return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para criar usuários nesta empresa.");
+
 				var limiteInvalido = await ValidarLimiteUsuariosPlano(hasEmpresa!.Id, tipoUsuario);
 				if (limiteInvalido != null) return limiteInvalido;
 			}
@@ -200,12 +204,20 @@ namespace API.Controllers
 
 		}
 
+		/// <summary>
+		/// Usuários de todas as empresas (visão do admin master), com filtro opcional por EmpresaId.
+		/// Antes qualquer usuário logado recebia os usuários de TODAS as empresas.
+		/// </summary>
 		[HttpGet("getUsers")]
 		public async Task<IActionResult> GetUsers([FromQuery] FiltersDTO filtersDTO)
 		{
-			filtersDTO.EmpresaId = User.GetEmpresaId();
-			var result = await userService.GetUsers(filtersDTO);
+			if (!User.IsPlatformAdmin())
+			{
+				filtersDTO.EmpresaId = User.GetEmpresaId();
+				return Ok(await userService.GetUsersPaged(filtersDTO));
+			}
 
+			var result = await userService.GetUsers(filtersDTO);
 			return Ok(result);
 		}
 
@@ -222,7 +234,7 @@ namespace API.Controllers
 			if (user == null) return NotFound("Usuário não encontrado.");
 			// Multi-tenant: só pode ler usuários da própria empresa.
 			var empresaIdJwt = User.GetEmpresaId();
-			if (user.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
+			if (user.EmpresaId != empresaIdJwt && !User.IsPlatformAdmin()) return NotFound("Usuário não encontrado.");
 			return Ok(user);
 		}
 
@@ -239,14 +251,19 @@ namespace API.Controllers
 				// Multi-tenant: só atualiza usuários da própria empresa.
 				var __existing = await userService.GetUserById(userId);
 				var empresaIdJwt = User.GetEmpresaId();
-				if (__existing == null || __existing.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
+				var isPlatformAdmin = User.IsPlatformAdmin();
+				if (__existing == null || (__existing.EmpresaId != empresaIdJwt && !isPlatformAdmin)) return NotFound("Usuário não encontrado.");
 
 				var tipoLogado = User.GetUserType();
 				if (user.Type == TypeUser.admin && tipoLogado != TypeUser.admin)
 					return BadRequest("O perfil Admin é reservado ao master da plataforma. Para a empresa, use Administrador/Gerente.");
 
-				var limiteInvalido = await ValidarLimiteUsuariosPlano(empresaIdJwt, user.Type, __existing.Type);
-				if (limiteInvalido != null) return limiteInvalido;
+				// Limites do plano valem para a empresa do usuário editado (o master não tem plano).
+				if (__existing.Type != TypeUser.admin)
+				{
+					var limiteInvalido = await ValidarLimiteUsuariosPlano(__existing.EmpresaId ?? empresaIdJwt, user.Type, __existing.Type);
+					if (limiteInvalido != null) return limiteInvalido;
+				}
 
 				var isUserCreated = await userService.UpdateUser(user, userId);
 				if (isUserCreated)
@@ -268,7 +285,8 @@ namespace API.Controllers
 				// Multi-tenant: só deleta usuários da própria empresa.
 				var __existing = await userService.GetUserById(userId);
 				var empresaIdJwt = User.GetEmpresaId();
-				if (__existing == null || __existing.EmpresaId != empresaIdJwt) return NotFound("Usuário não encontrado.");
+				if (__existing == null || (__existing.EmpresaId != empresaIdJwt && !User.IsPlatformAdmin())) return NotFound("Usuário não encontrado.");
+				if (__existing.Id == User.GetUserId()) return BadRequest("Você não pode excluir o próprio usuário.");
 				bool result = await userService.DeleteUser(userId);
 				if (result)
 					return Ok("Usuário excluído com sucesso.");

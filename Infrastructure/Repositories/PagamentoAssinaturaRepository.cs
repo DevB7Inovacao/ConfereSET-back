@@ -21,11 +21,27 @@ namespace Infrastructure.Repositories
                 .OrderByDescending(x => x.DataPagamento)
                 .ToListAsync();
         }
+
+        /// <summary>Todos os pagamentos (visão do admin master), com empresa e plano.</summary>
+        public async Task<List<PagamentoAssinatura>> GetAllComDetalhes(DateTime? de, DateTime? ate)
+        {
+            var query = _dbContext.Set<PagamentoAssinatura>()
+                .AsNoTracking()
+                .Include(x => x.Assinatura).ThenInclude(a => a!.Empresa)
+                .Include(x => x.Assinatura).ThenInclude(a => a!.Plano)
+                .AsQueryable();
+
+            if (de.HasValue) query = query.Where(x => x.DataPagamento >= de.Value);
+            if (ate.HasValue) query = query.Where(x => x.DataPagamento <= ate.Value);
+
+            return await query.OrderByDescending(x => x.DataPagamento).ToListAsync();
+        }
     }
 
     public interface IPagamentoAssinaturaRepository : IGenericRepository<PagamentoAssinatura>
     {
         Task<bool> ExistsByMPPaymentId(string mpPaymentId);
         Task<List<PagamentoAssinatura>> GetByAssinaturaId(int assinaturaId);
+        Task<List<PagamentoAssinatura>> GetAllComDetalhes(DateTime? de, DateTime? ate);
     }
 }

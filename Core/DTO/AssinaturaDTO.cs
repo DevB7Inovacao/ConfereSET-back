@@ -17,6 +17,19 @@ namespace Core.DTO
         public string? MPPayerEmail { get; set; }
     }
 
+    public class PagamentoAssinaturaDTO
+    {
+        public int Id { get; set; }
+        public int AssinaturaId { get; set; }
+        public int EmpresaId { get; set; }
+        public string? EmpresaNome { get; set; }
+        public string? PlanoNome { get; set; }
+        public decimal Valor { get; set; }
+        public DateTime DataPagamento { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? MPPaymentId { get; set; }
+    }
+
     public class CreateAssinaturaRequest
     {
 		public required int EmpresaId { get; set; }
@@ -58,15 +71,5 @@ namespace Core.DTO
         public int OperadoresUtilizados { get; set; }
         public bool PodeAdicionarGestor { get; set; }
         public bool PodeAdicionarOperador { get; set; }
-    }
-
-    public class PagamentoAssinaturaDTO
-    {
-        public int Id { get; set; }
-        public int AssinaturaId { get; set; }
-        public decimal Valor { get; set; }
-        public DateTime DataPagamento { get; set; }
-        public string? MPPaymentId { get; set; }
-        public string Status { get; set; } = string.Empty;
     }
 }

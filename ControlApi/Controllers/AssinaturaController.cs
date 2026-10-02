@@ -97,7 +97,8 @@ namespace ControlApi.Controllers
 
 				var assinatura = await _assinaturaService.GetById(id);
 				if (assinatura == null) return NotFound("Assinatura não encontrada.");
-				if (assinatura.EmpresaId != empresaJwt)
+				// O admin master gerencia a assinatura de qualquer empresa.
+				if (assinatura.EmpresaId != empresaJwt && !User.IsPlatformAdmin())
 					return StatusCode(StatusCodes.Status403Forbidden, "Assinatura pertence a outra empresa.");
 
 				var result = await _assinaturaService.AtualizarAssinatura(id, req.NovoValor, req.CardToken);
@@ -210,7 +211,8 @@ namespace ControlApi.Controllers
 
 				var assinatura = await _assinaturaService.GetById(id);
 				if (assinatura == null) return NotFound("Assinatura não encontrada.");
-				if (assinatura.EmpresaId != empresaJwt)
+				// O admin master gerencia a assinatura de qualquer empresa.
+				if (assinatura.EmpresaId != empresaJwt && !User.IsPlatformAdmin())
 					return StatusCode(StatusCodes.Status403Forbidden, "Assinatura pertence a outra empresa.");
 
 				var result = await _assinaturaService.Cancelar(id);
@@ -224,6 +226,17 @@ namespace ControlApi.Controllers
 			{
 				return BadRequest(ex.Message);
 			}
+		}
+
+		/// <summary>Pagamentos recebidos de todas as empresas (somente admin master).</summary>
+		[HttpGet("pagamentos")]
+		public async Task<IActionResult> ListarPagamentos([FromQuery] DateTime? de, [FromQuery] DateTime? ate)
+		{
+			if (!User.IsPlatformAdmin())
+				return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador pode consultar pagamentos.");
+
+			var pagamentos = await _assinaturaService.ListarPagamentos(de, ate);
+			return Ok(pagamentos);
 		}
 
 		[HttpGet("all")]

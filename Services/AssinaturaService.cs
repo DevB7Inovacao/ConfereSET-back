@@ -174,6 +174,25 @@ namespace Services
 			return _unitOfWork.Save() > 0;
 		}
 
+		public async Task<List<PagamentoAssinaturaDTO>> ListarPagamentos(DateTime? de, DateTime? ate)
+		{
+			var pagamentos = await _unitOfWork.PagamentosAssinatura.GetAllComDetalhes(de, ate);
+			return pagamentos.Select(p => new PagamentoAssinaturaDTO
+			{
+				Id = p.Id,
+				AssinaturaId = p.AssinaturaId,
+				EmpresaId = p.Assinatura?.EmpresaId ?? 0,
+				EmpresaNome = p.Assinatura?.Empresa != null
+					? (string.IsNullOrWhiteSpace(p.Assinatura.Empresa.TradeName) ? p.Assinatura.Empresa.Name : p.Assinatura.Empresa.TradeName)
+					: null,
+				PlanoNome = p.Assinatura?.Plano?.Nome,
+				Valor = p.Valor,
+				DataPagamento = p.DataPagamento,
+				Status = p.Status,
+				MPPaymentId = p.MPPaymentId
+			}).ToList();
+		}
+
 		public async Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId)
 		{
 			// empresaId <= 0 → dono da plataforma vê todas as empresas.
@@ -513,6 +532,7 @@ namespace Services
 		Task<bool> Cancelar(int id);
 		Task<bool> Excluir(int id);
 		Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId);
+		Task<List<PagamentoAssinaturaDTO>> ListarPagamentos(DateTime? de, DateTime? ate);
 		Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId);
 		Task ProcessarWebhookAssinatura(string mpSubscriptionId);
 		Task ProcessarWebhookPagamento(string mpPaymentId);

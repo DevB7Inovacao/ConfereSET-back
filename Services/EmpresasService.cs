@@ -191,9 +191,10 @@ namespace Services
 			{
 				var empresas = await _unitOfWork.Empresas.GetAllEmpresasPaged(filtersDTO);
 
+				// Busca sem resultado devolve lista vazia (antes lançava exceção → HTTP 500).
 				if (empresas == null || empresas.Results == null || !empresas.Results.Any())
 				{
-					throw new Exception("Nenhum dado foi encontrado.");
+					return new EmpresasPagedDTO() { Result = new List<EmpresasDTO>(), PageCount = 0 };
 				}
 
 				var empresaDTO = empresas.Results.Select(empresa => new EmpresasDTO
@@ -202,6 +203,9 @@ namespace Services
 					Name = empresa.Name,
 					CNPJ = empresa.CNPJ,
 					Status = empresa.Status,
+					TradeName = empresa.TradeName,
+					ContactEmail = empresa.ContactEmail,
+					Phone = empresa.Phone,
 				}).ToList();
 
 				return new EmpresasPagedDTO() { Result = empresaDTO, PageCount = empresas.PageCount };
