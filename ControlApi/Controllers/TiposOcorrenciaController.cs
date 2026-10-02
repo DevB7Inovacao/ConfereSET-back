@@ -23,12 +23,20 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
+        }
+
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateTipoOcorrenciaRequest req)
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Nome)) return BadRequest("Nome é obrigatório.");
                 if (req.Gravidade < 0 || req.Gravidade > 3) return BadRequest("Gravidade inválida.");
@@ -72,6 +80,9 @@ namespace ControlApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTipoOcorrenciaRequest req)
         {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+
             if (id <= 0) return BadRequest("id inválido.");
             if (req == null) return BadRequest("Payload inválido.");
 
@@ -109,6 +120,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __e = await _service.GetById(id);
                 if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Tipo de ocorrência não encontrado.");
                 var ok = await _service.Delete(id);
@@ -127,6 +141,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __e = await _service.GetById(id);
                 if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Tipo de ocorrência não encontrado.");
                 var ok = await _service.ToggleStatus(id);

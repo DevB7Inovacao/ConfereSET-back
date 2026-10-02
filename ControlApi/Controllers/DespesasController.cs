@@ -15,13 +15,29 @@ namespace ControlApi.Controllers
     [ApiController]
     public class DespesasController : ControllerBase
     {
+        private const string MsgSomenteLeitura = "Usuários somente leitura não podem alterar despesas.";
+
         private readonly IJWTManager _jWTManager;
         IDespesasService _despesasService;
+        private readonly IObrasService _obrasService;
 
-        public DespesasController(IJWTManager jWTManager, IDespesasService despesasService)
+        public DespesasController(IJWTManager jWTManager, IDespesasService despesasService, IObrasService obrasService)
         {
             this._jWTManager = jWTManager;
             this._despesasService = despesasService;
+            _obrasService = obrasService;
+        }
+
+        // Operadores lançam despesas; apenas somente leitura é bloqueado.
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsReadOnly() ? StatusCode(StatusCodes.Status403Forbidden, MsgSomenteLeitura) : null;
+        }
+
+        private async Task<bool> ObraPertenceAEmpresa(int obraId)
+        {
+            var obra = await _obrasService.GetObraById(obraId);
+            return obra != null && obra.EmpresaId == User.GetEmpresaId();
         }
 
         [HttpPost]
@@ -30,6 +46,12 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (req == null) return BadRequest("Payload inválido.");
+                if (req.ObraId > 0 && !await ObraPertenceAEmpresa(req.ObraId)) return NotFound("Obra não encontrada.");
+
                 var despesa = new Despesas
                 {
                     Name = req.Name,
@@ -71,12 +93,18 @@ namespace ControlApi.Controllers
         [HttpPut("{despesaId}")]
         public async Task<IActionResult> UpdateDespesa(int despesaId, [FromBody] UpdateDespesaRequest req)
         {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+
             if (despesaId <= 0) return BadRequest("despesaId inválido.");
             if (req == null) return BadRequest("Payload inválido.");
 
             var existing = await _despesasService.GetDespesaById(despesaId);
             if (existing == null) return NotFound("Despesa não encontrada.");
             if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
+
+            if (req.ObraId.HasValue && req.ObraId.Value > 0 && !await ObraPertenceAEmpresa(req.ObraId.Value))
+                return NotFound("Obra não encontrada.");
 
             if (req.Name != null) existing.Name = string.IsNullOrWhiteSpace(req.Name) ? existing.Name : req.Name;
             if (req.Amount.HasValue) existing.Amount = req.Amount.Value;
@@ -100,6 +128,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _despesasService.GetDespesaById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
                 bool result = await _despesasService.DeleteDespesa(id);
@@ -120,6 +151,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _despesasService.GetDespesaById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
                 bool result = await _despesasService.ToggleDespesaStatus(id);

@@ -459,13 +459,8 @@ namespace Services
 
 		private async Task<Dictionary<int, int>> GetOperadoresCountsByObraIds(List<int> obraIds)
 		{
-			var counts = new Dictionary<int, int>();
-			foreach (var obraId in obraIds)
-			{
-				var operadores = await _unitOfWork.ObraOperadores.GetOperadoresByObraId(obraId);
-				counts[obraId] = operadores.Count;
-			}
-			return counts;
+			// Uma única query agrupada (evita N+1).
+			return await _unitOfWork.ObraOperadores.GetOperadoresCountByObraIds(obraIds);
 		}
 	}
 

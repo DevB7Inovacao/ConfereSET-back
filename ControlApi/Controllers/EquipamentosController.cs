@@ -21,12 +21,20 @@ namespace ControlApi.Controllers
 			_equipamentosService = equipamentosService;
 		}
 
+		private IActionResult? ChecarPermissaoEscrita()
+		{
+			return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
+		}
+
 		[HttpPost]
 		[Route("create")]
 		public async Task<IActionResult> Create([FromBody] CreateEquipamentoRequest req)
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoEscrita();
+				if (semPermissao != null) return semPermissao;
+
 				if (req == null) return BadRequest("Payload inválido.");
 				if (string.IsNullOrWhiteSpace(req.Nome)) return BadRequest("Nome é obrigatório.");
 
@@ -67,6 +75,9 @@ namespace ControlApi.Controllers
 		[HttpPut("{id}")]
 		public async Task<IActionResult> Update(int id, [FromBody] UpdateEquipamentoRequest req)
 		{
+			var semPermissao = ChecarPermissaoEscrita();
+			if (semPermissao != null) return semPermissao;
+
 			if (id <= 0) return BadRequest("id inválido.");
 			if (req == null) return BadRequest("Payload inválido.");
 
@@ -95,6 +106,9 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoEscrita();
+				if (semPermissao != null) return semPermissao;
+
 				var __e = await _equipamentosService.GetEquipamentoById(id);
 				if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Equipamento não encontrado.");
 				var ok = await _equipamentosService.DeleteEquipamento(id);
@@ -113,6 +127,9 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoEscrita();
+				if (semPermissao != null) return semPermissao;
+
 				var __e = await _equipamentosService.GetEquipamentoById(id);
 				if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Equipamento não encontrado.");
 				var ok = await _equipamentosService.ToggleEquipamentoStatus(id);

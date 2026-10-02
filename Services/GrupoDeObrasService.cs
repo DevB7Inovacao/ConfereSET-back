@@ -66,7 +66,7 @@ namespace Services
             var grupos = await _unitOfWork.GrupoDeObras.GetAllGrupoPaged(filtersDTO);
 
             if (grupos == null || grupos.Results == null || !grupos.Results.Any())
-                throw new Exception("Nenhum dado foi encontrado.");
+                return new GrupoDeObrasPagedDTO { Result = new List<GrupoDeObrasDTO>(), PageCount = 0 };
 
             var dtos = grupos.Results.Select(g => new GrupoDeObrasDTO
             {

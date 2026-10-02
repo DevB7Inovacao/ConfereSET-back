@@ -174,6 +174,20 @@ namespace Services
 			return _unitOfWork.Save() > 0;
 		}
 
+		public async Task<List<PagamentoAssinaturaDTO>> ListarPagamentosDaAssinatura(int assinaturaId)
+		{
+			var pagamentos = await _unitOfWork.PagamentosAssinatura.GetByAssinaturaId(assinaturaId);
+			return pagamentos.Select(p => new PagamentoAssinaturaDTO
+			{
+				Id = p.Id,
+				AssinaturaId = p.AssinaturaId,
+				Valor = p.Valor,
+				DataPagamento = p.DataPagamento,
+				Status = p.Status,
+				MPPaymentId = p.MPPaymentId
+			}).ToList();
+		}
+
 		public async Task<List<PagamentoAssinaturaDTO>> ListarPagamentos(DateTime? de, DateTime? ate)
 		{
 			var pagamentos = await _unitOfWork.PagamentosAssinatura.GetAllComDetalhes(de, ate);
@@ -373,14 +387,15 @@ namespace Services
 			// Troca de valor
 			if (novoValor.HasValue)
 			{
+				if (novoValor.Value <= 0)
+					throw new Exception("O valor deve ser maior que zero.");
+
+				// Só a cobrança desta assinatura no Mercado Pago muda. Antes também alterava
+				// Plano.Valor, que é compartilhado: mudava o preço de TODAS as empresas do plano.
 				updateRequest["auto_recurring"] = new
 				{
 					transaction_amount = novoValor.Value
 				};
-
-				// Atualiza local também (opcional mas recomendado)
-				if (assinatura.Plano != null)
-					assinatura.Plano.Valor = novoValor.Value;
 			}
 
 			// 💳 Troca de cartão
@@ -533,6 +548,7 @@ namespace Services
 		Task<bool> Excluir(int id);
 		Task<(List<AssinaturaDTO> Items, int Total)> GetAllPaged(int page, int pageSize, int empresaId);
 		Task<List<PagamentoAssinaturaDTO>> ListarPagamentos(DateTime? de, DateTime? ate);
+		Task<List<PagamentoAssinaturaDTO>> ListarPagamentosDaAssinatura(int assinaturaId);
 		Task<LimitesAssinaturaDTO> VerificarLimites(int empresaId);
 		Task ProcessarWebhookAssinatura(string mpSubscriptionId);
 		Task ProcessarWebhookPagamento(string mpPaymentId);

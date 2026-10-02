@@ -31,6 +31,8 @@ namespace Infrastructure.Repositories
             if (filtersDTO.Status.HasValue)
                 q = q.Where(x => x.Status == filtersDTO.Status.Value);
 
+            q = q.OrderBy(x => x.Name).ThenBy(x => x.Id);
+
             return await q.GetPagedAsync<GrupoDeObras>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 

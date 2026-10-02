@@ -64,8 +64,16 @@ namespace ControlApi.Controllers
 			// Só o dono ativa/desativa empresa; gerente nunca altera status.
 			if (!isOwner) req.Empresa.Status = null;
 
-			var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
-			if (result) return Ok(true);
+			try
+			{
+				var result = await _empresasService.UpdateEmpresa(req.Empresa, empresaId);
+				if (result) return Ok(true);
+			}
+			catch (Exception ex)
+			{
+				// Ex.: "CNPJ inválido." — antes virava HTTP 500 sem mensagem.
+				return BadRequest(ex.Message);
+			}
 
 			return BadRequest("Falha ao atualizar empresa.");
 		}
@@ -130,6 +138,9 @@ namespace ControlApi.Controllers
 		public async Task<IActionResult> GetById(int empresaId)
 		{
 			if (empresaId <= 0) return BadRequest("empresaId inválido.");
+			// Multi-tenant: cada usuário só lê a própria empresa (o master lê qualquer uma).
+			if (empresaId != User.GetEmpresaId() && !User.IsPlatformAdmin())
+				return NotFound("Empresa não encontrada.");
 
 			var empresa = await _empresasService.GetEmpresaById(empresaId);
 			if (empresa == null) return NotFound("Empresa não encontrada.");

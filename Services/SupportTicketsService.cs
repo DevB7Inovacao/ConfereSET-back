@@ -42,7 +42,8 @@ namespace Services
             var ticket = await _unitOfWork.SupportTickets.GetById(id);
             if (ticket == null) throw new Exception("Chamado não encontrado.");
 
-            ticket.Status = ticket.Status == 1 ? 0 : 1;
+            // 1 = Aberto, 2 = Fechado (legado 0 também é tratado como fechado → reabre).
+            ticket.Status = ticket.Status == 1 ? 2 : 1;
             _unitOfWork.SupportTickets.Update(ticket);
             var result = _unitOfWork.Save();
             return result > 0;

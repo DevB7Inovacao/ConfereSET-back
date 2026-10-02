@@ -54,6 +54,19 @@ namespace Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<Dictionary<int, int>> GetOperadoresCountByObraIds(List<int> obraIds)
+        {
+            if (obraIds == null || obraIds.Count == 0)
+                return new Dictionary<int, int>();
+
+            return await _dbContext.Set<ObraOperador>()
+                .AsNoTracking()
+                .Where(x => obraIds.Contains(x.ObraId))
+                .GroupBy(x => x.ObraId)
+                .Select(g => new { ObraId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ObraId, x => x.Count);
+        }
+
         public async Task<List<ObrasDTO>> GetObrasByOperadorId(int operadorId)
         {
             return await _dbContext.Set<ObraOperador>()
@@ -119,6 +132,7 @@ namespace Infrastructure.Repositories
         Task<bool> AddOperadorToObra(int obraId, int operadorId);
         Task<bool> RemoveOperadorFromObra(int obraId, int operadorId);
         Task<List<ObraOperadorDTO>> GetOperadoresByObraId(int obraId);
+        Task<Dictionary<int, int>> GetOperadoresCountByObraIds(List<int> obraIds);
         Task<List<ObrasDTO>> GetObrasByOperadorId(int operadorId);
         Task<ObraWithOperadoresDTO?> GetObraWithOperadores(int obraId);
     }

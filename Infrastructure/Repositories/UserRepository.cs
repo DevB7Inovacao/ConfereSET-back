@@ -45,9 +45,12 @@ namespace Infrastructure.Repositories
 			return await _dbContext.Set<User>()
 					.Include(x => x.Empresa)
 					.Where(x => (string.IsNullOrEmpty(filtersDTO.Name)
-					|| EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
+					|| EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%")
+					|| EF.Functions.Like(x.Email.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
 					&& x.EmpresaId == filtersDTO.EmpresaId
-					).GetPagedAsync<User>(filtersDTO.pageNumber, filtersDTO.pageSize);
+					)
+					.OrderBy(x => x.Name).ThenBy(x => x.Id)
+					.GetPagedAsync<User>(filtersDTO.pageNumber, filtersDTO.pageSize);
 		}
 
 		public async Task<PagedResult<User>> GetAllPaged(FiltersDTO filtersDTO)

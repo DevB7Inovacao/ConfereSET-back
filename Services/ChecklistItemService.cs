@@ -64,14 +64,38 @@ namespace Services
             return _unitOfWork.Save() > 0;
         }
 
-        public async Task<bool> Delete(int id)
+        /// <summary>
+        /// Exclui o item. Se já houver respostas em obras (FK Restrict), apenas desativa
+        /// e retorna uma mensagem explicando; caso contrário, remove os vínculos vazios antes.
+        /// </summary>
+        public async Task<(bool Ok, string? Mensagem)> Delete(int id)
         {
             var existing = await _unitOfWork.ChecklistItems.GetById(id);
             if (existing == null) throw new Exception("Item não encontrado.");
 
+            var dependentes = await _unitOfWork.ObraChecklistItems.GetByChecklistItem(id);
+            if (dependentes.Any(PossuiResposta))
+            {
+                existing.Status = 0;
+                _unitOfWork.ChecklistItems.Update(existing);
+                _unitOfWork.Save();
+                return (true, "Item desativado (não excluído) porque já possui respostas em obras.");
+            }
+
+            foreach (var dep in dependentes)
+                _unitOfWork.ObraChecklistItems.Delete(dep);
+
             _unitOfWork.ChecklistItems.Delete(existing);
-            return _unitOfWork.Save() > 0;
+            return (_unitOfWork.Save() > 0, null);
         }
+
+        public static bool PossuiResposta(ObraChecklistItem i) =>
+            i.Resposta != 0
+            || !string.IsNullOrWhiteSpace(i.Observacao)
+            || !string.IsNullOrWhiteSpace(i.Empresa)
+            || !string.IsNullOrWhiteSpace(i.DataHora)
+            || !string.IsNullOrWhiteSpace(i.Equipamento)
+            || !string.IsNullOrWhiteSpace(i.Marca);
 
         public async Task<bool> ToggleStatus(int id)
         {
@@ -100,7 +124,7 @@ namespace Services
         Task<List<ChecklistItemDTO>> GetByChecklist(int checklistId);
         Task<ChecklistItemDTO?> GetById(int id);
         Task<bool> Update(int id, UpdateChecklistItemRequest req);
-        Task<bool> Delete(int id);
+        Task<(bool Ok, string? Mensagem)> Delete(int id);
         Task<bool> ToggleStatus(int id);
     }
 }

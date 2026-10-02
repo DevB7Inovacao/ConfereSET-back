@@ -173,9 +173,35 @@ namespace Services
 				Marca = i.Marca,
 			}).OrderBy(i => i.Ordem).ToList()
 		};
-		public async Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId)
+		public async Task<List<ObraChecklistEmpresaDTO>> GetByObraEmpresa(int empresaId)
 		{
-			return await _unitOfWork.ObraChecklists.GetByObraEmpresa(empresaId);
+			var list = await _unitOfWork.ObraChecklists.GetByObraEmpresa(empresaId);
+			return list.Select(x =>
+			{
+				var b = MapToDTO(x);
+				return new ObraChecklistEmpresaDTO
+				{
+					Id = b.Id,
+					ObraId = b.ObraId,
+					ChecklistId = b.ChecklistId,
+					ChecklistNome = b.ChecklistNome,
+					Status = b.Status,
+					Itens = b.Itens,
+					Obra = x.Obra == null ? null : new ObraChecklistObraResumoDTO
+					{
+						Id = x.Obra.Id,
+						Name = x.Obra.Name,
+						Status = x.Obra.Status
+					}
+				};
+			}).ToList();
+		}
+
+		/// <summary>EmpresaId do checklist (template) para validações de escopo; <c>null</c> se não existir.</summary>
+		public async Task<int?> GetChecklistEmpresaId(int checklistId)
+		{
+			var checklist = await _unitOfWork.Checklists.GetById(checklistId);
+			return checklist?.EmpresaId;
 		}
 
 		/// <summary>
@@ -210,7 +236,8 @@ namespace Services
 		Task<bool> RemoveChecklistFromObra(int obraChecklistId);
 		Task<bool> SincronizarChecklist(int checklistId);
 		Task<bool> ResponderItensAdicionais(int obraChecklistItemId, ResponderChecklistItemRequest req);
-		Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId);
+		Task<List<ObraChecklistEmpresaDTO>> GetByObraEmpresa(int empresaId);
+		Task<int?> GetChecklistEmpresaId(int checklistId);
 		Task<int?> GetObraIdByItemId(int obraChecklistItemId);
 		Task<int?> GetObraIdByObraChecklistId(int obraChecklistId);
 	}

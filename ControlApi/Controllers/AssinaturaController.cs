@@ -94,6 +94,9 @@ namespace ControlApi.Controllers
 				var empresaJwt = User.GetEmpresaId();
 				if (!User.IsAdminOrGerente())
 					return StatusCode(StatusCodes.Status403Forbidden, "Apenas admin/gerente pode alterar a assinatura.");
+				// O cliente pode trocar o cartão, mas o preço só é definido pela plataforma.
+				if (req.NovoValor.HasValue && !User.IsPlatformAdmin())
+					return StatusCode(StatusCodes.Status403Forbidden, "O valor da assinatura só pode ser alterado pela Confere SET.");
 
 				var assinatura = await _assinaturaService.GetById(id);
 				if (assinatura == null) return NotFound("Assinatura não encontrada.");
@@ -226,6 +229,19 @@ namespace ControlApi.Controllers
 			{
 				return BadRequest(ex.Message);
 			}
+		}
+
+		/// <summary>Histórico de pagamentos de uma assinatura (da própria empresa; o master vê qualquer uma).</summary>
+		[HttpGet("{id}/pagamentos")]
+		public async Task<IActionResult> PagamentosDaAssinatura(int id)
+		{
+			var assinatura = await _assinaturaService.GetById(id);
+			if (assinatura == null) return NotFound("Assinatura não encontrada.");
+			if (assinatura.EmpresaId != User.GetEmpresaId() && !User.IsPlatformAdmin())
+				return StatusCode(StatusCodes.Status403Forbidden, "Assinatura pertence a outra empresa.");
+
+			var pagamentos = await _assinaturaService.ListarPagamentosDaAssinatura(id);
+			return Ok(pagamentos);
 		}
 
 		/// <summary>Pagamentos recebidos de todas as empresas (somente admin master).</summary>

@@ -166,6 +166,10 @@ namespace API.Controllers
 				if (tipoUsuario == TypeUser.admin && tipoLogado != TypeUser.admin)
 					return BadRequest("O perfil Admin é reservado ao master da plataforma. Para a empresa, use Administrador/Gerente.");
 
+				// Só administradores criam usuários; operador/leitura não.
+				if (!User.IsAdminOrGerente())
+					return StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores podem criar usuários.");
+
 				// Multi-tenant: só o admin master cria usuários em outra empresa.
 				if (tipoLogado != TypeUser.admin && hasEmpresa!.Id != User.GetEmpresaId())
 					return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para criar usuários nesta empresa.");
@@ -173,6 +177,10 @@ namespace API.Controllers
 				var limiteInvalido = await ValidarLimiteUsuariosPlano(hasEmpresa!.Id, tipoUsuario);
 				if (limiteInvalido != null) return limiteInvalido;
 			}
+
+			// E-mail é o login: não pode repetir (antes o login pegava o primeiro encontrado).
+			if (await userService.GetUserByEmail((userdata.Email ?? "").Trim()) != null)
+				return BadRequest("Já existe um usuário com este e-mail.");
 
 			var user = new User()
 			{
@@ -188,7 +196,7 @@ namespace API.Controllers
 			if (isUserCreated.Equals(true))
 				return Ok(isUserCreated);
 			else
-				return BadRequest();
+				return BadRequest("Não foi possível criar o usuário.");
 		}
 
 
@@ -253,13 +261,33 @@ namespace API.Controllers
 				var empresaIdJwt = User.GetEmpresaId();
 				var isPlatformAdmin = User.IsPlatformAdmin();
 				if (__existing == null || (__existing.EmpresaId != empresaIdJwt && !isPlatformAdmin)) return NotFound("Usuário não encontrado.");
+				// O usuário master da plataforma não é editável pela empresa.
+				if (__existing.Type == TypeUser.admin && !isPlatformAdmin) return NotFound("Usuário não encontrado.");
+
+				var isSelf = __existing.Id == User.GetUserId();
+				// Operador/leitura só editam o próprio cadastro (antes podiam se promover a gerente).
+				if (!User.IsAdminOrGerente() && !isSelf)
+					return StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores podem alterar outros usuários.");
+				// Ninguém altera o próprio perfil/status (evita auto-promoção e auto-bloqueio).
+				if (isSelf)
+				{
+					user.Type = __existing.Type;
+					user.Status = __existing.Status ?? 1;
+				}
 
 				var tipoLogado = User.GetUserType();
 				if (user.Type == TypeUser.admin && tipoLogado != TypeUser.admin)
 					return BadRequest("O perfil Admin é reservado ao master da plataforma. Para a empresa, use Administrador/Gerente.");
 
-				// Limites do plano valem para a empresa do usuário editado (o master não tem plano).
-				if (__existing.Type != TypeUser.admin)
+				var donoDoEmail = await userService.GetUserByEmail((user.Email ?? "").Trim());
+				if (donoDoEmail != null && donoDoEmail.Id != userId)
+					return BadRequest("Já existe um usuário com este e-mail.");
+
+				// Limites do plano valem para a empresa do usuário editado (o master não tem plano) e só
+				// quando a edição ocupa uma vaga nova: troca de perfil ou reativação. Antes, editar o
+				// nome/senha de alguém numa empresa já acima do limite era bloqueado.
+				var ocupaNovaVaga = user.Type != __existing.Type || (user.Status == 1 && __existing.Status != 1);
+				if (__existing.Type != TypeUser.admin && ocupaNovaVaga)
 				{
 					var limiteInvalido = await ValidarLimiteUsuariosPlano(__existing.EmpresaId ?? empresaIdJwt, user.Type, __existing.Type);
 					if (limiteInvalido != null) return limiteInvalido;
@@ -269,11 +297,11 @@ namespace API.Controllers
 				if (isUserCreated)
 					return Ok(isUserCreated);
 				else
-					return BadRequest();
+					return BadRequest("Nenhuma alteração foi salva.");
 			}
 			else
 			{
-				return BadRequest();
+				return BadRequest("Payload inválido.");
 			}
 		}
 
@@ -286,6 +314,9 @@ namespace API.Controllers
 				var __existing = await userService.GetUserById(userId);
 				var empresaIdJwt = User.GetEmpresaId();
 				if (__existing == null || (__existing.EmpresaId != empresaIdJwt && !User.IsPlatformAdmin())) return NotFound("Usuário não encontrado.");
+				if (!User.IsAdminOrGerente())
+					return StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores podem excluir usuários.");
+				if (__existing.Type == TypeUser.admin && !User.IsPlatformAdmin()) return NotFound("Usuário não encontrado.");
 				if (__existing.Id == User.GetUserId()) return BadRequest("Você não pode excluir o próprio usuário.");
 				bool result = await userService.DeleteUser(userId);
 				if (result)

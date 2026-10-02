@@ -27,12 +27,20 @@ namespace ControlApi.Controllers
             _maoDeObraService = maoDeObraService;
         }
 
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
+        }
+
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> Create([FromBody] CreateMaoDeObraRequest req)
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (req == null) return BadRequest("Payload inválido.");
                 if (string.IsNullOrWhiteSpace(req.Funcao)) return BadRequest("Função é obrigatória.");
 
@@ -73,6 +81,9 @@ namespace ControlApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateMaoDeObraRequest req)
         {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+
             if (id <= 0) return BadRequest("id inválido.");
             if (req == null) return BadRequest("Payload inválido.");
 
@@ -101,6 +112,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __e = await _maoDeObraService.GetMaoDeObraById(id);
                 if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Mão de obra não encontrado.");
                 var ok = await _maoDeObraService.DeleteMaoDeObra(id);
@@ -119,6 +133,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __e = await _maoDeObraService.GetMaoDeObraById(id);
                 if (__e == null || __e.EmpresaId != User.GetEmpresaId()) return NotFound("Mão de obra não encontrado.");
                 var ok = await _maoDeObraService.ToggleMaoDeObraStatus(id);

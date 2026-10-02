@@ -13,13 +13,22 @@ namespace ControlApi.Controllers
     [ApiController]
     public class GrupoDeObrasController : ControllerBase
     {
+        private const string MsgSemPermissao = "Apenas administradores da empresa podem alterar cadastros.";
+
         private readonly IJWTManager _jWTManager;
         private readonly IGrupoDeObrasService _service;
+        private readonly IObrasService _obrasService;
 
-        public GrupoDeObrasController(IJWTManager jWTManager, IGrupoDeObrasService service)
+        public GrupoDeObrasController(IJWTManager jWTManager, IGrupoDeObrasService service, IObrasService obrasService)
         {
             _jWTManager = jWTManager;
             _service = service;
+            _obrasService = obrasService;
+        }
+
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, MsgSemPermissao);
         }
 
         [HttpPost]
@@ -28,6 +37,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var grupo = new GrupoDeObras
                 {
                     Name = req.Name,
@@ -90,6 +102,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (groupId <= 0) return BadRequest("groupId inválido.");
                 if (req == null) return BadRequest("Payload inválido.");
 
@@ -113,6 +128,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __g = await _service.GetGrupoById(id);
                 if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.DeleteGrupo(id);
@@ -133,6 +151,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __g = await _service.GetGrupoById(id);
                 if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.ToggleGrupoStatus(id);
@@ -152,8 +173,13 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __g = await _service.GetGrupoById(groupId);
                 if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
+                var obra = await _obrasService.GetObraById(obraId);
+                if (obra == null || obra.EmpresaId != __g.EmpresaId) return NotFound("Obra não encontrada.");
                 var result = await _service.AddObraToGrupo(groupId, obraId);
                 if (result) return Ok(true);
                 return BadRequest("Falha ao adicionar obra ao grupo.");
@@ -169,6 +195,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __g = await _service.GetGrupoById(groupId);
                 if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.RemoveObraFromGrupo(groupId, obraId);
@@ -186,6 +215,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var __g = await _service.GetGrupoById(groupId);
+                if (__g == null || __g.EmpresaId != User.GetEmpresaId()) return NotFound("Grupo não encontrado.");
                 var result = await _service.GetObrasIdsByGrupo(groupId);
                 return Ok(result);
             }

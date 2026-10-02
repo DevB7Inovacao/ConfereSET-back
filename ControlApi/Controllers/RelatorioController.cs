@@ -73,6 +73,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                if (User.IsReadOnly())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Usuários somente leitura não podem criar relatórios.");
+
                 if (req == null) return BadRequest("Payload inválido.");
 
                 var userId = User.GetUserId();

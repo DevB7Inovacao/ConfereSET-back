@@ -22,11 +22,19 @@ namespace Infrastructure.Repositories
                 .OrderBy(x => x.ChecklistItem!.Ordem)
                 .ToListAsync();
         }
+
+        public async Task<List<ObraChecklistItem>> GetByChecklistItem(int checklistItemId)
+        {
+            return await _dbContext.Set<ObraChecklistItem>()
+                .Where(x => x.ChecklistItemId == checklistItemId)
+                .ToListAsync();
+        }
     }
 
     public interface IObraChecklistItemRepository : IGenericRepository<ObraChecklistItem>
     {
         Task<ObraChecklistItem?> GetById(int id);
         Task<List<ObraChecklistItem>> GetByObraChecklist(int obraChecklistId);
+        Task<List<ObraChecklistItem>> GetByChecklistItem(int checklistItemId);
     }
 }

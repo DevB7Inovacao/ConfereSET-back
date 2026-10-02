@@ -10,11 +10,34 @@ namespace ControlApi.Controllers
 	[ApiController]
 	public class ObraChecklistController : ControllerBase
 	{
-		private readonly IObraChecklistService _service;
+		private const string MsgSemPermissao = "Apenas administradores da empresa podem alterar cadastros.";
+		private const string MsgSomenteLeitura = "Usuários somente leitura não podem responder checklists.";
 
-		public ObraChecklistController(IObraChecklistService service)
+		private readonly IObraChecklistService _service;
+		private readonly IObrasService _obrasService;
+
+		public ObraChecklistController(IObraChecklistService service, IObrasService obrasService)
 		{
 			_service = service;
+			_obrasService = obrasService;
+		}
+
+		private IActionResult? ChecarPermissaoEscrita()
+		{
+			return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, MsgSemPermissao);
+		}
+
+		// Operadores preenchem checklists; apenas somente leitura é bloqueado.
+		private IActionResult? ChecarPermissaoResposta()
+		{
+			return User.IsReadOnly() ? StatusCode(StatusCodes.Status403Forbidden, MsgSomenteLeitura) : null;
+		}
+
+		private async Task<bool> ObraPertenceAEmpresa(int? obraId)
+		{
+			if (!obraId.HasValue) return false;
+			var obra = await _obrasService.GetObraById(obraId.Value);
+			return obra != null && obra.EmpresaId == User.GetEmpresaId();
 		}
 
 		[HttpPost("add")]
@@ -22,6 +45,13 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoEscrita();
+				if (semPermissao != null) return semPermissao;
+
+				if (req == null) return BadRequest("Payload inválido.");
+				if (!await ObraPertenceAEmpresa(req.ObraId)) return NotFound("Obra não encontrada.");
+				if (await _service.GetChecklistEmpresaId(req.ChecklistId) != User.GetEmpresaId()) return NotFound("Checklist não encontrado.");
+
 				var result = await _service.AddChecklistToObra(req);
 				return Ok(result);
 			}
@@ -37,6 +67,9 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByObraChecklistId(id)))
+					return NotFound("Vínculo de checklist não encontrado.");
+
 				var result = await _service.GetById(id);
 				return Ok(result);
 			}
@@ -81,6 +114,12 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoResposta();
+				if (semPermissao != null) return semPermissao;
+
+				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByItemId(obraChecklistItemId)))
+					return NotFound("Item não encontrado.");
+
 				var ok = await _service.ResponderItem(obraChecklistItemId, req);
 				return ok ? Ok(true) : BadRequest("Falha ao responder item.");
 			}
@@ -94,6 +133,12 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoResposta();
+				if (semPermissao != null) return semPermissao;
+
+				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByItemId(obraChecklistItemId)))
+					return NotFound("Item não encontrado.");
+
 				var ok = await _service.ResponderItensAdicionais(obraChecklistItemId, req);
 				return ok ? Ok(true) : BadRequest("Falha ao responder item.");
 			}
@@ -109,6 +154,12 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoEscrita();
+				if (semPermissao != null) return semPermissao;
+
+				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByObraChecklistId(obraChecklistId)))
+					return NotFound("Vínculo de checklist não encontrado.");
+
 				var ok = await _service.RemoveChecklistFromObra(obraChecklistId);
 				return ok ? Ok(true) : BadRequest("Falha ao remover checklist.");
 			}
@@ -123,7 +174,12 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
+				var semPermissao = ChecarPermissaoEscrita();
+				if (semPermissao != null) return semPermissao;
+
 				if (checklistId <= 0) return BadRequest("checklistId inválido.");
+				if (await _service.GetChecklistEmpresaId(checklistId) != User.GetEmpresaId()) return NotFound("Checklist não encontrado.");
+
 				var ok = await _service.SincronizarChecklist(checklistId);
 				return ok ? Ok(true) : NotFound("Checklist não encontrado.");
 			}

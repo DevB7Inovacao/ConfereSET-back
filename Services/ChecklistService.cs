@@ -76,13 +76,37 @@ namespace Services
             return _unitOfWork.Save() > 0;
         }
 
-        public async Task<bool> Delete(int id)
+        /// <summary>
+        /// Exclui o checklist. Se algum vínculo com obra já tiver respostas, apenas desativa
+        /// e retorna uma mensagem; caso contrário remove vínculos e itens antes (FK Restrict em ObraChecklistItem).
+        /// </summary>
+        public async Task<(bool Ok, string? Mensagem)> Delete(int id)
         {
             var existing = await _unitOfWork.Checklists.GetById(id);
             if (existing == null) throw new Exception("Checklist não encontrado.");
 
+            var obraChecklists = await _unitOfWork.ObraChecklists.GetByChecklistId(id);
+            if (obraChecklists.Any(oc => oc.Itens.Any(ChecklistItemService.PossuiResposta)))
+            {
+                existing.Status = 0;
+                _unitOfWork.Checklists.Update(existing);
+                _unitOfWork.Save();
+                return (true, "Checklist desativado (não excluído) porque já possui respostas em obras.");
+            }
+
+            foreach (var oc in obraChecklists)
+            {
+                foreach (var item in oc.Itens.ToList())
+                    _unitOfWork.ObraChecklistItems.Delete(item);
+                _unitOfWork.ObraChecklists.Delete(oc);
+            }
+
+            var itens = await _unitOfWork.ChecklistItems.GetByChecklist(id);
+            foreach (var item in itens)
+                _unitOfWork.ChecklistItems.Delete(item);
+
             _unitOfWork.Checklists.Delete(existing);
-            return _unitOfWork.Save() > 0;
+            return (_unitOfWork.Save() > 0, null);
         }
 
         public async Task<bool> ToggleStatus(int id)
@@ -102,7 +126,7 @@ namespace Services
         Task<Checklist?> GetById(int id);
         Task<ChecklistPagedDTO> GetPaged(FiltersChecklistDTO filters);
         Task<bool> Update(int id, UpdateChecklistRequest req);
-        Task<bool> Delete(int id);
+        Task<(bool Ok, string? Mensagem)> Delete(int id);
         Task<bool> ToggleStatus(int id);
     }
 }

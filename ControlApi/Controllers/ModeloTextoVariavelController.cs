@@ -17,11 +17,19 @@ namespace ControlApi.Controllers
             _service = service;
         }
 
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
+        }
+
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] CreateModeloTextoVariavelRequest req)
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (req == null) return BadRequest("Payload inválido.");
                 req.EmpresaId = User.GetEmpresaId();
                 var created = await _service.Create(req);
@@ -54,7 +62,7 @@ namespace ControlApi.Controllers
             try
             {
                 var model = await _service.GetById(id);
-                if (model == null) return NotFound("Variável não encontrada.");
+                if (model == null || model.EmpresaId != User.GetEmpresaId()) return NotFound("Variável não encontrada.");
                 return Ok(model);
             }
             catch (Exception ex)
@@ -68,6 +76,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Variável não encontrada.");
                 var ok = await _service.Update(id, req);
                 return ok ? Ok(true) : BadRequest("Falha ao atualizar.");
             }
@@ -82,6 +95,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Variável não encontrada.");
                 var ok = await _service.Delete(id);
                 return ok ? Ok(true) : BadRequest("Falha ao excluir.");
             }
@@ -96,6 +114,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var __scope = await _service.GetById(id);
+                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Variável não encontrada.");
                 var ok = await _service.ToggleStatus(id);
                 return ok ? Ok(true) : BadRequest("Falha ao alternar status.");
             }
@@ -110,6 +133,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (req == null) return BadRequest("Payload inválido.");
+                req.EmpresaId = User.GetEmpresaId();
                 var result = await _service.Sync(req);
                 return Ok(result);
             }
@@ -124,6 +152,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Multi-tenant: força a empresa do JWT, ignorando a query string.
+                empresaId = User.GetEmpresaId();
                 var result = await _service.GetByModelo(empresaId, modeloTextoId, onlyActiveLinks);
                 return Ok(result);
             }
@@ -138,6 +168,7 @@ namespace ControlApi.Controllers
         {
             try
             {
+                empresaId = User.GetEmpresaId();
                 var result = await _service.Render(empresaId, modeloTextoId, req);
                 return Ok(result);
             }

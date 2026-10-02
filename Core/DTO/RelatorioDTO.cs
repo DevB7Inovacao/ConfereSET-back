@@ -132,6 +132,12 @@ namespace Core.DTO
 		public int? EmpresaId { get; set; }
 		public int? CriadoPorUserId { get; set; }
 		public StatusRelatorio? Status { get; set; }
+		/// <summary>Busca livre em título, nome da obra e nome do autor (case-insensitive).</summary>
+		public string? Search { get; set; }
+		/// <summary>Filtra por DataRelatorio &gt;= DataDe (inclusive).</summary>
+		public DateTime? DataDe { get; set; }
+		/// <summary>Filtra por DataRelatorio no dia DataAte ou antes (inclusive).</summary>
+		public DateTime? DataAte { get; set; }
 		public int PageNumber { get; set; } = 1;
 		public int PageSize { get; set; } = 10;
 	}

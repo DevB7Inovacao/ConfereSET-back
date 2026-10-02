@@ -9,6 +9,11 @@ namespace Services
 {
 	public class RelatorioService : IRelatorioService
 	{
+		// Bloco "local" do ConteudoJson: o front lê em camelCase.
+		private static readonly JsonSerializerOptions LocalJsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+		private static string SerializeLocal(object conteudo) => JsonSerializer.Serialize(conteudo, LocalJsonOptions);
+
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IAtividadeRecenteService _atividadeService;
 		private readonly IS3Service _s3Service;
@@ -226,7 +231,14 @@ namespace Services
 			return new RelatorioPagedDTO
 			{
 				PageCount = paged.PageCount,
-				Result = paged.Results.Select(MapToDTO).ToList()
+				// Listagem: não trafega HTML nem logo (pesados); ficam só no GetById.
+				Result = paged.Results.Select(r =>
+				{
+					var dto = MapToDTO(r);
+					dto.HtmlSnapshot = null;
+					dto.EmpresaLogoBase64 = null;
+					return dto;
+				}).ToList()
 			};
 		}
 
@@ -565,7 +577,7 @@ namespace Services
 				switch (tipoSecao)
 				{
 					case TipoSecao.Local:
-						secao.ConteudoJson = JsonSerializer.Serialize(new
+						secao.ConteudoJson = SerializeLocal(new
 						{
 							obra.Name,
 							obra.StreetAddress,

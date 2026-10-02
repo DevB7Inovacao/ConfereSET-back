@@ -13,13 +13,59 @@ namespace ControlApi.Controllers
     [ApiController]
     public class ObrasController : ControllerBase
     {
+        private const string MsgSemPermissao = "Apenas administradores da empresa podem alterar cadastros.";
+
         private readonly IJWTManager _jWTManager;
         IObrasService _obrasService;
+        private readonly IUserService _userService;
+        private readonly IMaoDeObraService _maoDeObraService;
+        private readonly IEquipamentosService _equipamentosService;
+        private readonly ITiposOcorrenciaService _tiposOcorrenciaService;
+        private readonly IModeloTextoService _modeloTextoService;
+        private readonly IDespesasService _despesasService;
 
-        public ObrasController(IJWTManager jWTManager, IObrasService obrasService)
+        public ObrasController(
+            IJWTManager jWTManager,
+            IObrasService obrasService,
+            IUserService userService,
+            IMaoDeObraService maoDeObraService,
+            IEquipamentosService equipamentosService,
+            ITiposOcorrenciaService tiposOcorrenciaService,
+            IModeloTextoService modeloTextoService,
+            IDespesasService despesasService)
         {
             this._jWTManager = jWTManager;
             this._obrasService = obrasService;
+            _userService = userService;
+            _maoDeObraService = maoDeObraService;
+            _equipamentosService = equipamentosService;
+            _tiposOcorrenciaService = tiposOcorrenciaService;
+            _modeloTextoService = modeloTextoService;
+            _despesasService = despesasService;
+        }
+
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, MsgSemPermissao);
+        }
+
+        private bool PertenceAEmpresa(int? empresaId)
+        {
+            return User.IsPlatformAdmin() || (empresaId.HasValue && empresaId.Value == User.GetEmpresaId());
+        }
+
+        /// <summary>Retorna a obra apenas se pertencer à empresa do JWT (admin da plataforma ignora o escopo).</summary>
+        private async Task<Obras?> GetObraDaEmpresa(int obraId)
+        {
+            var obra = await _obrasService.GetObraById(obraId);
+            if (obra == null || !PertenceAEmpresa(obra.EmpresaId)) return null;
+            return obra;
+        }
+
+        private async Task<bool> OperadorPertenceAEmpresa(int operadorId)
+        {
+            var operador = await _userService.GetUserById(operadorId);
+            return operador != null && PertenceAEmpresa(operador.EmpresaId);
         }
 
         [HttpPost]
@@ -28,6 +74,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var obra = new Obras()
                 {
                     Name = obras.Name,
@@ -78,6 +127,9 @@ namespace ControlApi.Controllers
         [HttpPut("{obraId}")]
         public async Task<IActionResult> UpdateObra(int obraId, [FromBody] UpdateObraRequest req)
         {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+
             if (obraId <= 0) return BadRequest("obraId inválido.");
             if (req == null) return BadRequest("Payload inválido.");
 
@@ -116,6 +168,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _obrasService.GetObraById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
                 bool result = await _obrasService.DeleteObra(id);
@@ -136,6 +191,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _obrasService.GetObraById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
                 bool result = await _obrasService.ToggleObraStatus(id);
@@ -206,6 +264,15 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var obra = await GetObraDaEmpresa(obraId);
+                if (obra == null) return NotFound("Obra não encontrada.");
+
+                var operador = await _userService.GetUserById(operadorId);
+                if (operador == null || operador.EmpresaId != obra.EmpresaId) return NotFound("Operador não encontrado.");
+
                 var result = await _obrasService.AddOperadorToObra(obraId, operadorId);
                 if (result)
                     return Ok("Operador adicionado à obra com sucesso.");
@@ -223,6 +290,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+
                 var result = await _obrasService.RemoveOperadorFromObra(obraId, operadorId);
                 if (result)
                     return Ok("Operador removido da obra com sucesso.");
@@ -241,6 +313,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetOperadoresByObraId(obraId);
                 return Ok(result);
@@ -257,6 +330,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (operadorId <= 0) return BadRequest("operadorId inválido.");
+                if (!await OperadorPertenceAEmpresa(operadorId)) return NotFound("Operador não encontrado.");
 
                 var result = await _obrasService.GetObrasByOperadorId(operadorId);
                 return Ok(result);
@@ -273,6 +347,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetObraWithOperadores(obraId);
                 if (result == null) return NotFound("Obra não encontrada.");
@@ -290,6 +365,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Multi-tenant: só o admin da plataforma pode consultar outra empresa pelo path.
+                if (!User.IsPlatformAdmin()) empresaId = User.GetEmpresaId();
                 if (empresaId <= 0) return BadRequest("empresaId inválido.");
 
                 var result = await _obrasService.GetObrasCardsByEmpresaId(empresaId);
@@ -307,6 +384,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (operadorId <= 0) return BadRequest("operadorId inválido.");
+                if (!await OperadorPertenceAEmpresa(operadorId)) return NotFound("Operador não encontrado.");
 
                 var result = await _obrasService.GetObrasCardsByOperadorId(operadorId);
                 return Ok(result);
@@ -322,6 +400,15 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var obra = await GetObraDaEmpresa(obraId);
+                if (obra == null) return NotFound("Obra não encontrada.");
+
+                var maoDeObra = await _maoDeObraService.GetMaoDeObraById(maoDeObraId);
+                if (maoDeObra == null || maoDeObra.EmpresaId != obra.EmpresaId) return NotFound("Mão de obra não encontrada.");
+
                 var result = await _obrasService.AddMaoDeObraToObra(obraId, maoDeObraId);
                 if (result)
                     return Ok("Mão de obra adicionada à obra com sucesso.");
@@ -339,6 +426,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+
                 var result = await _obrasService.RemoveMaoDeObraFromObra(obraId, maoDeObraId);
                 if (result)
                     return Ok("Mão de obra removida da obra com sucesso.");
@@ -357,6 +449,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetMaoDeObraByObraId(obraId);
                 return Ok(result);
@@ -372,6 +465,15 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var obra = await GetObraDaEmpresa(obraId);
+                if (obra == null) return NotFound("Obra não encontrada.");
+
+                var equipamento = await _equipamentosService.GetEquipamentoById(equipamentoId);
+                if (equipamento == null || equipamento.EmpresaId != obra.EmpresaId) return NotFound("Equipamento não encontrado.");
+
                 var result = await _obrasService.AddEquipamentoToObra(obraId, equipamentoId);
                 if (result)
                     return Ok("Equipamento adicionado à obra com sucesso.");
@@ -389,6 +491,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+
                 var result = await _obrasService.RemoveEquipamentoFromObra(obraId, equipamentoId);
                 if (result)
                     return Ok("Equipamento removido da obra com sucesso.");
@@ -407,6 +514,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetEquipamentosByObraId(obraId);
                 return Ok(result);
@@ -422,6 +530,15 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var obra = await GetObraDaEmpresa(obraId);
+                if (obra == null) return NotFound("Obra não encontrada.");
+
+                var tipo = await _tiposOcorrenciaService.GetById(tipoOcorrenciaId);
+                if (tipo == null || tipo.EmpresaId != obra.EmpresaId) return NotFound("Tipo de ocorrência não encontrado.");
+
                 var result = await _obrasService.AddTipoOcorrenciaToObra(obraId, tipoOcorrenciaId);
                 if (result)
                     return Ok("Tipo de ocorrência adicionado à obra com sucesso.");
@@ -439,6 +556,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+
                 var result = await _obrasService.RemoveTipoOcorrenciaFromObra(obraId, tipoOcorrenciaId);
                 if (result)
                     return Ok("Tipo de ocorrência removido da obra com sucesso.");
@@ -457,6 +579,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetTiposOcorrenciaByObraId(obraId);
                 return Ok(result);
@@ -472,6 +595,15 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var obra = await GetObraDaEmpresa(obraId);
+                if (obra == null) return NotFound("Obra não encontrada.");
+
+                var modelo = await _modeloTextoService.GetById(modeloTextoId);
+                if (modelo == null || modelo.EmpresaId != obra.EmpresaId) return NotFound("Modelo de texto não encontrado.");
+
                 var result = await _obrasService.AddModeloTextoToObra(obraId, modeloTextoId);
                 if (result)
                     return Ok("Modelo de texto adicionado à obra com sucesso.");
@@ -489,6 +621,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+
                 var result = await _obrasService.RemoveModeloTextoFromObra(obraId, modeloTextoId);
                 if (result)
                     return Ok("Modelo de texto removido da obra com sucesso.");
@@ -507,6 +644,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetModelosTextoByObraId(obraId);
                 return Ok(result);
@@ -522,6 +660,15 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                var obra = await GetObraDaEmpresa(obraId);
+                if (obra == null) return NotFound("Obra não encontrada.");
+
+                var despesa = await _despesasService.GetDespesaById(despesaId);
+                if (despesa == null || despesa.EmpresaId != obra.EmpresaId) return NotFound("Despesa não encontrada.");
+
                 var result = await _obrasService.AddDespesaToObra(obraId, despesaId);
                 if (result)
                     return Ok("Despesa adicionada à obra com sucesso.");
@@ -539,6 +686,11 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+
                 var result = await _obrasService.RemoveDespesaFromObra(obraId, despesaId);
                 if (result)
                     return Ok("Despesa removida da obra com sucesso.");
@@ -557,6 +709,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
+                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetDespesasByObraId(obraId);
                 return Ok(result);

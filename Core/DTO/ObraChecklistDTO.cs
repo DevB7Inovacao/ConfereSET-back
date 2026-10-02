@@ -10,6 +10,19 @@
 		public List<ObraChecklistItemDTO> Itens { get; set; } = new();
 	}
 
+	/// <summary>Vínculo de checklist com um resumo da obra (evita expor a entidade Obra completa).</summary>
+	public class ObraChecklistEmpresaDTO : ObraChecklistDTO
+	{
+		public ObraChecklistObraResumoDTO? Obra { get; set; }
+	}
+
+	public class ObraChecklistObraResumoDTO
+	{
+		public int Id { get; set; }
+		public string? Name { get; set; }
+		public int Status { get; set; }
+	}
+
 	public class ObraChecklistItemDTO
 	{
 		public int Id { get; set; }

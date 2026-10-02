@@ -20,11 +20,19 @@ namespace ControlApi.Controllers
       _relatorioService = relatorioService;
         }
 
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
+        }
+
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] CreateModeloTextoRequest req)
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (req == null) return BadRequest("Payload inválido.");
                 req.EmpresaId = User.GetEmpresaId();
                 var created = await _service.Create(req);
@@ -73,6 +81,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _service.GetById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 var ok = await _service.Update(id, req);
@@ -89,14 +100,22 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _service.GetById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 var ok = await _service.Delete(id);
                 return ok ? Ok(true) : BadRequest("Falha ao excluir.");
             }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                // FK Restrict (relatórios) ou vínculos com obras.
+                return BadRequest("Modelo em uso por relatórios/obras; desative-o em vez de excluir.");
+            }
             catch (Exception ex)
             {
-                return BadRequest("Não foi possível excluir o modelo de texto.");
+                return BadRequest(ex.Message);
             }
         }
 
@@ -105,6 +124,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _service.GetById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Modelo não encontrado.");
                 var ok = await _service.ToggleStatus(id);

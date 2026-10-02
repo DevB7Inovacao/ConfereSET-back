@@ -45,6 +45,8 @@ namespace Infrastructure.Repositories
                     .Any(oo => oo.ObraId == o.Id && oo.OperadorId == filtersDTO.OperadorId.Value));
             }
 
+            query = query.OrderBy(x => x.Name).ThenBy(x => x.Id);
+
             return await query.GetPagedAsync<Obras>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 

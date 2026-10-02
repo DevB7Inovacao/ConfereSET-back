@@ -11,10 +11,17 @@ namespace ControlApi.Controllers
     public class ChecklistItemController : ControllerBase
     {
         private readonly IChecklistItemService _service;
+        private readonly IChecklistService _checklistService;
 
-        public ChecklistItemController(IChecklistItemService service)
+        public ChecklistItemController(IChecklistItemService service, IChecklistService checklistService)
         {
             _service = service;
+            _checklistService = checklistService;
+        }
+
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
         }
 
         [HttpPost("create")]
@@ -22,6 +29,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (req == null) return BadRequest("Payload inválido.");
                 req.EmpresaId = User.GetEmpresaId();
                 var result = await _service.Create(req);
@@ -38,6 +48,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var checklist = await _checklistService.GetById(checklistId);
+                if (checklist == null || checklist.EmpresaId != User.GetEmpresaId()) return NotFound("Checklist não encontrado.");
                 var result = await _service.GetByChecklist(checklistId);
                 return Ok(result);
             }
@@ -68,6 +80,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _service.GetById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
                 var ok = await _service.Update(id, req);
@@ -84,10 +99,14 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _service.GetById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
-                var ok = await _service.Delete(id);
-                return ok ? Ok(true) : BadRequest("Falha ao excluir.");
+                var (ok, mensagem) = await _service.Delete(id);
+                if (!ok) return BadRequest("Falha ao excluir.");
+                return mensagem != null ? Ok(mensagem) : Ok(true);
             }
             catch (Exception ex)
             {
@@ -100,6 +119,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 var __scope = await _service.GetById(id);
                 if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Item não encontrado.");
                 var ok = await _service.ToggleStatus(id);

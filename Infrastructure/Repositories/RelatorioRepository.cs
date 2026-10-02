@@ -67,6 +67,27 @@ namespace Infrastructure.Repositories
             if (filters.Status.HasValue)
                 query = query.Where(x => x.Status == filters.Status.Value);
 
+            if (!string.IsNullOrWhiteSpace(filters.Search))
+            {
+                var term = $"%{filters.Search.Trim().ToLower()}%";
+                query = query.Where(x =>
+                    EF.Functions.Like(x.Titulo.ToLower(), term)
+                    || (x.Obra != null && EF.Functions.Like(x.Obra.Name.ToLower(), term))
+                    || (x.CriadoPor != null && EF.Functions.Like(x.CriadoPor.Name.ToLower(), term)));
+            }
+
+            if (filters.DataDe.HasValue)
+            {
+                var de = filters.DataDe.Value.Date;
+                query = query.Where(x => x.DataRelatorio >= de);
+            }
+
+            if (filters.DataAte.HasValue)
+            {
+                var ateExclusivo = filters.DataAte.Value.Date.AddDays(1);
+                query = query.Where(x => x.DataRelatorio < ateExclusivo);
+            }
+
             var total = await query.CountAsync();
             var pageSize = filters.PageSize > 0 ? filters.PageSize : 10;
             var pageNumber = filters.PageNumber > 0 ? filters.PageNumber : 1;
@@ -74,6 +95,8 @@ namespace Infrastructure.Repositories
 
             var results = await query
                 .OrderByDescending(x => x.DataRelatorio)
+                .ThenByDescending(x => x.CreatedDate)
+                .ThenBy(x => x.Id)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
