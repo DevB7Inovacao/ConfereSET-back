@@ -25,9 +25,12 @@ namespace ControlApi.Controllers
 			return Ok(planos);
 		}
 
+		// Catálogo completo (inclui inativos) e qualquer escrita: só o master da plataforma.
+		// As empresas veem apenas os planos ativos (GET público acima).
 		[HttpGet("all")]
 		public async Task<IActionResult> GetAll()
 		{
+			if (!User.IsPlatformAdmin()) return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode gerenciar planos.");
 			int empresaid = User.GetEmpresaId();
 			var planos = await _planoService.GetAll(empresaid);
 			return Ok(planos);
@@ -45,6 +48,7 @@ namespace ControlApi.Controllers
 		[HttpPost]
 		public async Task<IActionResult> Create([FromBody] CreatePlanoRequest req)
 		{
+			if (!User.IsPlatformAdmin()) return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode gerenciar planos.");
 			try
 			{
 				int empresaid = User.GetEmpresaId();
@@ -61,6 +65,7 @@ namespace ControlApi.Controllers
 		[HttpPut("{id}")]
 		public async Task<IActionResult> Update(int id, [FromBody] UpdatePlanoRequest req)
 		{
+			if (!User.IsPlatformAdmin()) return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode gerenciar planos.");
 			try
 			{
 				var plano = await _planoService.Update(id, req);
@@ -78,6 +83,7 @@ namespace ControlApi.Controllers
 		[HttpDelete("{id}")]
 		public async Task<IActionResult> Delete(int id)
 		{
+			if (!User.IsPlatformAdmin()) return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da plataforma pode gerenciar planos.");
 			try
 			{
 				if (id <= 0) return BadRequest("id inválido.");

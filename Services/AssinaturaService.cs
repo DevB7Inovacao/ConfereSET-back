@@ -1,4 +1,4 @@
-using Core.DTO;
+﻿using Core.DTO;
 using Core.Enums;
 using Core.Models;
 using Infrastructure.MercadoPago;
@@ -241,8 +241,8 @@ namespace Services
 			// Para o plano, "gestores" significa administradores da empresa.
 			// Contamos gerente e também registros legados criados como admin para não permitir burlar o limite.
 			var totalGestores =
-				await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoGestor) +
-				await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoAdmin);
+				// O master da plataforma (admin) não ocupa vaga no plano da empresa.
+				await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoGestor);
 			var totalOperadores = await _unitOfWork.Users.CountUsersByEmpresaIdAndType(empresaId, TipoOperador);
 
 			return new LimitesAssinaturaDTO

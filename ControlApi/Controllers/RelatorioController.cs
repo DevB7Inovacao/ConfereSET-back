@@ -92,6 +92,10 @@ namespace ControlApi.Controllers
                 var userId = User.GetUserId();
                 var empresaId = User.GetEmpresaId();
 
+                // Operador só cria relatório nas obras às quais está vinculado.
+                if (User.IsOperador() && !await _obrasService.IsOperadorVinculado(req.ObraId, userId))
+                    return StatusCode(StatusCodes.Status403Forbidden, "Você não está vinculado a esta obra.");
+
                 var result = await _service.Create(req, userId, empresaId);
                 return Ok(result.Id);
             }

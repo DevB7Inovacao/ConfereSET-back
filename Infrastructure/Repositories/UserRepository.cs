@@ -48,6 +48,8 @@ namespace Infrastructure.Repositories
 					|| EF.Functions.Like(x.Name.ToLower(), $"%{filtersDTO.Name.ToLower()}%")
 					|| EF.Functions.Like(x.Email.ToLower(), $"%{filtersDTO.Name.ToLower()}%"))
 					&& x.EmpresaId == filtersDTO.EmpresaId
+					// O master da plataforma nunca aparece para a empresa, mesmo cadastrado nela.
+					&& x.Type != TypeUser.admin
 					)
 					.OrderBy(x => x.Name).ThenBy(x => x.Id)
 					.GetPagedAsync<User>(filtersDTO.pageNumber, filtersDTO.pageSize);
@@ -72,7 +74,7 @@ namespace Infrastructure.Repositories
 		{
 			return await _dbContext.Set<User>()
 					.AsNoTracking()
-					.Where(u => u.Empresa != null && u.Empresa.Id == empresaId)
+					.Where(u => u.Empresa != null && u.Empresa.Id == empresaId && u.Type != TypeUser.admin)
 					.CountAsync();
 		}
 

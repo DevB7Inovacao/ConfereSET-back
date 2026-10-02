@@ -41,6 +41,9 @@ namespace ControlApi.Controllers
 			try
 			{
 				if (req == null) return BadRequest("Payload inválido.");
+				// Contratar/trocar plano é do administrador da empresa (operador e leitura não).
+				if (!User.IsAdminOrGerente())
+					return StatusCode(StatusCodes.Status403Forbidden, "Apenas o administrador da empresa pode contratar um plano.");
 
 				var empresaJwt = User.GetEmpresaId();
 				// EmpresaId vem sempre do JWT — body é ignorado por segurança.

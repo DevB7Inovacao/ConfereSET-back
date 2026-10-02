@@ -33,6 +33,9 @@ namespace ControlApi.Controllers
                 var operador = await _userService.GetUserById(operadorId);
                 if (operador == null || (operador.EmpresaId != User.GetEmpresaId() && !User.IsPlatformAdmin()))
                     return NotFound("Operador não encontrado.");
+                // O histórico do master cruza empresas: nunca é exibido para uma empresa.
+                if (operador.Type == Core.Models.TypeUser.admin && !User.IsPlatformAdmin())
+                    return NotFound("Operador não encontrado.");
 
                 var result = await _service.GetPagedByOperadorId(operadorId, filters);
                 return Ok(result);

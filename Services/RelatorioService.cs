@@ -1069,6 +1069,21 @@ namespace Services
 				{
 					var existentesPorId = relatorio.Secoes.ToDictionary(s => s.Id);
 
+					// Multi-tenant: tipo de ocorrência só pode ser da empresa dona do relatório
+					// (senão o nome de um tipo de outra empresa apareceria no documento).
+					var empresaDoRelatorio = relatorio.Obra?.EmpresaId;
+					var tiposValidos = new Dictionary<int, bool>();
+					foreach (var tipoId in req.Secoes.Where(x => x.TipoOcorrenciaId.HasValue).Select(x => x.TipoOcorrenciaId!.Value).Distinct())
+					{
+						var tipo = await _unitOfWork.TiposOcorrencia.GetTipoById(tipoId);
+						tiposValidos[tipoId] = tipo != null && empresaDoRelatorio.HasValue && tipo.EmpresaId == empresaDoRelatorio.Value;
+					}
+					foreach (var sReq in req.Secoes)
+					{
+						if (sReq.TipoOcorrenciaId.HasValue && !tiposValidos.GetValueOrDefault(sReq.TipoOcorrenciaId.Value))
+							sReq.TipoOcorrenciaId = null;
+					}
+
 					foreach (var sReq in req.Secoes)
 					{
 						if (sReq.Id.HasValue && sReq.Id.Value > 0 && existentesPorId.TryGetValue(sReq.Id.Value, out var existente))

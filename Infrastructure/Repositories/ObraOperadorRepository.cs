@@ -44,7 +44,8 @@ namespace Infrastructure.Repositories
         {
             return await _dbContext.Set<ObraOperador>()
                 .AsNoTracking()
-                .Where(x => x.ObraId == obraId)
+                // O master da plataforma nunca aparece como operador de obra de uma empresa.
+                .Where(x => x.ObraId == obraId && x.Operador != null && x.Operador.Type != TypeUser.admin)
                 .Include(x => x.Operador)
                 .Select(x => new ObraOperadorDTO
                 {

@@ -1,4 +1,4 @@
-using ControlApi;
+﻿using ControlApi;
 using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -243,6 +243,8 @@ namespace API.Controllers
 			// Multi-tenant: só pode ler usuários da própria empresa.
 			var empresaIdJwt = User.GetEmpresaId();
 			if (user.EmpresaId != empresaIdJwt && !User.IsPlatformAdmin()) return NotFound("Usuário não encontrado.");
+			// O master da plataforma não é visível para as empresas.
+			if (user.Type == TypeUser.admin && !User.IsPlatformAdmin()) return NotFound("Usuário não encontrado.");
 			return Ok(user);
 		}
 

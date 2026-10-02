@@ -77,7 +77,9 @@ namespace ControlApi.Controllers
         private async Task<bool> OperadorPertenceAEmpresa(int operadorId)
         {
             var operador = await _userService.GetUserById(operadorId);
-            return operador != null && PertenceAEmpresa(operador.EmpresaId);
+            if (operador == null || !PertenceAEmpresa(operador.EmpresaId)) return false;
+            // O master da plataforma não é "operador" de nenhuma empresa.
+            return operador.Type != TypeUser.admin || User.IsPlatformAdmin();
         }
 
         [HttpPost]
@@ -293,6 +295,8 @@ namespace ControlApi.Controllers
 
                 var operador = await _userService.GetUserById(operadorId);
                 if (operador == null || operador.EmpresaId != obra.EmpresaId) return NotFound("Operador não encontrado.");
+                // Só usuários da empresa entram na obra; o master da plataforma nunca é vinculado.
+                if (operador.Type == TypeUser.admin) return NotFound("Operador não encontrado.");
 
                 var result = await _obrasService.AddOperadorToObra(obraId, operadorId);
                 if (result)
