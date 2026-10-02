@@ -85,7 +85,8 @@ namespace Services
 			{
 				// Extrair a key da URL
 				var uri = new Uri(fileUrl);
-				var key = uri.AbsolutePath.TrimStart('/');
+				// AbsolutePath vem URL-encoded (ex.: espaço → %20); a key real no S3 não.
+				var key = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
 
 				var request = new Amazon.S3.Model.DeleteObjectRequest
 				{

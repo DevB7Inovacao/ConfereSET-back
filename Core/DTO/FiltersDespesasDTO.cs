@@ -11,6 +11,8 @@ namespace Core.DTO
         public string? Category { get; set; }
         public DateTime? DateFrom { get; set; }
         public DateTime? DateTo { get; set; }
+        /// <summary>Escopo interno (operador): restringe às obras vinculadas. Sempre definido pelo controller.</summary>
+        public List<int>? ObraIds { get; set; }
         public int pageNumber { get; set; }
         public int pageSize { get; set; }
 

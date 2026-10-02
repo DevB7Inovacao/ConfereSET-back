@@ -16,7 +16,11 @@ namespace Services
             _atividadeService = atividadeService;
         }
 
-        public async Task<Ocorrencia> Create(CreateOcorrenciaRequest req, int empresaId)
+        /// <summary>
+        /// Cria a ocorrência. A autoria (<paramref name="criadoPorUserId"/>) vem sempre do JWT —
+        /// o <c>CriadoPorUserId</c> do body é ignorado (proteção contra forja de autoria).
+        /// </summary>
+        public async Task<Ocorrencia> Create(CreateOcorrenciaRequest req, int empresaId, int criadoPorUserId)
         {
             var obra = await _unitOfWork.Obras.GetObraById(req.ObraId);
             if (obra == null || obra.EmpresaId != empresaId) throw new Exception("Obra não encontrada para a empresa logada.");
@@ -33,15 +37,14 @@ namespace Services
                 Localizacao = string.IsNullOrWhiteSpace(req.Localizacao) ? null : req.Localizacao.Trim(),
                 Status = StatusOcorrencia.Aberta,
                 DataOcorrencia = req.DataOcorrencia ?? DateTime.Now,
-                CriadoPorUserId = req.CriadoPorUserId
+                CriadoPorUserId = criadoPorUserId
             };
 
             await _unitOfWork.Ocorrencias.Add(ocorrencia);
             _unitOfWork.Save();
 
-            if (req.CriadoPorUserId.HasValue)
-                await _atividadeService.Registrar(
-                    req.CriadoPorUserId.Value,
+            await _atividadeService.Registrar(
+                    criadoPorUserId,
                     TipoAtividade.OcorrenciaRegistrada,
                     $"Ocorrência '{ocorrencia.Titulo}' registrada na obra '{obra.Name}'.",
                     req.ObraId,
@@ -146,7 +149,7 @@ namespace Services
 
     public interface IOcorrenciaService
     {
-        Task<Ocorrencia> Create(CreateOcorrenciaRequest req, int empresaId);
+        Task<Ocorrencia> Create(CreateOcorrenciaRequest req, int empresaId, int criadoPorUserId);
         Task<OcorrenciaDTO?> GetById(int id, int empresaId);
         Task<OcorrenciaPagedDTO> GetPaged(FiltersOcorrenciaDTO filters);
         Task<List<OcorrenciaDTO>> GetByObraId(int obraId, int empresaId);

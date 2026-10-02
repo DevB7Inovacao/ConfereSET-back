@@ -334,107 +334,179 @@ namespace Services
 			var item = await _unitOfWork.Relatorios.GetItemById(itemId);
 			if (item == null) throw new Exception("Item não encontrado.");
 
+			var imagem = ValidarImagem(req);
+
 			var foto = new RelatorioItemFoto
 			{
 				RelatorioSecaoItemId = itemId,
-				ImagemBytes = Convert.FromBase64String(req.ImagemBase64),
-				ContentType = req.ContentType,
-				NomeArquivo = req.NomeArquivo
+				ImagemBytes = imagem.Bytes,
+				ContentType = imagem.ContentType,
+				NomeArquivo = imagem.NomeArquivo
 			};
 
 			await _unitOfWork.Relatorios.AddFoto(foto);
 			return _unitOfWork.Save() > 0;
 		}
+		// ---------------------------------------------------------------------
+		// Validação de imagens (upload de fotos)
+		// ---------------------------------------------------------------------
+
+		private const int MaxFotoBytes = 10 * 1024 * 1024; // 10 MB por foto
+
+		private sealed record ImagemValidada(byte[] Bytes, string ContentType, string NomeArquivo);
+
+		/// <summary>
+		/// Detecta o tipo real pelos magic bytes (JPEG FFD8FF, PNG 89504E47, WEBP RIFF....WEBP).
+		/// Retorna <c>null</c> para qualquer outro formato. O ContentType enviado pelo cliente é ignorado.
+		/// </summary>
+		private static (string ContentType, string Extensao)? DetectarTipoImagem(byte[] b)
+		{
+			if (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF)
+				return ("image/jpeg", ".jpg");
+			if (b.Length >= 4 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47)
+				return ("image/png", ".png");
+			if (b.Length >= 12
+				&& b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46      // "RIFF"
+				&& b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50)  // "WEBP"
+				return ("image/webp", ".webp");
+			return null;
+		}
+
+		/// <summary>Nome seguro para a key do S3 (sem path/espaços/acentos) com a extensão do tipo detectado.</summary>
+		private static string SanitizarNomeArquivo(string? nome, string extensao)
+		{
+			var baseName = Path.GetFileNameWithoutExtension(Path.GetFileName(nome ?? string.Empty));
+			var limpo = new string(baseName.Select(c => char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_' ? c : '_').ToArray());
+			if (string.IsNullOrWhiteSpace(limpo.Trim('_'))) limpo = "foto";
+			if (limpo.Length > 80) limpo = limpo[..80];
+			return limpo + extensao;
+		}
+
+		private static ImagemValidada ValidarImagem(AddFotoToItemRequest f)
+		{
+			var nomeExibicao = string.IsNullOrWhiteSpace(f?.NomeArquivo) ? "sem nome" : f!.NomeArquivo!;
+			if (f == null || string.IsNullOrWhiteSpace(f.ImagemBase64))
+				throw new Exception($"A foto '{nomeExibicao}' está vazia.");
+
+			var base64 = f.ImagemBase64.Trim();
+			// Tolera data URI ("data:image/png;base64,....").
+			var virgula = base64.IndexOf(',');
+			if (base64.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && virgula >= 0)
+				base64 = base64[(virgula + 1)..];
+
+			// Checagem barata antes de decodificar (base64 ≈ 4/3 do binário).
+			if ((long)base64.Length * 3 / 4 > MaxFotoBytes + 3)
+				throw new Exception($"A foto '{nomeExibicao}' excede o tamanho máximo de 10 MB.");
+
+			byte[] bytes;
+			try { bytes = Convert.FromBase64String(base64); }
+			catch (FormatException) { throw new Exception($"A foto '{nomeExibicao}' não está em um formato válido."); }
+
+			if (bytes.Length == 0)
+				throw new Exception($"A foto '{nomeExibicao}' está vazia.");
+			if (bytes.Length > MaxFotoBytes)
+				throw new Exception($"A foto '{nomeExibicao}' excede o tamanho máximo de 10 MB.");
+
+			var tipo = DetectarTipoImagem(bytes);
+			if (tipo == null)
+				throw new Exception($"Formato de imagem não suportado em '{nomeExibicao}'. Envie apenas fotos JPEG, PNG ou WEBP.");
+
+			return new ImagemValidada(bytes, tipo.Value.ContentType, SanitizarNomeArquivo(f.NomeArquivo, tipo.Value.Extensao));
+		}
+
+		/// <summary>
+		/// Upload em lote "tudo ou nada": valida TODAS as fotos antes de enviar qualquer uma; se um
+		/// upload no S3 (ou o Save no banco) falhar no meio do lote, os objetos já enviados são
+		/// removidos do S3 (sem órfãos) e nada é gravado no banco. O front pode reenviar o lote.
+		/// </summary>
 		public async Task<bool> AddMultipleFotosToItem(int itemId, List<AddFotoToItemRequest> fotos)
 		{
 			var item = await _unitOfWork.Relatorios.GetItemById(itemId);
 			if (item == null) throw new Exception("Item não encontrado.");
 
-			foreach (var f in fotos)
+			// 1) Valida tudo antes de qualquer upload (base64, tamanho, magic bytes).
+			var validadas = fotos.Select(ValidarImagem).ToList();
+
+			// 2) Upload sequencial com compensação em caso de falha.
+			var enviadas = new List<string>();
+			try
 			{
-				try
+				foreach (var img in validadas)
 				{
-					// Converter Base64 para bytes
-					var imageBytes = Convert.FromBase64String(f.ImagemBase64);
+					// ContentType do objeto no S3 vem do tipo detectado, nunca do cliente.
+					var s3Url = await _s3Service.UploadImageAsync(img.Bytes, img.NomeArquivo, img.ContentType);
+					enviadas.Add(s3Url);
 
-					// Validar tamanho da imagem (ex: máximo 10MB)
-					//if (imageBytes.Length > 10 * 1024 * 1024)
-					//{
-					//	_logger.LogWarning("Imagem muito grande: {NomeArquivo}, Tamanho: {Tamanho} bytes",
-					//			f.NomeArquivo, imageBytes.Length);
-					//	continue; // Pular esta imagem
-					//}
-
-					// Upload para S3
-					var s3Url = await _s3Service.UploadImageAsync(imageBytes, f.NomeArquivo, f.ContentType);
-
-					var foto = new RelatorioItemFoto
+					await _unitOfWork.Relatorios.AddFoto(new RelatorioItemFoto
 					{
 						RelatorioSecaoItemId = itemId,
 						S3Url = s3Url,
-						ContentType = f.ContentType,
-						NomeArquivo = f.NomeArquivo,
-					};
+						ContentType = img.ContentType,
+						NomeArquivo = img.NomeArquivo,
+					});
+				}
 
-					await _unitOfWork.Relatorios.AddFoto(foto);
-				}
-				catch (Exception ex)
-				{
-				
-					throw;
-				}
+				return _unitOfWork.Save() > 0;
 			}
+			catch (Exception ex)
+			{
+				foreach (var url in enviadas)
+					await _s3Service.DeleteImageAsync(url); // best-effort; o S3Service já loga a falha
 
-			return  _unitOfWork.Save() > 0;
+				throw new Exception($"Falha ao enviar as fotos ({enviadas.Count} de {validadas.Count} enviadas antes do erro); nenhuma foto foi salva. Tente novamente. Detalhe: {ex.Message}", ex);
+			}
 		}
 
+		/// <summary>
+		/// Exclui várias fotos: remove do banco primeiro (um único Save) e depois apaga os objetos no
+		/// S3 (best-effort). Se o S3 falhar, sobra no máximo um objeto órfão — nunca um registro
+		/// apontando para imagem inexistente. A autorização é feita uma única vez no controller
+		/// (via <see cref="GetFotoEscopos"/>), sem recarregar o relatório por foto.
+		/// </summary>
 		public async Task<bool> DeleteMultipleFotos(List<int> fotoIds)
 		{
-			foreach (var id in fotoIds)
+			var urls = new List<string>();
+			foreach (var id in fotoIds.Distinct())
 			{
 				var foto = await _unitOfWork.Relatorios.GetFotoById(id);
-				if (foto == null)
-				{
-					//_logger.LogWarning("Foto não encontrada: {FotoId}", id);
-					continue;
-				}
+				if (foto == null) continue;
 
-				try
-				{
-					// Deletar do S3
-					await _s3Service.DeleteImageAsync(foto.S3Url);
-
-					// Deletar do banco
-					_unitOfWork.Relatorios.DeleteFoto(foto);
-				}
-				catch (Exception ex)
-				{
-					//_logger.LogError(ex, "Erro ao deletar foto {FotoId} do S3", id);
-					throw;
-				}
+				if (!string.IsNullOrWhiteSpace(foto.S3Url)) urls.Add(foto.S3Url);
+				_unitOfWork.Relatorios.DeleteFoto(foto);
 			}
 
-			return  _unitOfWork.Save() > 0;
+			var saved = _unitOfWork.Save() > 0;
+			if (saved)
+			{
+				foreach (var url in urls)
+					await _s3Service.DeleteImageAsync(url); // best-effort; o S3Service já loga a falha
+			}
+			return saved;
 		}
+
 		public async Task<bool> DeleteFoto(int fotoId)
 		{
 			var foto = await _unitOfWork.Relatorios.GetFotoById(fotoId);
 			if (foto == null) throw new Exception("Foto não encontrada.");
 
+			var s3Url = foto.S3Url;
 			_unitOfWork.Relatorios.DeleteFoto(foto);
-			return _unitOfWork.Save() > 0;
-		}
-		//public async Task<bool> DeleteMultipleFotos(List<int> fotoIds)
-		//{
-		//	foreach (var id in fotoIds)
-		//	{
-		//		var foto = await _unitOfWork.Relatorios.GetFotoById(id);
-		//		if (foto == null) throw new Exception("Foto não encontrada.");
+			var saved = _unitOfWork.Save() > 0;
 
-		//		_unitOfWork.Relatorios.DeleteFoto(foto);
-		//	}
-		//	return _unitOfWork.Save() > 0;
-		//}
+			// Fotos antigas guardavam os bytes no banco (S3Url vazio) — nada a apagar no S3.
+			if (saved && !string.IsNullOrWhiteSpace(s3Url))
+				await _s3Service.DeleteImageAsync(s3Url);
+
+			return saved;
+		}
+
+		/// <summary>
+		/// Escopo leve (projeção, sem carregar o grafo do relatório) para autorizar operações sobre fotos.
+		/// </summary>
+		public async Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds)
+		{
+			return await _unitOfWork.Relatorios.GetFotoEscopos(fotoIds.Distinct().ToList());
+		}
 
 
 		public async Task<RelatorioComentarioDTO> AddComentario(int secaoId, AddComentarioRequest req)
@@ -893,6 +965,7 @@ namespace Services
 		Task<bool> DeleteComentario(int comentarioId);
 		Task<bool> AddMultipleFotosToItem(int itemId, List<AddFotoToItemRequest> fotos);
 		Task<bool> DeleteMultipleFotos(List<int> fotoIds);
+		Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds);
 		Task<bool> UpdateHtmlSnapshot(int id, string htmlSnapshot);
 		// [v2] Bulk update — título + seções num único PUT
 		Task<bool> UpdateV2(int id, UpdateRelatorioV2Request req);

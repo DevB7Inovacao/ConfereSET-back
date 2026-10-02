@@ -62,6 +62,18 @@ namespace ControlApi.Controllers
             return obra;
         }
 
+        /// <summary>
+        /// Leitura de obra: além do escopo de empresa, operador (type 2) só enxerga obras às quais
+        /// está vinculado (ObraOperador). Admin/gerente e somente leitura mantêm acesso a toda a empresa.
+        /// </summary>
+        private async Task<Obras?> GetObraVisivel(int obraId)
+        {
+            var obra = await GetObraDaEmpresa(obraId);
+            if (obra == null) return null;
+            if (User.IsOperador() && !await _obrasService.IsOperadorVinculado(obraId, User.GetUserId())) return null;
+            return obra;
+        }
+
         private async Task<bool> OperadorPertenceAEmpresa(int operadorId)
         {
             var operador = await _userService.GetUserById(operadorId);
@@ -117,6 +129,8 @@ namespace ControlApi.Controllers
         public async Task<IActionResult> GetObrasPaged([FromQuery] FiltersObrasDTO filtersDTO)
         {
             filtersDTO.EmpresaId = User.GetEmpresaId();
+            // Operador só lista as obras às quais está vinculado (ignora OperadorId da query).
+            if (User.IsOperador()) filtersDTO.OperadorId = User.GetUserId();
             var result = await _obrasService.GetObrasPaged(filtersDTO);
             if (result != null)
                 return Ok(result);
@@ -216,6 +230,8 @@ namespace ControlApi.Controllers
             var obra = await _obrasService.GetObraById(obraId);
             if (obra == null) return NotFound("Obra não encontrada.");
             if (obra.EmpresaId != User.GetEmpresaId()) return NotFound("Obra não encontrado.");
+            if (User.IsOperador() && !await _obrasService.IsOperadorVinculado(obraId, User.GetUserId()))
+                return NotFound("Obra não encontrada.");
 
             var dto = new ObrasDTO
             {
@@ -251,6 +267,11 @@ namespace ControlApi.Controllers
             {
                 var empresaIdJwt = User.GetEmpresaId();
                 var result = await _obrasService.GetObrasSimple(empresaIdJwt);
+                if (User.IsOperador())
+                {
+                    var vinculadas = (await _obrasService.GetObraIdsByOperadorId(User.GetUserId())).ToHashSet();
+                    result = result.Where(o => vinculadas.Contains(o.Id)).ToList();
+                }
                 return Ok(result);
             }
             catch (Exception ex)
@@ -313,7 +334,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetOperadoresByObraId(obraId);
                 return Ok(result);
@@ -329,6 +350,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Operador só consulta as próprias obras (ignora o path param).
+                if (User.IsOperador()) operadorId = User.GetUserId();
                 if (operadorId <= 0) return BadRequest("operadorId inválido.");
                 if (!await OperadorPertenceAEmpresa(operadorId)) return NotFound("Operador não encontrado.");
 
@@ -347,7 +370,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetObraWithOperadores(obraId);
                 if (result == null) return NotFound("Obra não encontrada.");
@@ -369,6 +392,10 @@ namespace ControlApi.Controllers
                 if (!User.IsPlatformAdmin()) empresaId = User.GetEmpresaId();
                 if (empresaId <= 0) return BadRequest("empresaId inválido.");
 
+                // Operador só vê os cards das obras às quais está vinculado.
+                if (User.IsOperador())
+                    return Ok(await _obrasService.GetObrasCardsByOperadorId(User.GetUserId()));
+
                 var result = await _obrasService.GetObrasCardsByEmpresaId(empresaId);
                 return Ok(result);
             }
@@ -383,6 +410,8 @@ namespace ControlApi.Controllers
         {
             try
             {
+                // Operador só consulta os próprios cards (ignora o path param).
+                if (User.IsOperador()) operadorId = User.GetUserId();
                 if (operadorId <= 0) return BadRequest("operadorId inválido.");
                 if (!await OperadorPertenceAEmpresa(operadorId)) return NotFound("Operador não encontrado.");
 
@@ -449,7 +478,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetMaoDeObraByObraId(obraId);
                 return Ok(result);
@@ -514,7 +543,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetEquipamentosByObraId(obraId);
                 return Ok(result);
@@ -579,7 +608,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetTiposOcorrenciaByObraId(obraId);
                 return Ok(result);
@@ -644,7 +673,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetModelosTextoByObraId(obraId);
                 return Ok(result);
@@ -709,7 +738,7 @@ namespace ControlApi.Controllers
             try
             {
                 if (obraId <= 0) return BadRequest("obraId inválido.");
-                if (await GetObraDaEmpresa(obraId) == null) return NotFound("Obra não encontrada.");
+                if (await GetObraVisivel(obraId) == null) return NotFound("Obra não encontrada.");
 
                 var result = await _obrasService.GetDespesasByObraId(obraId);
                 return Ok(result);

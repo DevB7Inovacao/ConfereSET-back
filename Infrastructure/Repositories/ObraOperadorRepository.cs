@@ -54,6 +54,23 @@ namespace Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<int>> GetObraIdsByOperadorId(int operadorId)
+        {
+            return await _dbContext.Set<ObraOperador>()
+                .AsNoTracking()
+                .Where(x => x.OperadorId == operadorId)
+                .Select(x => x.ObraId)
+                .Distinct()
+                .ToListAsync();
+        }
+
+        public async Task<bool> IsOperadorVinculado(int obraId, int operadorId)
+        {
+            return await _dbContext.Set<ObraOperador>()
+                .AsNoTracking()
+                .AnyAsync(x => x.ObraId == obraId && x.OperadorId == operadorId);
+        }
+
         public async Task<Dictionary<int, int>> GetOperadoresCountByObraIds(List<int> obraIds)
         {
             if (obraIds == null || obraIds.Count == 0)
@@ -133,6 +150,8 @@ namespace Infrastructure.Repositories
         Task<bool> RemoveOperadorFromObra(int obraId, int operadorId);
         Task<List<ObraOperadorDTO>> GetOperadoresByObraId(int obraId);
         Task<Dictionary<int, int>> GetOperadoresCountByObraIds(List<int> obraIds);
+        Task<List<int>> GetObraIdsByOperadorId(int operadorId);
+        Task<bool> IsOperadorVinculado(int obraId, int operadorId);
         Task<List<ObrasDTO>> GetObrasByOperadorId(int operadorId);
         Task<ObraWithOperadoresDTO?> GetObraWithOperadores(int obraId);
     }

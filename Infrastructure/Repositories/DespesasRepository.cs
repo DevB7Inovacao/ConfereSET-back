@@ -35,6 +35,9 @@ namespace Infrastructure.Repositories
             if (filtersDTO.ObraId.HasValue && filtersDTO.ObraId.Value > 0)
                 query = query.Where(x => x.ObraId == filtersDTO.ObraId.Value);
 
+            if (filtersDTO.ObraIds != null)
+                query = query.Where(x => filtersDTO.ObraIds.Contains(x.ObraId));
+
             if (!string.IsNullOrEmpty(filtersDTO.Category))
                 query = query.Where(x => x.Category != null && EF.Functions.Like(x.Category.ToLower(), $"%{filtersDTO.Category.ToLower()}%"));
 
@@ -83,6 +86,9 @@ namespace Infrastructure.Repositories
 
             if (filtros.ObraId.HasValue && filtros.ObraId.Value > 0)
                 query = query.Where(x => x.ObraId == filtros.ObraId.Value);
+
+            if (filtros.ObraIds != null)
+                query = query.Where(x => filtros.ObraIds.Contains(x.ObraId));
 
             if (filtros.Status.HasValue)
                 query = query.Where(x => x.Status == filtros.Status.Value);

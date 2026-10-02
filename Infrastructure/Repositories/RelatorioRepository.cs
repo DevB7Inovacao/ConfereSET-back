@@ -42,8 +42,11 @@ namespace Infrastructure.Repositories
                     .ThenInclude(s => s.Itens)
                         .ThenInclude(i => i.Fotos)
                 .Include(x => x.Secoes.OrderBy(s => s.Ordem))
-                    .ThenInclude(s => s.Comentarios)
+                    .ThenInclude(s => s.Comentarios.OrderBy(c => c.CreatedDate).ThenBy(c => c.Id))
                         .ThenInclude(c => c.Autor)
+                // Split query: evita o produto cartesiano Secoes x Itens x Fotos x Comentarios
+                // (single query multiplicava as linhas — e os bytes das fotos — por comentário).
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -141,6 +144,24 @@ namespace Infrastructure.Repositories
             _dbContext.RelatorioItemFotos.Remove(foto);
         }
 
+        public async Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds)
+        {
+            if (fotoIds == null || fotoIds.Count == 0) return new List<RelatorioFotoEscopoDTO>();
+
+            return await _dbContext.RelatorioItemFotos
+                .AsNoTracking()
+                .Where(f => fotoIds.Contains(f.Id))
+                .Select(f => new RelatorioFotoEscopoDTO
+                {
+                    FotoId = f.Id,
+                    RelatorioId = f.RelatorioSecaoItem!.RelatorioSecao!.RelatorioId,
+                    CriadoPorUserId = f.RelatorioSecaoItem.RelatorioSecao.Relatorio!.CriadoPorUserId,
+                    Status = f.RelatorioSecaoItem.RelatorioSecao.Relatorio.Status,
+                    EmpresaId = f.RelatorioSecaoItem.RelatorioSecao.Relatorio.Obra!.EmpresaId
+                })
+                .ToListAsync();
+        }
+
         public async Task<RelatorioComentario?> GetComentarioById(int comentarioId)
         {
             return await _dbContext.RelatorioComentarios
@@ -191,6 +212,7 @@ namespace Infrastructure.Repositories
         Task AddFoto(RelatorioItemFoto foto);
         Task<RelatorioItemFoto?> GetFotoById(int fotoId);
         void DeleteFoto(RelatorioItemFoto foto);
+        Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds);
         Task<RelatorioComentario?> GetComentarioById(int comentarioId);
         Task AddSecao(RelatorioSecao secao);
         Task AddComentario(RelatorioComentario comentario);

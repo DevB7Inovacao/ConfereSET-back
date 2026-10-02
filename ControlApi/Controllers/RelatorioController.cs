@@ -16,6 +16,7 @@ namespace ControlApi.Controllers
     /// <item><b>Autoria</b>: operador só pode editar/excluir relatório que ele criou — e somente em status Rascunho/Rejeitado.</item>
     /// <item><b>Aprovação/Rejeição</b>: somente <c>admin</c> ou <c>gerente</c> da empresa dona do relatório.</item>
     /// <item><b>Submissão</b>: o próprio autor ou um admin/gerente da empresa.</item>
+    /// <item><b>Somente leitura</b>: lista/consulta todos os relatórios da empresa; nenhuma escrita.</item>
     /// </list>
     /// </para>
     /// Contratos de DTO e status codes mantidos iguais aos anteriores para não quebrar o front existente.
@@ -59,6 +60,14 @@ namespace ControlApi.Controllers
 
         private static bool IsEditableStatus(StatusRelatorio s) =>
             s == StatusRelatorio.Rascunho || s == StatusRelatorio.Rejeitado;
+
+        private const string MsgSomenteLeitura = "Usuários somente leitura não podem alterar relatórios.";
+
+        // Somente leitura (type 3) pode listar/consultar os relatórios da empresa, mas nunca escrever.
+        private IActionResult? ChecarPermissaoEscrita()
+        {
+            return User.IsReadOnly() ? StatusCode(StatusCodes.Status403Forbidden, MsgSomenteLeitura) : null;
+        }
 
         // ---------------------------------------------------------------------
         // Endpoints
@@ -109,8 +118,9 @@ namespace ControlApi.Controllers
                 // Escopo de empresa é obrigatório e vem do JWT, sobrepondo o que veio na query.
                 filters.EmpresaId = empresaId;
 
-                // Operador só vê os próprios relatórios. Admin/gerente vê todos da empresa.
-                if (!User.IsAdminOrGerente())
+                // Operador só vê os próprios relatórios. Admin/gerente e somente leitura (consulta)
+                // veem todos da empresa.
+                if (!User.IsAdminOrGerente() && !User.IsReadOnly())
                 {
                     filters.CriadoPorUserId = User.GetUserId();
                 }
@@ -146,7 +156,8 @@ namespace ControlApi.Controllers
                 var result = await _service.GetByIdScoped(id, empresaJwt);
                 if (result == null) return NotFound("Relatório não encontrado.");
 
-                if (!isAdmin && result.CriadoPorUserId != userId)
+                // Somente leitura consulta qualquer relatório da empresa (sem escrita).
+                if (!isAdmin && !User.IsReadOnly() && result.CriadoPorUserId != userId)
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, "Você não tem permissão para visualizar este relatório.");
                 }
@@ -172,6 +183,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (id <= 0) return BadRequest("id inválido.");
                 if (req == null) return BadRequest("Payload inválido.");
 
@@ -215,6 +229,9 @@ namespace ControlApi.Controllers
         {
             try
             {
+                var semPermissao = ChecarPermissaoEscrita();
+                if (semPermissao != null) return semPermissao;
+
                 if (id <= 0) return BadRequest("id inválido.");
 
                 var empresaJwt = User.GetEmpresaId();
@@ -249,6 +266,9 @@ namespace ControlApi.Controllers
 
         private async Task<(bool ok, IActionResult? denied, RelatorioDTO? relatorio)> AssertWriteByItemId(int itemId)
         {
+            var somenteLeitura = ChecarPermissaoEscrita();
+            if (somenteLeitura != null) return (false, somenteLeitura, null);
+
             var empresaJwt = User.GetEmpresaId();
             var userId = User.GetUserId();
             var isAdmin = User.IsAdminOrGerente();
@@ -266,6 +286,9 @@ namespace ControlApi.Controllers
 
         private async Task<(bool ok, IActionResult? denied, RelatorioDTO? relatorio)> AssertWriteByRelatorioId(int relatorioId)
         {
+            var somenteLeitura = ChecarPermissaoEscrita();
+            if (somenteLeitura != null) return (false, somenteLeitura, null);
+
             var empresaJwt = User.GetEmpresaId();
             var userId = User.GetUserId();
             var isAdmin = User.IsAdminOrGerente();
@@ -281,25 +304,40 @@ namespace ControlApi.Controllers
             return (true, null, relatorio);
         }
 
-        private async Task<(bool ok, IActionResult? denied)> AssertWriteByFotoId(int fotoId)
+        /// <summary>
+        /// Autoriza escrita em um conjunto de fotos com UMA consulta leve (projeção foto → relatório),
+        /// sem carregar o grafo completo do relatório por foto. Todas precisam existir, ser da empresa
+        /// do JWT e — para não admin/gerente — pertencer a relatório do autor em status editável.
+        /// </summary>
+        private async Task<(bool ok, IActionResult? denied)> AssertWriteByFotoIds(IEnumerable<int> fotoIds)
         {
+            var somenteLeitura = ChecarPermissaoEscrita();
+            if (somenteLeitura != null) return (false, somenteLeitura);
+
             var empresaJwt = User.GetEmpresaId();
             var userId = User.GetUserId();
             var isAdmin = User.IsAdminOrGerente();
 
-            var relatorio = await _service.GetRelatorioByFotoId(fotoId, empresaJwt);
-            if (relatorio == null) return (false, NotFound("Foto não encontrada."));
+            var ids = fotoIds.Distinct().ToList();
+            var escopos = await _service.GetFotoEscopos(ids);
+            if (escopos.Count != ids.Count || escopos.Any(e => e.EmpresaId != empresaJwt))
+                return (false, NotFound("Foto não encontrada."));
 
-            var ehAutor = relatorio.CriadoPorUserId == userId;
-            if (!isAdmin && !(ehAutor && IsEditableStatus(relatorio.Status)))
+            if (!isAdmin && escopos.Any(e => !(e.CriadoPorUserId == userId && IsEditableStatus(e.Status))))
             {
                 return (false, StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para alterar este relatório."));
             }
             return (true, null);
         }
 
+        private Task<(bool ok, IActionResult? denied)> AssertWriteByFotoId(int fotoId) =>
+            AssertWriteByFotoIds(new[] { fotoId });
+
         private async Task<(bool ok, IActionResult? denied)> AssertWriteBySecaoId(int secaoId)
         {
+            var somenteLeitura = ChecarPermissaoEscrita();
+            if (somenteLeitura != null) return (false, somenteLeitura);
+
             var empresaJwt = User.GetEmpresaId();
             var userId = User.GetUserId();
             var isAdmin = User.IsAdminOrGerente();
@@ -317,6 +355,9 @@ namespace ControlApi.Controllers
 
         private async Task<(bool ok, IActionResult? denied)> AssertWriteByComentarioId(int comentarioId)
         {
+            var somenteLeitura = ChecarPermissaoEscrita();
+            if (somenteLeitura != null) return (false, somenteLeitura);
+
             var empresaJwt = User.GetEmpresaId();
             var userId = User.GetUserId();
             var isAdmin = User.IsAdminOrGerente();
@@ -324,11 +365,16 @@ namespace ControlApi.Controllers
             var (relatorio, autorComentarioId) = await _service.GetRelatorioAndAutorByComentarioId(comentarioId, empresaJwt);
             if (relatorio == null) return (false, NotFound("Comentário não encontrado."));
 
-            // Admin/gerente sempre podem; autor do comentário também pode editar/excluir o seu.
+            // Admin/gerente sempre podem; o autor do comentário pode editar/excluir o seu apenas
+            // enquanto o relatório estiver em status editável (Rascunho/Rejeitado), como nos demais itens.
             var ehAutorComentario = autorComentarioId == userId;
             if (!isAdmin && !ehAutorComentario)
             {
                 return (false, StatusCode(StatusCodes.Status403Forbidden, "Sem permissão sobre este comentário."));
+            }
+            if (!isAdmin && !IsEditableStatus(relatorio.Status))
+            {
+                return (false, StatusCode(StatusCodes.Status403Forbidden, "Comentários só podem ser alterados enquanto o relatório estiver em Rascunho ou Rejeitado."));
             }
             return (true, null);
         }
@@ -412,12 +458,9 @@ namespace ControlApi.Controllers
                 if (req?.FotoIds == null || !req.FotoIds.Any())
                     return BadRequest("Nenhuma foto especificada.");
 
-                // Valida acesso em cada foto (todas devem pertencer a relatórios autorizados).
-                foreach (var fid in req.FotoIds.Distinct())
-                {
-                    var (allowed, denied) = await AssertWriteByFotoId(fid);
-                    if (!allowed) return denied!;
-                }
+                // Valida acesso a todas as fotos de uma vez (uma consulta leve, sem recarregar o relatório por foto).
+                var (allowed, denied) = await AssertWriteByFotoIds(req.FotoIds);
+                if (!allowed) return denied!;
 
                 var ok = await _service.DeleteMultipleFotos(req.FotoIds);
                 return ok ? Ok("Fotos excluídas com sucesso.") : BadRequest("Falha ao excluir fotos.");

@@ -27,6 +27,9 @@ namespace Infrastructure.Repositories
                 .Include(x => x.CriadoPor)
                 .AsQueryable();
 
+            // OperadorId = escopo por VÍNCULO de obra (ObraOperador), não por autoria:
+            // o operador vê todas as ocorrências das obras às quais está vinculado (inclusive as
+            // criadas por outros usuários). Para filtrar por autoria use CriadoPorUserId.
             if (filters.OperadorId.HasValue)
             {
                 var obrasDoOperador = await _dbContext.Set<ObraOperador>()

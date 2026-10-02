@@ -207,6 +207,16 @@ namespace Services
 			return await _unitOfWork.ObraOperadores.GetObrasByOperadorId(operadorId);
 		}
 
+		public async Task<List<int>> GetObraIdsByOperadorId(int operadorId)
+		{
+			return await _unitOfWork.ObraOperadores.GetObraIdsByOperadorId(operadorId);
+		}
+
+		public async Task<bool> IsOperadorVinculado(int obraId, int operadorId)
+		{
+			return await _unitOfWork.ObraOperadores.IsOperadorVinculado(obraId, operadorId);
+		}
+
 		public async Task<ObraWithOperadoresDTO?> GetObraWithOperadores(int obraId)
 		{
 			return await _unitOfWork.ObraOperadores.GetObraWithOperadores(obraId);
@@ -478,6 +488,9 @@ namespace Services
 		Task<bool> RemoveOperadorFromObra(int obraId, int operadorId);
 		Task<List<ObraOperadorDTO>> GetOperadoresByObraId(int obraId);
 		Task<List<ObrasDTO>> GetObrasByOperadorId(int operadorId);
+		/// <summary>Ids das obras às quais o operador está vinculado (ObraOperador).</summary>
+		Task<List<int>> GetObraIdsByOperadorId(int operadorId);
+		Task<bool> IsOperadorVinculado(int obraId, int operadorId);
 		Task<ObraWithOperadoresDTO?> GetObraWithOperadores(int obraId);
 		Task<List<ObraCardDTO>> GetObrasCardsByEmpresaId(int empresaId);
 		Task<List<ObraCardDTO>> GetObrasCardsByOperadorId(int operadorId);

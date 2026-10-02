@@ -10,5 +10,7 @@ namespace Core.DTO
         public DateTime? DataFim { get; set; }
         public int? Status { get; set; }
         public string? Categoria { get; set; }
+        /// <summary>Escopo interno (operador): restringe às obras vinculadas. Sempre definido pelo controller.</summary>
+        public List<int>? ObraIds { get; set; }
     }
 }

@@ -16,6 +16,7 @@ namespace ControlApi.Controllers
     public class DespesasController : ControllerBase
     {
         private const string MsgSomenteLeitura = "Usuários somente leitura não podem alterar despesas.";
+        private const string MsgNaoVinculado = "Você não está vinculado a esta obra.";
 
         private readonly IJWTManager _jWTManager;
         IDespesasService _despesasService;
@@ -40,6 +41,24 @@ namespace ControlApi.Controllers
             return obra != null && obra.EmpresaId == User.GetEmpresaId();
         }
 
+        /// <summary>
+        /// Operador (type 2): ids das obras às quais está vinculado. Para os demais perfis retorna
+        /// <c>null</c> (sem restrição além da empresa).
+        /// </summary>
+        private async Task<List<int>?> ObrasVinculadasDoOperador()
+        {
+            if (!User.IsOperador()) return null;
+            return await _obrasService.GetObraIdsByOperadorId(User.GetUserId());
+        }
+
+        /// <summary>Despesa visível ao chamador: mesma empresa e, para operador, obra vinculada.</summary>
+        private async Task<bool> DespesaVisivel(Despesas? despesa)
+        {
+            if (despesa == null || despesa.EmpresaId != User.GetEmpresaId()) return false;
+            if (!User.IsOperador()) return true;
+            return await _obrasService.IsOperadorVinculado(despesa.ObraId, User.GetUserId());
+        }
+
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateDespesa([FromBody] CreateDespesaRequest req)
@@ -51,6 +70,14 @@ namespace ControlApi.Controllers
 
                 if (req == null) return BadRequest("Payload inválido.");
                 if (req.ObraId > 0 && !await ObraPertenceAEmpresa(req.ObraId)) return NotFound("Obra não encontrada.");
+
+                // Operador só lança despesa em obra à qual está vinculado.
+                if (User.IsOperador())
+                {
+                    if (req.ObraId <= 0) return BadRequest("Obra é obrigatória.");
+                    if (!await _obrasService.IsOperadorVinculado(req.ObraId, User.GetUserId()))
+                        return StatusCode(StatusCodes.Status403Forbidden, MsgNaoVinculado);
+                }
 
                 var despesa = new Despesas
                 {
@@ -83,6 +110,8 @@ namespace ControlApi.Controllers
         {
             // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
             filtersDTO.EmpresaId = User.GetEmpresaId();
+            // Operador: apenas despesas das obras vinculadas (valor da query é sempre sobrescrito).
+            filtersDTO.ObraIds = await ObrasVinculadasDoOperador();
             var result = await _despesasService.GetDespesasPaged(filtersDTO);
             if (result != null)
                 return Ok(result);
@@ -102,9 +131,15 @@ namespace ControlApi.Controllers
             var existing = await _despesasService.GetDespesaById(despesaId);
             if (existing == null) return NotFound("Despesa não encontrada.");
             if (existing.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
+            if (!await DespesaVisivel(existing)) return NotFound("Despesa não encontrada.");
 
             if (req.ObraId.HasValue && req.ObraId.Value > 0 && !await ObraPertenceAEmpresa(req.ObraId.Value))
                 return NotFound("Obra não encontrada.");
+
+            // Operador não pode mover a despesa para uma obra à qual não está vinculado.
+            if (User.IsOperador() && req.ObraId.HasValue && req.ObraId.Value > 0
+                && !await _obrasService.IsOperadorVinculado(req.ObraId.Value, User.GetUserId()))
+                return StatusCode(StatusCodes.Status403Forbidden, MsgNaoVinculado);
 
             if (req.Name != null) existing.Name = string.IsNullOrWhiteSpace(req.Name) ? existing.Name : req.Name;
             if (req.Amount.HasValue) existing.Amount = req.Amount.Value;
@@ -132,7 +167,7 @@ namespace ControlApi.Controllers
                 if (semPermissao != null) return semPermissao;
 
                 var __scope = await _despesasService.GetDespesaById(id);
-                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
+                if (!await DespesaVisivel(__scope)) return NotFound("Despesa não encontrado.");
                 bool result = await _despesasService.DeleteDespesa(id);
                 if (result)
                     return Ok("Despesa excluída com sucesso.");
@@ -155,7 +190,7 @@ namespace ControlApi.Controllers
                 if (semPermissao != null) return semPermissao;
 
                 var __scope = await _despesasService.GetDespesaById(id);
-                if (__scope == null || __scope.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
+                if (!await DespesaVisivel(__scope)) return NotFound("Despesa não encontrado.");
                 bool result = await _despesasService.ToggleDespesaStatus(id);
                 if (result)
                     return Ok("Status da despesa alterado com sucesso.");
@@ -176,6 +211,7 @@ namespace ControlApi.Controllers
             var despesa = await _despesasService.GetDespesaById(despesaId);
             if (despesa == null) return NotFound("Despesa não encontrada.");
             if (despesa.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
+            if (!await DespesaVisivel(despesa)) return NotFound("Despesa não encontrada.");
 
             var dto = new DespesaDTO
             {
@@ -199,6 +235,9 @@ namespace ControlApi.Controllers
             try
             {
                 var result = await _despesasService.GetDespesasSimple(obraId, User.GetEmpresaId());
+                var vinculadas = await ObrasVinculadasDoOperador();
+                if (vinculadas != null)
+                    result = result.Where(d => vinculadas.Contains(d.ObraId)).ToList();
                 return Ok(result);
             }
             catch (Exception ex)
@@ -215,6 +254,8 @@ namespace ControlApi.Controllers
             {
                 // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
                 filtros.EmpresaId = User.GetEmpresaId();
+                // Operador: apenas obras vinculadas.
+                filtros.ObraIds = await ObrasVinculadasDoOperador();
                 var relatorio = await _despesasService.GetRelatorioResumo(filtros);
                 return Ok(relatorio);
             }
@@ -232,6 +273,8 @@ namespace ControlApi.Controllers
             {
                 // Multi-tenant: força o EmpresaId do JWT, ignorando query string.
                 filtros.EmpresaId = User.GetEmpresaId();
+                // Operador: apenas obras vinculadas.
+                filtros.ObraIds = await ObrasVinculadasDoOperador();
                 var relatorio = await _despesasService.GetRelatorioDetalhado(filtros);
                 return Ok(relatorio);
             }

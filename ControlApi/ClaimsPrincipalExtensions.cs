@@ -64,5 +64,11 @@ namespace ControlApi
 		{
 			return user.GetUserType() == TypeUser.somenteleitura;
 		}
+
+		/// <summary>Operador de campo — enxerga apenas as obras às quais está vinculado (ObraOperador).</summary>
+		public static bool IsOperador(this ClaimsPrincipal user)
+		{
+			return user.GetUserType() == TypeUser.operador;
+		}
 	}
 }

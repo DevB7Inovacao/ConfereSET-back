@@ -40,6 +40,17 @@ namespace ControlApi.Controllers
 			return obra != null && obra.EmpresaId == User.GetEmpresaId();
 		}
 
+		/// <summary>
+		/// Escopo de empresa + vínculo: operador (type 2) só acessa checklists de obras às quais está
+		/// vinculado (ObraOperador). Admin/gerente e somente leitura mantêm o escopo da empresa.
+		/// </summary>
+		private async Task<bool> ObraVisivel(int? obraId)
+		{
+			if (!await ObraPertenceAEmpresa(obraId)) return false;
+			if (!User.IsOperador()) return true;
+			return await _obrasService.IsOperadorVinculado(obraId!.Value, User.GetUserId());
+		}
+
 		[HttpPost("add")]
 		public async Task<IActionResult> AddChecklistToObra([FromBody] AddChecklistToObraRequest req)
 		{
@@ -67,7 +78,7 @@ namespace ControlApi.Controllers
 		{
 			try
 			{
-				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByObraChecklistId(id)))
+				if (!await ObraVisivel(await _service.GetObraIdByObraChecklistId(id)))
 					return NotFound("Vínculo de checklist não encontrado.");
 
 				var result = await _service.GetById(id);
@@ -85,6 +96,9 @@ namespace ControlApi.Controllers
 			try
 			{
 				var empresaIdJwt = User.GetEmpresaId();
+				if (User.IsOperador() && !await _obrasService.IsOperadorVinculado(obraId, User.GetUserId()))
+					return NotFound("Obra não encontrada.");
+
 				var result = await _service.GetByObra(obraId, empresaIdJwt);
 				return Ok(result);
 			}
@@ -101,6 +115,11 @@ namespace ControlApi.Controllers
 				// Multi-tenant: força a empresa do JWT, ignorando o path param.
 				var empresaIdJwt = User.GetEmpresaId();
 				var result = await _service.GetByObraEmpresa(empresaIdJwt);
+				if (User.IsOperador())
+				{
+					var vinculadas = (await _obrasService.GetObraIdsByOperadorId(User.GetUserId())).ToHashSet();
+					result = result.Where(x => vinculadas.Contains(x.ObraId)).ToList();
+				}
 				return Ok(result);
 			}
 			catch (Exception ex)
@@ -117,7 +136,7 @@ namespace ControlApi.Controllers
 				var semPermissao = ChecarPermissaoResposta();
 				if (semPermissao != null) return semPermissao;
 
-				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByItemId(obraChecklistItemId)))
+				if (!await ObraVisivel(await _service.GetObraIdByItemId(obraChecklistItemId)))
 					return NotFound("Item não encontrado.");
 
 				var ok = await _service.ResponderItem(obraChecklistItemId, req);
@@ -136,11 +155,11 @@ namespace ControlApi.Controllers
 				var semPermissao = ChecarPermissaoResposta();
 				if (semPermissao != null) return semPermissao;
 
-				if (!await ObraPertenceAEmpresa(await _service.GetObraIdByItemId(obraChecklistItemId)))
+				if (!await ObraVisivel(await _service.GetObraIdByItemId(obraChecklistItemId)))
 					return NotFound("Item não encontrado.");
 
 				var ok = await _service.ResponderItensAdicionais(obraChecklistItemId, req);
-				return ok ? Ok(true) : BadRequest("Falha ao responder item.");
+				return ok ? Ok(true) : BadRequest("Falha ao salvar informações do item.");
 			}
 			catch (Exception ex)
 			{

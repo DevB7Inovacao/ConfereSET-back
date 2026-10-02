@@ -79,12 +79,10 @@ namespace Services
 			var item = await _unitOfWork.ObraChecklistItems.GetById(obraChecklistItemId);
 			if (item == null) throw new Exception("Item não encontrado.");
 
+			// Responder altera somente a Resposta — os metadados (Observacao/Empresa/DataHora/
+			// Equipamento/Marca) são gravados pelo endpoint item/{id}/metadata e não podem ser
+			// apagados ao marcar/desmarcar uma resposta.
 			item.Resposta = req.Resposta;
-			item.Observacao = req.Observacao;
-			item.Empresa = req.Empresa;
-			item.DataHora = req.DataHora;
-			item.Equipamento = req.Equipamento;
-			item.Marca = req.Marca;
 			_unitOfWork.ObraChecklistItems.Update(item);
 			return _unitOfWork.Save() > 0;
 		}
@@ -93,7 +91,7 @@ namespace Services
 			var item = await _unitOfWork.ObraChecklistItems.GetById(obraChecklistItemId);
 			if (item == null) throw new Exception("Item não encontrado.");
 
-			item.Resposta = req.Resposta;
+			// Metadados apenas — a Resposta é alterada exclusivamente pelo endpoint responder/{id}.
 			item.Observacao = req.Observacao;
 			item.Empresa = req.Empresa;
 			item.DataHora = req.DataHora;

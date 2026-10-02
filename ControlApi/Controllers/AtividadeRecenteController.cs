@@ -50,6 +50,9 @@ namespace ControlApi.Controllers
             {
                 // Multi-tenant: só o admin da plataforma pode consultar outra empresa pelo path.
                 if (!User.IsPlatformAdmin()) empresaId = User.GetEmpresaId();
+                // Operador só enxerga a própria atividade (endpoint operador/{id}).
+                if (User.IsOperador())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Sem permissão para consultar a atividade da empresa.");
                 if (empresaId <= 0) return BadRequest("empresaId inválido.");
                 var result = await _service.GetPagedByEmpresaId(empresaId, filters);
                 return Ok(result);

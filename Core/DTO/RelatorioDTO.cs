@@ -113,6 +113,16 @@ namespace Core.DTO
 		public string? Descricao { get; set; }
 	}
 
+	/// <summary>Projeção leve para autorizar operações em fotos sem carregar o grafo do relatório.</summary>
+	public class RelatorioFotoEscopoDTO
+	{
+		public int FotoId { get; set; }
+		public int RelatorioId { get; set; }
+		public int CriadoPorUserId { get; set; }
+		public StatusRelatorio Status { get; set; }
+		public int? EmpresaId { get; set; }
+	}
+
 	public class AddFotoToItemRequest
 	{
 		public required string ImagemBase64 { get; set; }
