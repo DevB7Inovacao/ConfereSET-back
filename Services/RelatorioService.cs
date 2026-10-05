@@ -210,7 +210,7 @@ namespace Services
 					};
 					await _unitOfWork.Relatorios.AddItem(itemRaiz);
 					s.Itens ??= new List<RelatorioSecaoItem>();
-					s.Itens.Add(itemRaiz);
+					if (!s.Itens.Contains(itemRaiz)) s.Itens.Add(itemRaiz);
 					changed = true;
 				}
 			}
@@ -256,13 +256,12 @@ namespace Services
 			}
 
 			for (var i = 0; i < ordenadas.Count; i++) ordenadas[i].Ordem = i;
-			foreach (var nova in novas)
-			{
-				await _unitOfWork.Relatorios.AddSecao(nova);
-				relatorio.Secoes.Add(nova);
-			}
+			foreach (var nova in novas) await _unitOfWork.Relatorios.AddSecao(nova);
 			relatorio.HtmlSnapshot = html;
 			_unitOfWork.Save();
+			// O EF já liga a seção nova ao relatório ao salvar; só completa se não ligou (sem duplicar no DTO).
+			foreach (var nova in novas)
+				if (!relatorio.Secoes.Contains(nova)) relatorio.Secoes.Add(nova);
 		}
 
 		/// <summary>
@@ -320,7 +319,7 @@ namespace Services
 			await _unitOfWork.Relatorios.AddSecao(nova);
 			_unitOfWork.Save();
 			relatorio.Secoes ??= new List<RelatorioSecao>();
-			relatorio.Secoes.Add(nova);
+			if (!relatorio.Secoes.Contains(nova)) relatorio.Secoes.Add(nova);
 		}
 
 		public async Task<RelatorioPagedDTO> GetPaged(FiltersRelatorioDTO filters)
