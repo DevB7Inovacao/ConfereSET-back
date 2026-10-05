@@ -76,7 +76,8 @@ namespace Services
 			if (empresaIdJwt.HasValue && modelo.EmpresaId != empresaIdJwt.Value)
 				throw new UnauthorizedAccessException("Modelo de texto não pertence à sua empresa.");
 
-			var secoes = await ParseSecoesDoHtml(modelo.Texto, obra);
+			var html = DesaninharSecoesHtml(modelo.Texto, out _) ?? modelo.Texto;
+			var secoes = await ParseSecoesDoHtml(html, obra);
 
 			var relatorio = new Relatorio
 			{
@@ -86,7 +87,7 @@ namespace Services
 				Titulo = req.Titulo.Trim(),
 				Status = StatusRelatorio.Rascunho,
 				DataRelatorio = req.DataRelatorio ?? DateTime.Now,
-				HtmlSnapshot = modelo.Texto,
+				HtmlSnapshot = html,
 				Secoes = secoes
 			};
 
@@ -105,6 +106,7 @@ namespace Services
 			var relatorio = await _unitOfWork.Relatorios.GetById(id);
 			if (relatorio == null) return null;
 			if (relatorio.Obra?.EmpresaId != empresaIdJwt) return null;
+			await EnsureSecoesAninhadas(relatorio);
 			// [v12] Lazy: garante seção Comentários + item raiz em Fotos
 			await EnsureComentariosSection(relatorio);
 			await EnsureFotosItemRaiz(relatorio);
@@ -155,6 +157,8 @@ namespace Services
 		{
 			var relatorio = await _unitOfWork.Relatorios.GetById(id);
 			if (relatorio == null) return null;
+
+			await EnsureSecoesAninhadas(relatorio);
 
 			// Lazy: garante a seção de Comentários para relatórios antigos criados sem ela.
 			// Sem isso, o operador não consegue comentar e o admin não tem onde ler.
@@ -211,6 +215,92 @@ namespace Services
 				}
 			}
 			if (changed) _unitOfWork.Save();
+		}
+
+		/// <summary>
+		/// Relatórios criados de um modelo com seção DENTRO de outra (ex.: bloco Checklist "aberto"
+		/// no editor engoliu Observações e Assinatura) nasceram sem essas seções — o operário não
+		/// tinha onde escrever. Ao abrir um relatório ainda não aprovado, cria as seções que faltam
+		/// logo depois do bloco que as continha e grava o snapshot já corrigido (roda uma vez só).
+		/// </summary>
+		private async Task EnsureSecoesAninhadas(Relatorio relatorio)
+		{
+			if (relatorio.Status == StatusRelatorio.Aprovado || relatorio.Obra == null || relatorio.Secoes == null) return;
+			var html = DesaninharSecoesHtml(relatorio.HtmlSnapshot, out var movidas);
+			if (html == null) return;
+
+			var modelo = await ParseSecoesDoHtml(html, relatorio.Obra);
+			var ordenadas = relatorio.Secoes.OrderBy(s => s.Ordem).ThenBy(s => s.Id).ToList();
+			bool Existe(RelatorioSecao nova) => ordenadas.Any(s =>
+				string.Equals(s.DataSecao, nova.DataSecao, StringComparison.OrdinalIgnoreCase)
+				|| (!RelatorioSecaoConfig.IsConfiguravel(nova.TipoSecao) && s.TipoSecao == nova.TipoSecao));
+
+			var novas = new List<RelatorioSecao>();
+			for (var i = 0; i < modelo.Count; i++)
+			{
+				var nova = modelo[i];
+				if (nova.TipoSecao == TipoSecao.Comentarios || nova.TipoSecao == TipoSecao.Ocorrencias) continue;
+				var baseSecao = (nova.DataSecao ?? "").Split(':')[0];
+				if (!movidas.Contains(baseSecao) || Existe(nova)) continue;
+
+				// Âncora: a seção anterior a ela no modelo que já existe no relatório.
+				var pos = 0;
+				for (var j = i - 1; j >= 0; j--)
+				{
+					var anterior = ordenadas.FindIndex(s => string.Equals(s.DataSecao, modelo[j].DataSecao, StringComparison.OrdinalIgnoreCase));
+					if (anterior >= 0) { pos = anterior + 1; break; }
+				}
+				nova.RelatorioId = relatorio.Id;
+				ordenadas.Insert(pos, nova);
+				novas.Add(nova);
+			}
+
+			for (var i = 0; i < ordenadas.Count; i++) ordenadas[i].Ordem = i;
+			foreach (var nova in novas)
+			{
+				await _unitOfWork.Relatorios.AddSecao(nova);
+				relatorio.Secoes.Add(nova);
+			}
+			relatorio.HtmlSnapshot = html;
+			_unitOfWork.Save();
+		}
+
+		/// <summary>
+		/// Move cada seção que está dentro de OUTRA seção para logo depois do bloco que a continha
+		/// (na mesma ordem). Seção repetida dentro dela mesma (assinatura em assinatura) fica.
+		/// Devolve o HTML corrigido, ou <c>null</c> quando não havia nada aninhado.
+		/// Mesma regra do front (lib/secoes-html.ts).
+		/// </summary>
+		internal static string? DesaninharSecoesHtml(string? html, out HashSet<string> movidas)
+		{
+			movidas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			if (string.IsNullOrWhiteSpace(html) || html.IndexOf("data-secao", StringComparison.OrdinalIgnoreCase) < 0) return null;
+
+			var doc = new HtmlDocument();
+			doc.LoadHtml(html);
+			var nodes = doc.DocumentNode.SelectNodes("//*[@data-secao]");
+			if (nodes == null) return null;
+
+			static string Base(HtmlNode n) => n.GetAttributeValue("data-secao", "").Trim().ToLowerInvariant().Split(':')[0];
+			var ultimoInserido = new Dictionary<HtmlNode, HtmlNode>();
+			foreach (var node in nodes.ToList())
+			{
+				var b = Base(node);
+				if (b.Length == 0) continue;
+				var ancestrais = new List<HtmlNode>();
+				for (var p = node.ParentNode; p != null && p.NodeType == HtmlNodeType.Element; p = p.ParentNode)
+					if (p.GetAttributeValue("data-secao", null) != null) ancestrais.Add(p);
+				if (ancestrais.Count == 0 || ancestrais.Any(a => Base(a) == b)) continue;
+
+				var topo = ancestrais[^1];
+				if (topo.ParentNode == null) continue;
+				var referencia = ultimoInserido.TryGetValue(topo, out var u) ? u : topo;
+				node.Remove();
+				topo.ParentNode.InsertAfter(node, referencia);
+				ultimoInserido[topo] = node;
+				movidas.Add(b);
+			}
+			return movidas.Count > 0 ? doc.DocumentNode.OuterHtml : null;
 		}
 
 		private async Task EnsureComentariosSection(Relatorio relatorio)
