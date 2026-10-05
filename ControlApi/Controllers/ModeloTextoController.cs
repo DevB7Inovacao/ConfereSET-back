@@ -76,6 +76,41 @@ namespace ControlApi.Controllers
             }
         }
 
+        /// <summary>
+        /// Converte um .doc (Word 97-2003) em .docx para a importação de modelos. O front segue com
+        /// o .docx devolvido pelo mesmo caminho do .docx enviado direto. Nada é gravado aqui.
+        /// </summary>
+        [HttpPost("converter-doc")]
+        [RequestSizeLimit(WordLegadoConverter.TamanhoMaximo + 1_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = WordLegadoConverter.TamanhoMaximo + 1_000_000)]
+        public async Task<IActionResult> ConverterDoc(IFormFile? arquivo)
+        {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+            if (arquivo == null || arquivo.Length == 0) return BadRequest("Envie o arquivo .doc.");
+            if (arquivo.Length > WordLegadoConverter.TamanhoMaximo)
+                return BadRequest("O arquivo passa de 30 MB. Reduza as imagens no Word e tente de novo.");
+
+            byte[] doc;
+            using (var ms = new MemoryStream())
+            {
+                await arquivo.CopyToAsync(ms);
+                doc = ms.ToArray();
+            }
+
+            try
+            {
+                // Conversão é CPU pura (sem I/O): fora da thread do request.
+                var docx = await Task.Run(() => WordLegadoConverter.ConverterParaDocx(doc));
+                var nome = Path.GetFileNameWithoutExtension(arquivo.FileName ?? "documento") + ".docx";
+                return Ok(new { nomeArquivo = nome, docxBase64 = Convert.ToBase64String(docx) });
+            }
+            catch (InvalidDataException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         private IActionResult? ChecarPermissaoEscrita()
         {
             return User.IsAdminOrGerente() ? null : StatusCode(StatusCodes.Status403Forbidden, "Apenas administradores da empresa podem alterar cadastros.");
