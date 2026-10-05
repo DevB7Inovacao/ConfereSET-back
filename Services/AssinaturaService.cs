@@ -22,7 +22,7 @@ namespace Services
 		{
 			_unitOfWork = unitOfWork;
 			_mpClient = mpClient;
-			_backUrl = configuration["MercadoPago:BackUrl"] ?? "https://confere-set-front.vercel.app";
+			_backUrl = configuration["MercadoPago:BackUrl"] ?? "https://www.confereset.com.br/assinatura/callback";
 		}
 
 		public async Task<CheckoutAssinaturaResponse> IniciarCheckout(CreateAssinaturaRequest req)
