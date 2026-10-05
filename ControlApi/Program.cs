@@ -180,6 +180,9 @@ const string CorsPolicyName = "Frontend";
 var allowedOrigins = new[]
 {
 		"https://confere-set-front.vercel.app",
+		// Domínio próprio (Vercel): www é o principal; o sem www redireciona para ele.
+		"https://www.confereset.com.br",
+		"https://confereset.com.br",
 		"http://localhost:3000",
 		"http://127.0.0.1:3000",
 		"http://localhost:5173",
