@@ -203,6 +203,9 @@ builder.Services.AddCors(options =>
 			.AllowAnyMethod()
 			.AllowAnyHeader()
 			.AllowCredentials()
+			// Toda chamada com token gera um OPTIONS antes (mais uma ida e volta até o servidor).
+			// Guardar a resposta no navegador por 2 h (máximo do Chrome) elimina essa espera.
+			.SetPreflightMaxAge(TimeSpan.FromHours(2))
 	);
 });
 
