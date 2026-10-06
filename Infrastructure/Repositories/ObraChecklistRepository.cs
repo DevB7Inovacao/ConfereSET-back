@@ -52,6 +52,7 @@ namespace Infrastructure.Repositories
 		public async Task<List<ObraChecklist>> GetByObra(int obraId)
 		{
 			return await _dbContext.Set<ObraChecklist>()
+					.AsNoTracking()
 					.Include(x => x.Obra)
 					.Include(x => x.Checklist)
 					.Include(x => x.Itens)
@@ -63,17 +64,21 @@ namespace Infrastructure.Repositories
 					.AsSplitQuery()
 					.ToListAsync();
 		}
-		public async Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId)
+		/// <param name="operadorId">Operário: só as obras em que ele está vinculado (filtro no banco).</param>
+		public async Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId, int? operadorId = null)
 		{
-			return await _dbContext.Set<ObraChecklist>()
-				.Include(x => x.Obra)
+			var query = _dbContext.Set<ObraChecklist>()
+					.AsNoTracking()
+					.Include(x => x.Obra)
 					.Include(x => x.Checklist)
 					.Include(x => x.Itens)
-
 							.ThenInclude(i => i.ChecklistItem)
 					.Include(x => x.Itens)
 							.ThenInclude(i => i.Fotos)
-					.Where(x => x.Obra.EmpresaId == empresaId)
+					.Where(x => x.Obra.EmpresaId == empresaId);
+			if (operadorId.HasValue)
+				query = query.Where(x => _dbContext.Set<ObraOperador>().Any(oo => oo.ObraId == x.ObraId && oo.OperadorId == operadorId.Value));
+			return await query
 					.OrderByDescending(x => x.Id)
 					.AsSplitQuery()
 					.ToListAsync();
@@ -102,7 +107,7 @@ namespace Infrastructure.Repositories
 		Task<ObraChecklist?> GetById(int id);
 		Task<List<ObraChecklist>> GetByObra(int obraId);
 		Task<List<ObraChecklist>> GetByChecklistId(int checklistId);
-		Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId);
+		Task<List<ObraChecklist>> GetByObraEmpresa(int empresaId, int? operadorId = null);
 
 		}
 }

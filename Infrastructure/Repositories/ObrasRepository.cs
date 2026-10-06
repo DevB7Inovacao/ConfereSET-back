@@ -11,17 +11,18 @@ namespace Infrastructure.Repositories
         {
         }
 
+        // Sem Include(Empresa): nenhum chamador usa a empresa e ela trazia a logo (base64)
+        // em toda checagem de escopo de obra.
         public async Task<Obras?> GetObraById(int id)
         {
             return await _dbContext.Set<Obras>()
-                .Include(x => x.Empresa)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<PagedResult<Obras>> GetAllObrasPaged(FiltersObrasDTO filtersDTO)
         {
             var query = _dbContext.Set<Obras>()
-                .Include(x => x.Empresa)
+                .AsNoTracking()
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(filtersDTO.Name))

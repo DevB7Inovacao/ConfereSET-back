@@ -53,9 +53,7 @@ namespace Infrastructure.Repositories
         public async Task<PagedResult<Relatorio>> GetPaged(FiltersRelatorioDTO filters)
         {
             var query = _dbContext.Relatorios
-                .Include(x => x.ModeloTexto)
-                .Include(x => x.Obra).ThenInclude(x=>x.Empresa)
-                .Include(x => x.CriadoPor)
+                .AsNoTracking()
                 .AsQueryable();
 
             if (filters.ObraId.HasValue)
@@ -96,12 +94,61 @@ namespace Infrastructure.Repositories
             var pageNumber = filters.PageNumber > 0 ? filters.PageNumber : 1;
             var pageCount = (int)Math.Ceiling(total / (double)pageSize);
 
+            // Lista: só as colunas que a listagem mostra. Antes vinham o HTML do relatório, o HTML
+            // do modelo e a logo da empresa (base64) em cada linha — e eram descartados no serviço.
             var results = await query
                 .OrderByDescending(x => x.DataRelatorio)
                 .ThenByDescending(x => x.CreatedDate)
                 .ThenBy(x => x.Id)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .Select(x => new Relatorio
+                {
+                    Id = x.Id,
+                    ModeloTextoId = x.ModeloTextoId,
+                    ObraId = x.ObraId,
+                    CriadoPorUserId = x.CriadoPorUserId,
+                    Titulo = x.Titulo,
+                    Status = x.Status,
+                    DataRelatorio = x.DataRelatorio,
+                    CreatedDate = x.CreatedDate,
+                    ObservacaoRejeicao = x.ObservacaoRejeicao,
+                    ModeloTexto = new ModeloTexto { Id = x.ModeloTexto!.Id, EmpresaId = x.ModeloTexto.EmpresaId, Nome = x.ModeloTexto.Nome, Texto = null! },
+                    Obra = x.Obra == null ? null : new Obras
+                    {
+                        Id = x.Obra.Id,
+                        EmpresaId = x.Obra.EmpresaId,
+                        Name = x.Obra.Name,
+                        StreetAddress = x.Obra.StreetAddress,
+                        Number = x.Obra.Number,
+                        AddressLine2 = x.Obra.AddressLine2,
+                        Neighborhood = x.Obra.Neighborhood,
+                        City = x.Obra.City,
+                        State = x.Obra.State,
+                        PostalCode = x.Obra.PostalCode,
+                        Country = x.Obra.Country,
+                        ClientName = x.Obra.ClientName,
+                        ClientEmail = x.Obra.ClientEmail,
+                        ClientPhone = x.Obra.ClientPhone,
+                        Empresa = x.Obra.Empresa == null ? null : new Empresas
+                        {
+                            Id = x.Obra.Empresa.Id,
+                            Name = x.Obra.Empresa.Name,
+                            Phone = x.Obra.Empresa.Phone,
+                            ContactEmail = x.Obra.Empresa.ContactEmail,
+                        },
+                    },
+                    CriadoPor = x.CriadoPor == null ? null : new User
+                    {
+                        Id = x.CriadoPor.Id,
+                        Name = x.CriadoPor.Name,
+                        Email = "",
+                        Password = "",
+                        Type = x.CriadoPor.Type,
+                        Status = x.CriadoPor.Status,
+                        Empresa = null!,
+                    },
+                })
                 .ToListAsync();
 
             return new PagedResult<Relatorio> { Results = results, PageCount = pageCount };
@@ -147,6 +194,39 @@ namespace Infrastructure.Repositories
         public void UpdateFoto(RelatorioItemFoto foto)
         {
             _dbContext.RelatorioItemFotos.Update(foto);
+        }
+
+        /// <summary>Escopo mínimo (autor, status, empresa) para autorizar escrita — uma consulta leve.</summary>
+        public async Task<RelatorioFotoEscopoDTO?> GetEscopo(int relatorioId)
+        {
+            return await _dbContext.Relatorios
+                .AsNoTracking()
+                .Where(r => r.Id == relatorioId)
+                .Select(r => new RelatorioFotoEscopoDTO
+                {
+                    RelatorioId = r.Id,
+                    CriadoPorUserId = r.CriadoPorUserId,
+                    Status = r.Status,
+                    EmpresaId = r.Obra!.EmpresaId
+                })
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<int?> GetRelatorioIdByItemId(int itemId) =>
+            await _dbContext.RelatorioSecaoItens.AsNoTracking()
+                .Where(i => i.Id == itemId).Select(i => (int?)i.RelatorioSecao!.RelatorioId).FirstOrDefaultAsync();
+
+        public async Task<int?> GetRelatorioIdBySecaoId(int secaoId) =>
+            await _dbContext.RelatorioSecoes.AsNoTracking()
+                .Where(s => s.Id == secaoId).Select(s => (int?)s.RelatorioId).FirstOrDefaultAsync();
+
+        public async Task<(int RelatorioId, int AutorId)?> GetRelatorioEAutorByComentarioId(int comentarioId)
+        {
+            var r = await _dbContext.RelatorioComentarios.AsNoTracking()
+                .Where(c => c.Id == comentarioId)
+                .Select(c => new { c.RelatorioSecao!.RelatorioId, c.AutorId })
+                .FirstOrDefaultAsync();
+            return r == null ? null : (r.RelatorioId, r.AutorId);
         }
 
         public async Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds)
@@ -219,6 +299,10 @@ namespace Infrastructure.Repositories
         void DeleteFoto(RelatorioItemFoto foto);
         void UpdateFoto(RelatorioItemFoto foto);
         Task<List<RelatorioFotoEscopoDTO>> GetFotoEscopos(List<int> fotoIds);
+        Task<RelatorioFotoEscopoDTO?> GetEscopo(int relatorioId);
+        Task<int?> GetRelatorioIdByItemId(int itemId);
+        Task<int?> GetRelatorioIdBySecaoId(int secaoId);
+        Task<(int RelatorioId, int AutorId)?> GetRelatorioEAutorByComentarioId(int comentarioId);
         Task<RelatorioComentario?> GetComentarioById(int comentarioId);
         Task AddSecao(RelatorioSecao secao);
         Task AddComentario(RelatorioComentario comentario);

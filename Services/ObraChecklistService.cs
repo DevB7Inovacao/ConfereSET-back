@@ -494,9 +494,9 @@ namespace Services
 		// Listagem por empresa
 		// =====================================================================
 
-		public async Task<List<ObraChecklistEmpresaDTO>> GetByObraEmpresa(int empresaId)
+		public async Task<List<ObraChecklistEmpresaDTO>> GetByObraEmpresa(int empresaId, int? operadorId = null)
 		{
-			var list = await _unitOfWork.ObraChecklists.GetByObraEmpresa(empresaId);
+			var list = await _unitOfWork.ObraChecklists.GetByObraEmpresa(empresaId, operadorId);
 			var dtos = await MapManyAsync(list);
 			var porId = list.ToDictionary(x => x.Id);
 			return dtos.Select(b =>
@@ -673,7 +673,7 @@ namespace Services
 		Task<bool> RemoveChecklistFromObra(int obraChecklistId);
 		Task<bool> SincronizarChecklist(int checklistId);
 		Task<bool> ResponderItensAdicionais(int obraChecklistItemId, ResponderChecklistItemRequest req);
-		Task<List<ObraChecklistEmpresaDTO>> GetByObraEmpresa(int empresaId);
+		Task<List<ObraChecklistEmpresaDTO>> GetByObraEmpresa(int empresaId, int? operadorId = null);
 		Task<int?> GetChecklistEmpresaId(int checklistId);
 		Task<int?> GetObraIdByItemId(int obraChecklistItemId);
 		Task<int?> GetObraIdByObraChecklistId(int obraChecklistId);

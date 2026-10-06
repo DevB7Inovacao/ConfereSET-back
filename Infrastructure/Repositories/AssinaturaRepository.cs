@@ -32,6 +32,17 @@ namespace Infrastructure.Repositories
 					.FirstOrDefaultAsync(x => x.MPSubscriptionId == mpSubscriptionId);
 		}
 
+		/// <summary>Assinaturas da empresa para a checagem de acesso (roda em toda requisição): sem joins.</summary>
+		public async Task<List<Assinatura>> GetParaAcesso(int empresaId)
+		{
+			return await _dbContext.Set<Assinatura>()
+					.AsNoTracking()
+					.Where(x => x.EmpresaId == empresaId)
+					.OrderByDescending(x => x.CreatedDate)
+					.Take(50)
+					.ToListAsync();
+		}
+
 		public async Task<List<Assinatura>> GetAllPaged(int page, int pageSize, int empresaId)
 		{
 			// empresaId <= 0 → sem filtro de empresa (visão do dono da plataforma).
@@ -106,6 +117,7 @@ namespace Infrastructure.Repositories
 		Task<Assinatura?> GetAssinaturaAtivaByEmpresaId(int empresaId);
 		Task<Assinatura?> GetByMPSubscriptionId(string mpSubscriptionId);
 		Task<List<Assinatura>> GetAllPaged(int page, int pageSize, int empresaId);
+		Task<List<Assinatura>> GetParaAcesso(int empresaId);
 		Task<int> CountAll(int empresaId = 0);
 		Task<int> CountByPlanoId(int planoId);
 		Task<Assinatura?> GetByExternalReference(string externaReference);

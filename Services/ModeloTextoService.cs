@@ -46,7 +46,9 @@ namespace Services
                 Id = x.Id,
                 EmpresaId = x.EmpresaId,
                 Nome = x.Nome,
-                Texto = x.Texto,
+                // Lista: sem imagens embutidas (base64 de modelos antigos chegava a centenas de KB).
+                // Prévia/cópia/edição usam o getById, com o texto completo.
+                Texto = SemImagensEmbutidas(x.Texto),
                 Status = x.Status
             }).ToList();
 
@@ -56,6 +58,15 @@ namespace Services
                 Result = dto
             };
         }
+
+        private static readonly System.Text.RegularExpressions.Regex ImagemEmbutidaRx = new(
+            @"(src\s*=\s*[""'])data:[^""']*([""'])",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static string? SemImagensEmbutidas(string? html) =>
+            string.IsNullOrEmpty(html) || html.IndexOf("data:", StringComparison.OrdinalIgnoreCase) < 0
+                ? html
+                : ImagemEmbutidaRx.Replace(html, "$1$2");
 
         public async Task<bool> Update(int id, UpdateModeloTextoRequest req)
         {

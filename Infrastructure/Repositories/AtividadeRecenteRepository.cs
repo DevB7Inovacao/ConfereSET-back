@@ -12,6 +12,7 @@ namespace Infrastructure.Repositories
         public async Task<PagedResult<AtividadeRecente>> GetPagedByOperadorId(int operadorId, FiltersAtividadeRecenteDTO filters)
         {
             var query = _dbContext.Set<AtividadeRecente>()
+                .AsNoTracking()
                 .Include(x => x.Obra)
                 .Include(x => x.Operador)
                 .Where(x => x.OperadorId == operadorId)
@@ -24,6 +25,7 @@ namespace Infrastructure.Repositories
         public async Task<PagedResult<AtividadeRecente>> GetPagedByEmpresaId(int empresaId, FiltersAtividadeRecenteDTO filters)
         {
             var query = _dbContext.Set<AtividadeRecente>()
+                .AsNoTracking()
                 .Include(x => x.Obra)
                 .Include(x => x.Operador)
                 .Where(x => x.Obra != null && x.Obra.EmpresaId == empresaId)

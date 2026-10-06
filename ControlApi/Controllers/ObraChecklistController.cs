@@ -130,12 +130,8 @@ namespace ControlApi.Controllers
 			{
 				// Multi-tenant: força a empresa do JWT, ignorando o path param.
 				var empresaIdJwt = User.GetEmpresaId();
-				var result = await _service.GetByObraEmpresa(empresaIdJwt);
-				if (User.IsOperador())
-				{
-					var vinculadas = (await _obrasService.GetObraIdsByOperadorId(User.GetUserId())).ToHashSet();
-					result = result.Where(x => vinculadas.Contains(x.ObraId)).ToList();
-				}
+				// Operário: só as obras vinculadas a ele — filtrado no banco (antes carregava a empresa inteira).
+				var result = await _service.GetByObraEmpresa(empresaIdJwt, User.IsOperador() ? User.GetUserId() : null);
 				return Ok(result);
 			}
 			catch (Exception ex)

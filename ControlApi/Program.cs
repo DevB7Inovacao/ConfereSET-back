@@ -51,6 +51,8 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 {
 	loggerConfig
 			.ReadFrom.Configuration(context.Configuration)
+			// Cada consulta SQL logada no console (síncrono) atrasava toda requisição.
+			.MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
 			.Enrich.FromLogContext()
 			.Enrich.WithEnvironmentName()
 			.Enrich.WithMachineName()

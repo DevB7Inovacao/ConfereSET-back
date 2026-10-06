@@ -116,14 +116,23 @@ namespace Services
 		/// <summary>
 		/// Retorna um DTO leve do relatório a partir do id de um item, validando escopo de empresa.
 		/// </summary>
-		public async Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt)
+		/// <summary>
+		/// Escopo leve para autorizar escrita (autosave de itens, fotos, comentários): só Id, autor,
+		/// status e obra — antes carregava o relatório inteiro (seções, itens, fotos em base64) e
+		/// rodava as rotinas de "garantir seções" a cada campo salvo.
+		/// </summary>
+		private async Task<RelatorioDTO?> EscopoLeve(int? relatorioId, int empresaIdJwt)
 		{
-			var item = await _unitOfWork.Relatorios.GetItemById(itemId);
-			if (item == null) return null;
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(item.RelatorioSecaoId);
-			if (secao == null) return null;
-			return await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
+			if (relatorioId == null) return null;
+			var e = await _unitOfWork.Relatorios.GetEscopo(relatorioId.Value);
+			if (e == null || e.EmpresaId != empresaIdJwt) return null;
+			return new RelatorioDTO { Id = e.RelatorioId, CriadoPorUserId = e.CriadoPorUserId, Status = e.Status };
 		}
+
+		public Task<RelatorioDTO?> GetEscopoScoped(int relatorioId, int empresaIdJwt) => EscopoLeve(relatorioId, empresaIdJwt);
+
+		public async Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt) =>
+			await EscopoLeve(await _unitOfWork.Relatorios.GetRelatorioIdByItemId(itemId), empresaIdJwt);
 
 		public async Task<RelatorioDTO?> GetRelatorioByFotoId(int fotoId, int empresaIdJwt)
 		{
@@ -136,21 +145,14 @@ namespace Services
 			return await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
 		}
 
-		public async Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt)
-		{
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(secaoId);
-			if (secao == null) return null;
-			return await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
-		}
+		public async Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt) =>
+			await EscopoLeve(await _unitOfWork.Relatorios.GetRelatorioIdBySecaoId(secaoId), empresaIdJwt);
 
 		public async Task<(RelatorioDTO? relatorio, int? autorComentarioId)> GetRelatorioAndAutorByComentarioId(int comentarioId, int empresaIdJwt)
 		{
-			var comentario = await _unitOfWork.Relatorios.GetComentarioById(comentarioId);
-			if (comentario == null) return (null, null);
-			var secao = await _unitOfWork.Relatorios.GetSecaoById(comentario.RelatorioSecaoId);
-			if (secao == null) return (null, null);
-			var dto = await GetByIdScoped(secao.RelatorioId, empresaIdJwt);
-			return (dto, comentario.AutorId);
+			var c = await _unitOfWork.Relatorios.GetRelatorioEAutorByComentarioId(comentarioId);
+			if (c == null) return (null, null);
+			return (await EscopoLeve(c.Value.RelatorioId, empresaIdJwt), c.Value.AutorId);
 		}
 
 		public async Task<RelatorioDTO?> GetById(int id)
@@ -1243,6 +1245,7 @@ namespace Services
 		Task<RelatorioDTO?> GetById(int id);
 		Task<RelatorioDTO?> GetByIdScoped(int id, int empresaIdJwt);
 		Task<RelatorioDTO?> GetRelatorioByItemId(int itemId, int empresaIdJwt);
+		Task<RelatorioDTO?> GetEscopoScoped(int relatorioId, int empresaIdJwt);
 		Task<RelatorioDTO?> GetRelatorioByFotoId(int fotoId, int empresaIdJwt);
 		Task<RelatorioDTO?> GetRelatorioBySecaoId(int secaoId, int empresaIdJwt);
 		Task<(RelatorioDTO? relatorio, int? autorComentarioId)> GetRelatorioAndAutorByComentarioId(int comentarioId, int empresaIdJwt);

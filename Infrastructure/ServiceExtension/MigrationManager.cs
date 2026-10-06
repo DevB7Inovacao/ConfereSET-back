@@ -57,6 +57,16 @@ namespace Infrastructure.ServiceExtension
                         logger?.LogError(ex, "Falha no fallback Relatórios/Conferelist v2.");
                     }
 
+                    // Índices para as listas e filtros mais usados (desempenho). Só cria o que falta.
+                    try
+                    {
+                        EnsureIndicesDesempenho(appContext, logger);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Falha ao garantir índices de desempenho.");
+                    }
+
                     // [v11] Self-heal de senhas com whitespace nas pontas. Idempotente.
                     try
                     {
@@ -69,6 +79,41 @@ namespace Infrastructure.ServiceExtension
                 }
             }
             return host;
+        }
+
+        /// <summary>
+        /// Índices das consultas quentes (listas ordenadas por data, filtros por empresa/obra/autor,
+        /// login por e-mail, checagem de assinatura e de vínculo do operário). Aditivo e idempotente:
+        /// só índices comuns (nenhum UNIQUE, para não falhar com dados antigos), cada um isolado.
+        /// </summary>
+        private static void EnsureIndicesDesempenho(DbContextClass ctx, ILogger? logger)
+        {
+            var comandos = new[]
+            {
+                "CREATE INDEX IF NOT EXISTS \"IX_Relatorios_CriadoPor_Data\" ON \"Relatorios\" (\"CriadoPorUserId\", \"DataRelatorio\" DESC);",
+                "CREATE INDEX IF NOT EXISTS \"IX_Relatorios_Obra_Data\" ON \"Relatorios\" (\"ObraId\", \"DataRelatorio\" DESC);",
+                "CREATE INDEX IF NOT EXISTS \"IX_Relatorios_Status\" ON \"Relatorios\" (\"Status\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_AtividadesRecentes_Operador_Data\" ON \"AtividadesRecentes\" (\"OperadorId\", \"CreatedDate\" DESC);",
+                "CREATE INDEX IF NOT EXISTS \"IX_AtividadesRecentes_Obra_Data\" ON \"AtividadesRecentes\" (\"ObraId\", \"CreatedDate\" DESC);",
+                "CREATE INDEX IF NOT EXISTS \"IX_Ocorrencias_Obra_Data\" ON \"Ocorrencias\" (\"ObraId\", \"DataOcorrencia\" DESC);",
+                "CREATE INDEX IF NOT EXISTS \"IX_Despesas_Empresa_Data\" ON \"Despesas\" (\"EmpresaId\", \"Date\" DESC);",
+                "CREATE INDEX IF NOT EXISTS \"IX_Despesas_ObraId\" ON \"Despesas\" (\"ObraId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_ModeloTextos_EmpresaId\" ON \"ModeloTextos\" (\"EmpresaId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_Assinaturas_Empresa_Status\" ON \"Assinaturas\" (\"EmpresaId\", \"Status\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_User_Email\" ON \"User\" (\"Email\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_User_Empresa_Type\" ON \"User\" (\"EmpresaId\", \"Type\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_ObraOperadores_Operador_Obra\" ON \"ObraOperadores\" (\"OperadorId\", \"ObraId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_TiposOcorrencia_EmpresaId\" ON \"TiposOcorrencia\" (\"EmpresaId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_Equipamentos_EmpresaId\" ON \"Equipamentos\" (\"EmpresaId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_MaoDeObra_EmpresaId\" ON \"MaoDeObra\" (\"EmpresaId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_GrupoDeObras_EmpresaId\" ON \"GrupoDeObras\" (\"EmpresaId\");",
+                "CREATE INDEX IF NOT EXISTS \"IX_SupportTickets_EmpresaId\" ON \"SupportTickets\" (\"EmpresaId\");",
+            };
+            foreach (var sql in comandos)
+            {
+                try { ctx.Database.ExecuteSqlRaw(sql); }
+                catch (Exception ex) { logger?.LogWarning(ex, "Índice de desempenho: falha ao executar {Sql}", sql); }
+            }
         }
 
         /// <summary>

@@ -304,7 +304,8 @@ namespace ControlApi.Controllers
             var userId = User.GetUserId();
             var isAdmin = User.IsAdminOrGerente();
 
-            var relatorio = await _service.GetByIdScoped(relatorioId, empresaJwt);
+            // Escopo leve (autor/status): não carrega o relatório inteiro só para autorizar.
+            var relatorio = await _service.GetEscopoScoped(relatorioId, empresaJwt);
             if (relatorio == null) return (false, NotFound("Relatório não encontrado."), null);
 
             var ehAutor = relatorio.CriadoPorUserId == userId;

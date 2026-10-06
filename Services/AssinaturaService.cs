@@ -129,6 +129,7 @@ namespace Services
 		/// </summary>
 		private async Task AplicarStatus(Assinatura assinatura, string? statusMp, DateTime? proximoPagamento)
 		{
+			LimparCacheAcesso(assinatura.EmpresaId);
 			var anterior = assinatura.Status;
 			assinatura.UltimoStatusMP = statusMp;
 			assinatura.Status = statusMp switch
@@ -228,6 +229,7 @@ namespace Services
 
 		public async Task<bool> AtribuirPlanoVitalicio(int empresaId, int planoId)
 		{
+			LimparCacheAcesso(empresaId);
 			var empresa = await _unitOfWork.Empresas.GetEmpresaById(empresaId)
 					?? throw new Exception("Empresa não encontrada.");
 
@@ -277,6 +279,7 @@ namespace Services
 		{
 			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaById(id)
 					?? throw new Exception("Assinatura não encontrada.");
+			LimparCacheAcesso(assinatura.EmpresaId);
 
 			if (assinatura.Plano?.Valor == 0)
 				throw new Exception("Assinatura vitalícia não pode ser cancelada.");
@@ -347,6 +350,7 @@ namespace Services
 		{
 			var assinatura = await _unitOfWork.Assinaturas.GetAssinaturaById(id)
 					?? throw new Exception("Assinatura não encontrada.");
+			LimparCacheAcesso(assinatura.EmpresaId);
 
 			// Tenta cancelar no Mercado Pago, mas não impede a exclusão local se falhar.
 			if (!string.IsNullOrWhiteSpace(assinatura.MPSubscriptionId))
@@ -532,6 +536,7 @@ namespace Services
 
 		public async Task<Assinatura> IniciarTrial(int empresaId, int dias = TrialDiasPadrao)
 		{
+			LimparCacheAcesso(empresaId);
 			var empresa = await _unitOfWork.Empresas.GetEmpresaById(empresaId)
 				?? throw new Exception("Empresa não encontrada.");
 
@@ -596,7 +601,27 @@ namespace Services
 		/// Estado computado do acesso para a empresa, considerando assinatura ativa
 		/// e trial vigente (e expirando trial vencido em lazy fashion).
 		/// </summary>
+		/// <summary>
+		/// Acesso liberado fica em memória por alguns segundos por empresa: a verificação roda em
+		/// TODA chamada à API (middleware). Só o "liberado" é guardado — quem acabou de pagar não
+		/// espera, e mudanças de status limpam a empresa do cache (<see cref="LimparCacheAcesso"/>).
+		/// </summary>
+		private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, (StatusAcessoAssinatura Status, DateTime Ate)> CacheAcesso = new();
+		private static readonly TimeSpan TempoCacheAcesso = TimeSpan.FromSeconds(30);
+
+		public static void LimparCacheAcesso(int empresaId) => CacheAcesso.TryRemove(empresaId, out _);
+
 		public async Task<StatusAcessoAssinatura> GetStatusAcesso(int empresaId)
+		{
+			if (CacheAcesso.TryGetValue(empresaId, out var cache) && cache.Ate > DateTime.UtcNow)
+				return cache.Status;
+			var status = await CalcularStatusAcesso(empresaId);
+			if (status.Liberado) CacheAcesso[empresaId] = (status, DateTime.UtcNow.Add(TempoCacheAcesso));
+			else LimparCacheAcesso(empresaId);
+			return status;
+		}
+
+		private async Task<StatusAcessoAssinatura> CalcularStatusAcesso(int empresaId)
 		{
 			var a = await GetAssinaturaAtualParaAcesso(empresaId);
 			if (a == null)
@@ -630,7 +655,8 @@ namespace Services
 
 		private async Task<Assinatura?> GetAssinaturaAtualParaAcesso(int empresaId)
 		{
-			var assinaturas = await _unitOfWork.Assinaturas.GetAllPaged(1, 50, empresaId);
+			// Consulta enxuta (sem Empresa/logo nem Plano): só status, vencimento e plano.
+			var assinaturas = await _unitOfWork.Assinaturas.GetParaAcesso(empresaId);
 			if (!assinaturas.Any()) return null;
 
 			var alterou = false;
