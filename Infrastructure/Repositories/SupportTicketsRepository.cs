@@ -39,7 +39,9 @@ namespace Infrastructure.Repositories
                 query = query.Where(x => x.CreatedDate <= filtersDTO.CreatedTo.Value);
 
             // Projeção: o anexo (bytes) nunca sai do banco na listagem — antes cada chamado
-            // trazia o arquivo inteiro só para saber se havia anexo.
+            // trazia o arquivo inteiro só para saber se havia anexo. Só "IS NOT NULL" vira SQL
+            // (o Npgsql não traduz byte[].Length e buscaria a coluna); o Create só grava bytes
+            // quando há anexo não vazio.
             return await query
                 .OrderByDescending(x => x.CreatedDate)
                 .Select(x => new SupportTicketDTO
@@ -50,7 +52,7 @@ namespace Infrastructure.Repositories
                     Title = x.Title,
                     Description = x.Description,
                     Status = x.Status,
-                    HasAttachment = x.AttachmentBytes != null && x.AttachmentBytes.Length > 0,
+                    HasAttachment = x.AttachmentBytes != null,
                     AttachmentFileName = x.AttachmentFileName,
                     AttachmentContentType = x.AttachmentContentType,
                     CreatedDate = x.CreatedDate,
