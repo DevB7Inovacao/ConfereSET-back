@@ -16,9 +16,9 @@ namespace Infrastructure.Repositories
             return await _dbContext.Set<SupportTicket>().FirstOrDefaultAsync(x => x.Id == id);
         }
 
-        public async Task<PagedResult<SupportTicket>> GetAllPaged(FiltersSupportTicketsDTO filtersDTO)
+        public async Task<PagedResult<SupportTicketDTO>> GetAllPaged(FiltersSupportTicketsDTO filtersDTO)
         {
-            var query = _dbContext.Set<SupportTicket>().AsQueryable();
+            var query = _dbContext.Set<SupportTicket>().AsNoTracking();
 
             if (filtersDTO.EmpresaId.HasValue)
                 query = query.Where(x => x.EmpresaId == filtersDTO.EmpresaId.Value);
@@ -38,9 +38,25 @@ namespace Infrastructure.Repositories
             if (filtersDTO.CreatedTo.HasValue)
                 query = query.Where(x => x.CreatedDate <= filtersDTO.CreatedTo.Value);
 
-            query = query.OrderByDescending(x => x.CreatedDate);
-
-            return await query.GetPagedAsync<SupportTicket>(filtersDTO.pageNumber, filtersDTO.pageSize);
+            // Projeção: o anexo (bytes) nunca sai do banco na listagem — antes cada chamado
+            // trazia o arquivo inteiro só para saber se havia anexo.
+            return await query
+                .OrderByDescending(x => x.CreatedDate)
+                .Select(x => new SupportTicketDTO
+                {
+                    Id = x.Id,
+                    EmpresaId = x.EmpresaId,
+                    Subject = x.Subject,
+                    Title = x.Title,
+                    Description = x.Description,
+                    Status = x.Status,
+                    HasAttachment = x.AttachmentBytes != null && x.AttachmentBytes.Length > 0,
+                    AttachmentFileName = x.AttachmentFileName,
+                    AttachmentContentType = x.AttachmentContentType,
+                    CreatedDate = x.CreatedDate,
+                    UpdatedDate = x.UpdatedDate
+                })
+                .GetPagedAsync(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
         public async Task<List<SupportTicketSimpleDTO>> GetSimple(int empresaId)
@@ -60,7 +76,7 @@ namespace Infrastructure.Repositories
     public interface ISupportTicketsRepository : IGenericRepository<SupportTicket>
     {
         Task<SupportTicket?> GetById(int id);
-        Task<PagedResult<SupportTicket>> GetAllPaged(FiltersSupportTicketsDTO filtersDTO);
+        Task<PagedResult<SupportTicketDTO>> GetAllPaged(FiltersSupportTicketsDTO filtersDTO);
         Task<List<SupportTicketSimpleDTO>> GetSimple(int empresaId);
     }
 }

@@ -58,20 +58,7 @@ namespace Services
         {
             var paged = await _unitOfWork.SupportTickets.GetAllPaged(filtersDTO);
 
-            var dto = paged.Results.Select(x => new SupportTicketDTO
-            {
-                Id = x.Id,
-                EmpresaId = x.EmpresaId,
-                Subject = x.Subject,
-                Title = x.Title,
-                Description = x.Description,
-                Status = x.Status,
-                HasAttachment = x.AttachmentBytes != null && x.AttachmentBytes.Length > 0,
-                AttachmentFileName = x.AttachmentFileName,
-                AttachmentContentType = x.AttachmentContentType,
-                CreatedDate = x.CreatedDate,
-                UpdatedDate = x.UpdatedDate
-            }).ToList();
+            var dto = paged.Results.ToList();
 
             return new SupportTicketPagedDTO { Result = dto, PageCount = paged.PageCount };
         }
