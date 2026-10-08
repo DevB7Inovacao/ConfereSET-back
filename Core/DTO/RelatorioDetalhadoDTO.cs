@@ -25,5 +25,6 @@ namespace Core.DTO
         public int ObraId { get; set; }
         public string? ObraNome { get; set; }
         public int Status { get; set; }
+        public List<DespesaComprovanteDTO> Comprovantes { get; set; } = new();
     }
 }

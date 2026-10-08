@@ -16,12 +16,13 @@ namespace Infrastructure.Repositories
 
         public async Task<Despesas> GetDespesaById(int id)
         {
-            return await _dbContext.Set<Despesas>().FirstOrDefaultAsync(x => x.Id == id);
+            return await _dbContext.Set<Despesas>().Include(x => x.Comprovantes).FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<PagedResult<Despesas>> GetAllDespesasPaged(FiltersDespesasDTO filtersDTO)
         {
-            var query = _dbContext.Set<Despesas>().AsQueryable();
+            // Comprovantes são só URLs (leve): a lista mostra a miniatura.
+            var query = _dbContext.Set<Despesas>().AsNoTracking().Include(x => x.Comprovantes).AsQueryable();
 
             if (filtersDTO.EmpresaId.HasValue && filtersDTO.EmpresaId.Value > 0)
                 query = query.Where(x => x.EmpresaId == filtersDTO.EmpresaId.Value);
@@ -52,6 +53,21 @@ namespace Infrastructure.Repositories
             return await query.GetPagedAsync<Despesas>(filtersDTO.pageNumber, filtersDTO.pageSize);
         }
 
+        public async Task AddComprovante(DespesaComprovante comprovante)
+        {
+            await _dbContext.Set<DespesaComprovante>().AddAsync(comprovante);
+        }
+
+        public async Task<DespesaComprovante?> GetComprovanteById(int comprovanteId)
+        {
+            return await _dbContext.Set<DespesaComprovante>().FirstOrDefaultAsync(x => x.Id == comprovanteId);
+        }
+
+        public void DeleteComprovante(DespesaComprovante comprovante)
+        {
+            _dbContext.Set<DespesaComprovante>().Remove(comprovante);
+        }
+
         public async Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId)
         {
             var query = _dbContext.Set<Despesas>().AsQueryable();
@@ -78,7 +94,7 @@ namespace Infrastructure.Repositories
 
         public async Task<List<Despesas>> GetDespesasParaRelatorio(FiltrosRelatorioDTO filtros)
         {
-            var query = _dbContext.Set<Despesas>().AsQueryable();
+            var query = _dbContext.Set<Despesas>().AsNoTracking().Include(x => x.Comprovantes).AsQueryable();
 
             // Multi-tenant: nunca cruza empresas.
             if (filtros.EmpresaId.HasValue && filtros.EmpresaId.Value > 0)
@@ -111,6 +127,9 @@ namespace Infrastructure.Repositories
 
     public interface IDespesasRepository : IGenericRepository<Despesas>
     {
+        public Task AddComprovante(DespesaComprovante comprovante);
+        public Task<DespesaComprovante?> GetComprovanteById(int comprovanteId);
+        public void DeleteComprovante(DespesaComprovante comprovante);
         public Task<Despesas> GetDespesaById(int id);
         public Task<PagedResult<Despesas>> GetAllDespesasPaged(FiltersDespesasDTO filtersDTO);
         public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId);

@@ -1,4 +1,4 @@
-using ControlApi;
+﻿using ControlApi;
 using Core.DTO;
 using Core.Models;
 using Infrastructure.Authenticate;
@@ -214,19 +214,53 @@ namespace ControlApi.Controllers
             if (despesa.EmpresaId != User.GetEmpresaId()) return NotFound("Despesa não encontrado.");
             if (!await DespesaVisivel(despesa)) return NotFound("Despesa não encontrada.");
 
-            var dto = new DespesaDTO
-            {
-                Id = despesa.Id,
-                Name = despesa.Name,
-                Amount = despesa.Amount,
-                Date = despesa.Date,
-                Category = despesa.Category,
-                Description = despesa.Description,
-                ObraId = despesa.ObraId,
-                Status = despesa.Status
-            };
+            return Ok(DespesasService.MapDTO(despesa));
+        }
 
-            return Ok(dto);
+        /// <summary>Anexa fotos do comprovante (cupom fiscal, nota, recibo) à despesa.</summary>
+        [HttpPost("{despesaId}/comprovantes")]
+        [RequestSizeLimit(80_000_000)]
+        public async Task<IActionResult> AddComprovantes(int despesaId, [FromBody] List<AddDespesaComprovanteRequest> fotos)
+        {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+            if (despesaId <= 0) return BadRequest("despesaId inválido.");
+
+            var despesa = await _despesasService.GetDespesaById(despesaId);
+            if (!await DespesaVisivel(despesa)) return NotFound("Despesa não encontrada.");
+
+            try
+            {
+                var criados = await _despesasService.AddComprovantes(despesa, fotos, User.GetUserId());
+                return Ok(criados);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("comprovante/{comprovanteId}")]
+        public async Task<IActionResult> DeleteComprovante(int comprovanteId)
+        {
+            var semPermissao = ChecarPermissaoEscrita();
+            if (semPermissao != null) return semPermissao;
+
+            var comprovante = await _despesasService.GetComprovanteById(comprovanteId);
+            if (comprovante == null) return NotFound("Comprovante não encontrado.");
+            var despesa = await _despesasService.GetDespesaById(comprovante.DespesaId);
+            if (!await DespesaVisivel(despesa)) return NotFound("Comprovante não encontrado.");
+
+            try
+            {
+                return await _despesasService.DeleteComprovante(comprovante)
+                    ? Ok(true)
+                    : BadRequest("Não foi possível remover o comprovante.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet]

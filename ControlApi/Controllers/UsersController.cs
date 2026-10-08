@@ -38,6 +38,10 @@ namespace API.Controllers
 			TypeUser novoTipo,
 			TypeUser? tipoAtual = null)
 		{
+			// O master da plataforma cadastra usuários em qualquer empresa (implantação, suporte,
+			// empresa ainda sem plano): plano e limites valem só para a própria empresa.
+			if (User.IsPlatformAdmin()) return null;
+
 			var limites = await _assinaturaService.VerificarLimites(empresaId);
 			if (!limites.AssinaturaAtiva)
 				return BadRequest("Sua empresa não possui assinatura ou trial ativo. Adquira um plano para gerenciar usuários.");

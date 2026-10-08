@@ -37,6 +37,7 @@ namespace Infrastructure
 		public DbSet<ObraChecklist> ObraChecklists { get; set; }
 		public DbSet<ObraChecklistItem> ObraChecklistItens { get; set; }
 		public DbSet<ObraChecklistItemFoto> ObraChecklistItemFotos { get; set; }
+		public DbSet<DespesaComprovante> DespesaComprovantes { get; set; }
 		public DbSet<AtividadeRecente> AtividadesRecentes { get; set; }
 		public DbSet<Plano> Planos { get; set; }
 		public DbSet<Assinatura> Assinaturas { get; set; }
@@ -205,6 +206,13 @@ namespace Infrastructure
 			{
 				entity.HasKey(k => k.Id);
 				entity.HasOne(x => x.ObraChecklistItem).WithMany(i => i.Fotos).HasForeignKey(x => x.ObraChecklistItemId).OnDelete(DeleteBehavior.Cascade);
+			});
+
+			modelBuilder.Entity<DespesaComprovante>(entity =>
+			{
+				entity.HasKey(k => k.Id);
+				entity.HasOne(x => x.Despesa).WithMany(d => d.Comprovantes).HasForeignKey(x => x.DespesaId).OnDelete(DeleteBehavior.Cascade);
+				entity.HasIndex(x => x.DespesaId);
 			});
 
 			modelBuilder.Entity<AtividadeRecente>(entity =>

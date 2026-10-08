@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Core.Models
 {
@@ -12,5 +13,6 @@ namespace Core.Models
         public int ObraId { get; set; }
         public int EmpresaId { get; set; }
         public int Status { get; set; } = 0;
+        public ICollection<DespesaComprovante> Comprovantes { get; set; } = new List<DespesaComprovante>();
     }
 }

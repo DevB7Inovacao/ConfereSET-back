@@ -1,16 +1,112 @@
 ﻿using Core.DTO;
 using Core.Models;
 using Infrastructure.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace Services
 {
 	public class DespesasService : IDespesasService
 	{
-		public IUnitOfWork _unitOfWork;
+		/// <summary>Comprovantes por despesa (cupom + nota + recibo costuma bastar).</summary>
+		public const int MaxComprovantes = 5;
 
-		public DespesasService(IUnitOfWork unitOfWork)
+		public IUnitOfWork _unitOfWork;
+		private readonly IS3Service _s3Service;
+		private readonly ILogger<DespesasService>? _logger;
+
+		public DespesasService(IUnitOfWork unitOfWork, IS3Service s3Service, ILogger<DespesasService>? logger = null)
 		{
 			_unitOfWork = unitOfWork;
+			_s3Service = s3Service;
+			_logger = logger;
+		}
+
+		public static DespesaDTO MapDTO(Despesas x) => new DespesaDTO
+		{
+			Id = x.Id,
+			Name = x.Name,
+			Amount = x.Amount,
+			Date = x.Date,
+			Category = x.Category,
+			Description = x.Description,
+			ObraId = x.ObraId,
+			Status = x.Status,
+			Comprovantes = (x.Comprovantes ?? new List<DespesaComprovante>())
+				.OrderBy(c => c.Id).Select(DespesaComprovanteDTO.De).ToList(),
+		};
+
+		public async Task<List<DespesaComprovanteDTO>> AddComprovantes(Despesas despesa, List<AddDespesaComprovanteRequest> fotos, int? userId)
+		{
+			if (fotos == null || fotos.Count == 0) throw new Exception("Nenhuma foto enviada.");
+			var atuais = despesa.Comprovantes?.Count ?? 0;
+			if (atuais + fotos.Count > MaxComprovantes)
+				throw new Exception($"Cada despesa aceita no máximo {MaxComprovantes} fotos de comprovante.");
+
+			// Valida tudo antes de enviar qualquer coisa ao S3.
+			var validadas = fotos.Select(f => ImageValidation.Validar(f.ImagemBase64, f.NomeArquivo, "comprovante")).ToList();
+
+			var enviadas = new List<string>();
+			var criados = new List<DespesaComprovante>();
+			try
+			{
+				foreach (var img in validadas)
+				{
+					var nome = $"despesa_{despesa.Id}_{Guid.NewGuid():N}_{img.NomeArquivo}";
+					var url = await _s3Service.UploadImageAsync(img.Bytes, nome, img.ContentType);
+					enviadas.Add(url);
+
+					var comprovante = new DespesaComprovante
+					{
+						DespesaId = despesa.Id,
+						S3Url = url,
+						ContentType = img.ContentType,
+						NomeArquivo = img.NomeArquivo,
+						CriadoPorUserId = userId,
+						CreatedDate = DateTime.UtcNow,
+						UpdatedDate = DateTime.UtcNow,
+					};
+					await _unitOfWork.Despesas.AddComprovante(comprovante);
+					criados.Add(comprovante);
+				}
+				_unitOfWork.Save();
+			}
+			catch (Exception ex)
+			{
+				// Tudo ou nada: remove do S3 o que já subiu.
+				foreach (var url in enviadas)
+				{
+					try { await _s3Service.DeleteImageAsync(url); }
+					catch (Exception delEx) { _logger?.LogWarning(delEx, "Falha ao remover comprovante órfão do S3: {Url}", url); }
+				}
+				_logger?.LogError(ex, "Falha ao salvar comprovantes da despesa {DespesaId}", despesa.Id);
+				throw new Exception("Não foi possível salvar o comprovante. Nada foi gravado — tente enviar novamente.");
+			}
+
+			return criados.Select(DespesaComprovanteDTO.De).ToList();
+		}
+
+		public async Task<DespesaComprovante?> GetComprovanteById(int comprovanteId)
+		{
+			return await _unitOfWork.Despesas.GetComprovanteById(comprovanteId);
+		}
+
+		public async Task<bool> DeleteComprovante(DespesaComprovante comprovante)
+		{
+			var url = comprovante.S3Url;
+			_unitOfWork.Despesas.DeleteComprovante(comprovante);
+			var ok = _unitOfWork.Save() > 0;
+			if (ok) await ApagarDoS3(new[] { url });
+			return ok;
+		}
+
+		/// <summary>Remove arquivos do S3 sem falhar a operação (o registro já saiu do banco).</summary>
+		private async Task ApagarDoS3(IEnumerable<string> urls)
+		{
+			foreach (var url in urls.Where(u => !string.IsNullOrWhiteSpace(u)))
+			{
+				try { await _s3Service.DeleteImageAsync(url); }
+				catch (Exception ex) { _logger?.LogWarning(ex, "Falha ao remover comprovante do S3: {Url}", url); }
+			}
 		}
 
 		public async Task<Despesas> CreateDespesa(Despesas despesa)
@@ -44,8 +140,11 @@ namespace Services
 				if (despesa == null)
 					throw new Exception("Despesa não encontrada.");
 
+				// Os comprovantes saem do banco em cascata; os arquivos, do S3 logo depois.
+				var arquivos = despesa.Comprovantes?.Select(c => c.S3Url).ToList() ?? new List<string>();
 				_unitOfWork.Despesas.Delete(despesa);
 				var result = _unitOfWork.Save();
+				if (result > 0) await ApagarDoS3(arquivos);
 
 				return result > 0;
 			}
@@ -90,17 +189,7 @@ namespace Services
 				if (despesas == null || despesas.Results == null || !despesas.Results.Any())
 					throw new Exception("Nenhum dado foi encontrado.");
 
-				var dto = despesas.Results.Select(x => new DespesaDTO
-				{
-					Id = x.Id,
-					Name = x.Name,
-					Amount = x.Amount,
-					Date = x.Date,
-					Category = x.Category,
-					Description = x.Description,
-					ObraId = x.ObraId,
-					Status = x.Status
-				}).ToList();
+				var dto = despesas.Results.Select(MapDTO).ToList();
 
 				return new DespesasPagedDTO { Result = dto, PageCount = despesas.PageCount };
 			}
@@ -187,7 +276,9 @@ namespace Services
 					Description = d.Description,
 					ObraId = d.ObraId,
 					ObraNome = obras.FirstOrDefault(o => o.Id == d.ObraId)?.Name ?? "Obra não encontrada",
-					Status = d.Status
+					Status = d.Status,
+					Comprovantes = (d.Comprovantes ?? new List<DespesaComprovante>())
+						.OrderBy(c => c.Id).Select(DespesaComprovanteDTO.De).ToList(),
 				}).ToList();
 
 				string? obraNomeFiltro = null;
@@ -225,5 +316,8 @@ namespace Services
 		public Task<List<DespesaSimpleDTO>> GetDespesasSimple(int? obraId, int empresaId);
 		public Task<RelatorioResumoDTO> GetRelatorioResumo(FiltrosRelatorioDTO filtros);
 		public Task<RelatorioDetalhadoDTO> GetRelatorioDetalhado(FiltrosRelatorioDTO filtros);
+		public Task<List<DespesaComprovanteDTO>> AddComprovantes(Despesas despesa, List<AddDespesaComprovanteRequest> fotos, int? userId);
+		public Task<DespesaComprovante?> GetComprovanteById(int comprovanteId);
+		public Task<bool> DeleteComprovante(DespesaComprovante comprovante);
 	}
 }
