@@ -128,8 +128,10 @@ namespace Services
 
 		public async Task<bool> UpdateDespesa(Despesas despesa, int idDespesa)
 		{
+			// Salvar sem nenhuma mudança (ex.: só trocou a foto do comprovante) grava 0 linhas e
+			// não é erro — antes aparecia "Falha ao atualizar despesa".
 			var result = _unitOfWork.Save();
-			return result > 0;
+			return result >= 0;
 		}
 
 		public async Task<bool> DeleteDespesa(int despesaId)
