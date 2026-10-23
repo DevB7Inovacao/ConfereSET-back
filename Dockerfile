@@ -5,7 +5,7 @@ COPY . .
 RUN dotnet restore ./ControlApi/ControlApi.csproj
 RUN dotnet publish ./ControlApi/ControlApi.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 ENV ASPNETCORE_URLS=http://+:8080
