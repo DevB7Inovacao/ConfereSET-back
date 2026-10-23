@@ -8,15 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="4.0.22.2" />
-    <PackageReference Include="BouncyCastle" Version="1.8.9" />
-    <PackageReference Include="ClosedXML" Version="0.102.2" />
-    <PackageReference Include="CsvHelper" Version="32.0.3" />
     <PackageReference Include="DocSharp.Binary.Doc" Version="0.21.0" />
-    <PackageReference Include="DtronixPdf" Version="1.1.3" />
-    <PackageReference Include="EPPlus" Version="7.2.1" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
-    <PackageReference Include="ImageSharpCommunity.Formats.Pdf" Version="0.2.0" />
-    <PackageReference Include="itext7" Version="9.6.0" />
     <!-- iTextSharp 5.x + xmlworker (EOL/CVE) e LiveCharts 0.9.7 (abandonado) removidos. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15">
@@ -24,15 +17,10 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!-- Npgsql.EntityFrameworkCore.PostgreSQL.Design 1.1.0 removido (legado/redundante). -->
-    <PackageReference Include="PDFiumCore" Version="128.0.6569" />
-    <PackageReference Include="PdfiumViewer" Version="2.13.0" />
-    <PackageReference Include="PDFsharp" Version="6.1.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="5.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="2.2.0" />
     <PackageReference Include="Serilog.Exceptions" Version="8.1.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="5.1.1" />
-    <PackageReference Include="SharpCompress" Version="0.37.2" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.80.3" />
     <!-- Xamarin.Forms 5.0.0.2662 removido (framework mobile, sem propósito no backend Web API). -->
   </ItemGroup>
 

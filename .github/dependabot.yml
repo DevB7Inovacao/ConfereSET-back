@@ -1,0 +1,25 @@
+# Atualizações automáticas seguindo DEPENDENCIAS.md:
+# - cooldown: só propõe versões publicadas há 7+ dias (os alertas de segurança não esperam)
+# - agrupadas, uma vez por semana, para não encher de PRs
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/Sao_Paulo"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      correcoes:
+        update-types: ["patch", "minor"]
+    labels: ["dependencias"]
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7

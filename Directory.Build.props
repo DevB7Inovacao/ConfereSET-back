@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Vale para todos os projetos da solução. Política de dependências: DEPENDENCIAS.md.
+    A auditoria do NuGet roda em todo restore/build e avisa (NU1901–NU1904) quando algum pacote,
+    direto ou indireto, tem vulnerabilidade conhecida.
+  -->
+  <PropertyGroup>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+</Project>
